@@ -136,8 +136,9 @@ Exit criteria: The clinic runs entirely on the new system for one full month wit
 ## Phase 1 — Auth & Data Model (done)
 
 ### Schema
-SQL migrations live in `supabase/migrations/` (run in order — they're not
-yet applied via `supabase db push`; see bootstrap steps below).
+SQL migrations live in `supabase/migrations/` (run in order). All of
+0001-0004 are applied to the live project — check with
+`supabase migration list`.
 - `0001_schema.sql` — all tables: staff, patients, medical_histories,
   dental_histories, consents, visits, visit_notes, tooth_records, invoices,
   invoice_items, payments, audit_log, clinic_settings.
@@ -222,16 +223,34 @@ supabase/functions/      — Edge Functions (currently: manage-staff)
 ```
 
 ### Applying this to the live Supabase project
-The sandboxed environment these sessions run builds in can't reach
-`supabase.com` (network policy), so migrations and the Edge Function are
-applied by **you**, in a regular terminal on your own machine with the
-Supabase CLI installed:
+**These sessions can reach `supabase.com`.** The Supabase CLI is installed
+and the project is already linked (`xzpheuvthmsucvhytdjh`); `supabase
+migration list` and `supabase db push` have both been run from a session
+successfully. Phase 1 originally recorded the opposite — that the sandbox
+was cut off by network policy and you had to apply everything yourself.
+That was true when it was written and no longer is.
+
+The practical consequence: a session can change the live database
+directly — the same project the clinic will run on from Phase 7's pilot
+onward. So treat a push as the outward-facing action it is: check
+`supabase migration list` and `supabase db push --dry-run` first, and
+don't push unless asked to.
+
 ```
 supabase login
 supabase link --project-ref xzpheuvthmsucvhytdjh
 supabase db push
 supabase functions deploy manage-staff
 ```
+(`functions deploy` hasn't been exercised from a session yet — only
+`migration list` and `db push` are confirmed.)
+
+**What sessions still can't do: run the build.** Node isn't installed on
+this machine — `node`, `npm`, and `npx` are all absent from PATH, and the
+`node_modules/.bin` shims are `#!/usr/bin/env node` scripts that can't
+execute. So `npm run build` (which is the type-check) and `npm run lint`
+cannot run in-session, and TypeScript errors will not be caught here. Run
+both yourself before deploying.
 
 ## Phase 2 — Patient Records Module (done)
 
@@ -279,17 +298,17 @@ clearly flagged in the UI as draft pending Phase 5's legal review under
 the Data Privacy Act — do not treat it as final, and don't remove the
 "draft" notice until Phase 5 actually replaces it.
 
-### Reconciling the Supabase CLI
+### Reconciling the Supabase CLI (done — kept for the record)
 Migrations 0001 and 0002 were applied by pasting SQL directly into the
 Supabase SQL Editor (before the CLI was working locally), so the CLI's
-remote migration history doesn't know about them yet. Before running
-`supabase db push` for 0003, reconcile history first so it doesn't try to
-re-run 0001/0002:
+remote migration history didn't know about them. That was reconciled with:
 ```
 supabase migration repair --status applied 0001
 supabase migration repair --status applied 0002
-supabase db push
 ```
+The repair stuck — remote history now lists 0001-0004, so no further
+repair is needed. Only run `migration repair` again if SQL is applied
+outside the CLI once more.
 
 ## Phase 3 — Dental Charting (Odontogram) (done)
 
@@ -373,10 +392,10 @@ Storage, since `storage.objects` policies are permissive (OR'd) and a broad
 one can't be narrowed by adding another.
 
 ### Applying this migration
-Same as before — run from a regular terminal on your own machine:
-```
-supabase db push
-```
-Note the new CHECK constraints validate existing rows, so any test data in
-`tooth_records` using conditions outside the vocabulary must be cleared
-first.
+Already applied — `supabase db push` was run from the session that wrote
+it, and remote history lists 0004.
+
+The new CHECK constraints validate existing rows, so if this ever gets
+replayed against a database with `tooth_records` data using conditions
+outside the vocabulary, that data has to be cleared first. It applied
+clean here, so there was none.
