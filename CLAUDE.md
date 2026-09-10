@@ -132,3 +132,103 @@ Tasks:
   - Set a monitoring and backup-check cadence (e.g. monthly)
   - Keep a backlog for v2 — appointment reminders, insurance claims, multi-branch
 Exit criteria: The clinic runs entirely on the new system for one full month with no critical incidents.
+
+## Phase 1 — Auth & Data Model (done)
+
+### Schema
+SQL migrations live in `supabase/migrations/` (run in order — they're not
+yet applied via `supabase db push`; see bootstrap steps below).
+- `0001_schema.sql` — all tables: staff, patients, medical_histories,
+  dental_histories, consents, visits, visit_notes, tooth_records, invoices,
+  invoice_items, payments, audit_log, clinic_settings.
+- `0002_rls.sql` — RLS enabled on every table, `current_staff_role()`
+  helper (SECURITY DEFINER), and every policy.
+
+**Deviation from the original Phase 1 sketch:** `visits.notes` was split
+into its own `visit_notes` table. Reception needs full read/write on
+`visits` (the administrative record: who, when) but must have **zero**
+access — not even read — to the dentist's clinical write-up. Row-level
+security can't hide one column of a row a role otherwise has SELECT on,
+so the notes text lives in a separate table with no reception policy at
+all, which enforces true zero-access rather than "hidden in the UI."
+
+### Access rules (enforced by RLS, not app code)
+- **receptionist**: full read/write on patients, medical_histories,
+  dental_histories, consents (insert/select only — no update, no delete),
+  visits, invoices, invoice_items, payments. **No policy at all** (full
+  deny) on `visit_notes` and `tooth_records`.
+- **dentist**: everything receptionist has, plus full read/write on
+  `visit_notes` and `tooth_records`.
+- **admin**: full access everywhere, including `staff` and
+  `clinic_settings`, and is the only role that can delete rows anywhere.
+- Nobody can update `consents` or `payments` rows once written — a
+  correction is a new row, so the audit trail is never silently edited.
+
+### Auth
+- Supabase Auth email/password. `staff.id` is the same UUID as
+  `auth.users.id`.
+- **Deactivation is enforced two ways**, not just a UI hide: the
+  `manage-staff` Edge Function sets `staff.active = false` (blocks all
+  RLS-guarded data access immediately) AND calls
+  `auth.admin.updateUserById(id, { ban_duration: '876000h' })` (blocks
+  GoTrue login/refresh itself, so a still-valid token can't be reused
+  either). `AuthContext` also force-signs-out and shows a message if it
+  ever loads a session whose staff row is inactive or missing, as a
+  client-side backstop.
+- Idle timeout: **15 minutes** of no mouse/keyboard/touch/scroll activity
+  auto-signs-out (`useIdleTimeout`). Chosen as a middle ground for shared
+  clinic tablets — short enough that a tablet left at the front desk
+  doesn't stay logged in for long, long enough not to log out a dentist
+  mid-chairside-charting just because they paused to talk to a patient.
+- Password reset: `ForgotPasswordPage` sends a Supabase reset email;
+  `ResetPasswordPage` sets the new password and is reused for both the
+  post-email-link flow (`/reset-password`, public — the email link itself
+  carries a temporary session) and a logged-in staff member changing their
+  password voluntarily (`/change-password`, inside the authenticated
+  shell, linked from the nav bar).
+
+### Staff account management
+Creating and deactivating accounts needs the Supabase **service-role**
+key, which must never reach the browser. Both actions go through the
+`manage-staff` Edge Function (`supabase/functions/manage-staff/`), which
+verifies the caller is an active admin (via their own JWT) before doing
+anything privileged. Creating an account generates a random temporary
+password shown once to the admin to relay to the new staff member
+out-of-band; there's no email-invite flow yet.
+
+**Bootstrapping the very first admin** is necessarily manual (nothing can
+call "admin creates staff" before an admin exists): create the user in
+the Supabase Dashboard under Authentication → Users → Add user, then run
+this once in the SQL Editor with that user's UUID:
+```sql
+insert into staff (id, name, email, role) values
+  ('<uuid-from-dashboard>', 'Your Name', 'you@example.com', 'admin');
+```
+Every account after that is created through the in-app Staff screen.
+
+### Navigation shell
+Top nav bar (not a side rail) — chosen because a side rail eats
+horizontal space on a portrait-orientation tablet, which is how staff
+mostly hold them. Nav items are role-aware: `Staff` and `Clinic Settings`
+only render for `admin`.
+
+### Folder structure additions
+```
+src/features/auth/       — AuthContext, login/forgot/reset pages, ProtectedRoute, idle timeout
+src/features/admin/      — staff management + clinic settings screens (admin-only), api.ts
+src/core/components/     — AppShell (nav), DashboardPage, PlaceholderPage (Phase 2-4 stand-ins)
+supabase/migrations/     — versioned SQL, applied via `supabase db push`
+supabase/functions/      — Edge Functions (currently: manage-staff)
+```
+
+### Applying this to the live Supabase project
+The sandboxed environment these sessions run builds in can't reach
+`supabase.com` (network policy), so migrations and the Edge Function are
+applied by **you**, in a regular terminal on your own machine with the
+Supabase CLI installed:
+```
+supabase login
+supabase link --project-ref xzpheuvthmsucvhytdjh
+supabase db push
+supabase functions deploy manage-staff
+```

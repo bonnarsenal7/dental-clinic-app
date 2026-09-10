@@ -1,44 +1,46 @@
-import { useEffect, useState } from 'react'
-import { supabase } from './core/supabaseClient'
-
-type Status = 'checking' | 'connected' | 'error'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './features/auth/AuthContext'
+import ProtectedRoute from './features/auth/ProtectedRoute'
+import LoginPage from './features/auth/LoginPage'
+import ForgotPasswordPage from './features/auth/ForgotPasswordPage'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
+import AppShell from './core/components/AppShell'
+import DashboardPage from './core/components/DashboardPage'
+import PatientsPage from './features/patients/PatientsPage'
+import ChartingPage from './features/charting/ChartingPage'
+import BillingPage from './features/billing/BillingPage'
+import StaffManagementPage from './features/admin/StaffManagementPage'
+import ClinicSettingsPage from './features/admin/ClinicSettingsPage'
 
 function App() {
-  const [status, setStatus] = useState<Status>('checking')
-  const [detail, setDetail] = useState('')
-
-  useEffect(() => {
-    // No tables exist yet (schema lands in Phase 1), so this just confirms
-    // the client can reach the Supabase project with the configured URL/key.
-    supabase.auth
-      .getSession()
-      .then(({ error }) => {
-        if (error) {
-          setStatus('error')
-          setDetail(error.message)
-        } else {
-          setStatus('connected')
-        }
-      })
-      .catch((err: unknown) => {
-        setStatus('error')
-        setDetail(err instanceof Error ? err.message : String(err))
-      })
-  }, [])
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-slate-800">Dental Clinic App</h1>
-        <p className="text-slate-500 mt-2">Phase 0 foundation — Vite + React + TypeScript + Supabase.</p>
-        <p className="mt-4 text-sm font-medium">
-          Supabase:{' '}
-          {status === 'checking' && <span className="text-slate-400">checking…</span>}
-          {status === 'connected' && <span className="text-emerald-600">connected ✓</span>}
-          {status === 'error' && <span className="text-red-600">error — {detail}</span>}
-        </p>
-      </div>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          {/* Public: reached via the password-reset email link, which
+              carries its own temporary Supabase session. */}
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route path="/change-password" element={<ResetPasswordPage />} />
+
+            <Route element={<AppShell />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/patients" element={<PatientsPage />} />
+              <Route path="/charting" element={<ChartingPage />} />
+              <Route path="/billing" element={<BillingPage />} />
+
+              <Route element={<ProtectedRoute allow={['admin']} />}>
+                <Route path="/admin/staff" element={<StaffManagementPage />} />
+                <Route path="/admin/settings" element={<ClinicSettingsPage />} />
+              </Route>
+            </Route>
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
 
