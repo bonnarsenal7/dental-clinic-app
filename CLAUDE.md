@@ -406,3 +406,81 @@ The new CHECK constraints validate existing rows, so if this ever gets
 replayed against a database with `tooth_records` data using conditions
 outside the vocabulary, that data has to be cleared first. It applied
 clean here, so there was none.
+
+## Phase 4 — Billing & Invoicing (done)
+
+### Where it lives
+`src/features/billing/` — `types.ts`, `api.ts`, `ledger.ts` (running
+balance + peso formatting), `receiptPdf.ts` (jsPDF), and five screens:
+`BillingPage` (patient picker), `PatientLedgerPage`, `InvoiceBuilderPage`,
+`InvoiceDetailPage`, `PriceListPage`.
+
+Routes: `/billing`, `/patients/:id/billing` (ledger),
+`/patients/:id/invoices/new` (builder), `/invoices/:id` (detail + payments
++ receipt), and `/billing/prices` (admin-only price list).
+
+### Totals are derived in the database, not by the client
+`invoices.total_amount` and `invoices.status` are recomputed by triggers
+(`refresh_invoice_totals`) whenever `invoice_items` or `payments` change.
+**Never write either column from the app** — create the lines and refetch.
+Money is not something to leave to a UI bug, and this keeps the two in step
+no matter which screen wrote the row.
+
+A voided invoice stays void and is excluded from the patient's balance; a
+payment does not resurrect it.
+
+The trigger branches on `TG_OP` rather than
+`coalesce(new.invoice_id, old.invoice_id)`: PL/pgSQL leaves `NEW`
+unassigned on DELETE, and touching it raises rather than yielding null.
+UPDATE refreshes both sides so moving a line between invoices can't leave
+the old one stale.
+
+### The RLS boundary shapes who can invoice from the chart
+`tooth_records` is dentist/admin-only (0002_rls.sql), so **a receptionist
+genuinely cannot pull charted procedures into an invoice** — not a UI
+choice, an RLS fact. The workflow this implies:
+
+- **dentist/admin** builds the invoice from the visit's chart (they're
+  already in the chart at the end of the appointment)
+- **receptionist** records payment and prints the receipt
+
+The builder shows reception an explicit message in place of the charted-
+procedures section and leaves manual line entry fully available, rather
+than showing them an empty list that looks like a bug.
+
+### Invoice lines denormalise their wording
+`invoice_items.description` and `.tooth_number` are **copied onto the line**
+at creation rather than read through `tooth_record_id`. Two reasons: a
+receptionist has no access to `tooth_records` and must still print a
+receipt, and an invoice is a financial record that must not re-word itself
+when the chart is later re-charted. `tooth_record_id` is kept only as the
+provenance link, with a partial unique index so a charted procedure can't
+be billed twice.
+
+### What's billable
+Only charted conditions representing work *performed*: `filled` and
+`crown`. `decayed` and `missing` are findings and `planned` is future work
+— none are billable. `procedures.chart_condition` maps a price-list entry
+onto one of those two, which is how the builder knows what to offer; the
+check constraint on that column widens if Phase 3's vocabulary grows.
+
+When a clinic has several procedures for one condition (composite vs
+amalgam filling), the builder picks the cheapest as a starting guess and
+leaves the fee editable on the line.
+
+### Ledger and receipts
+`buildLedger()` interleaves charges and payments chronologically with a
+running balance, rather than grouping per invoice — that's how the paper
+Date / Treatment / Fee / Balance sheet reads. Void invoices are dropped
+entirely. Same-timestamp charges sort before the payment that settles them
+so the balance never dips negative on a pair written together.
+
+Receipts render with jsPDF and `doc.save()` rather than
+`output('dataurlnewwindow')` — the latter is popup-blocked and renders
+poorly on tablets, which is where the clinic prints from. The receipt
+number is a short slice of the invoice uuid (a uuid is unusable over the
+phone); it is **not** a sequential BIR official receipt number — if the
+clinic needs one of those it goes in `payments.reference`.
+
+Payments remain append-only per 0002: a correction is another row and a
+refund is a negative amount.

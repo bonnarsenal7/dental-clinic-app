@@ -13,6 +13,10 @@ import PatientEditPage from './features/patients/PatientEditPage'
 import ChartingPage from './features/charting/ChartingPage'
 import PatientChartPage from './features/charting/PatientChartPage'
 import BillingPage from './features/billing/BillingPage'
+import PatientLedgerPage from './features/billing/PatientLedgerPage'
+import InvoiceBuilderPage from './features/billing/InvoiceBuilderPage'
+import InvoiceDetailPage from './features/billing/InvoiceDetailPage'
+import PriceListPage from './features/billing/PriceListPage'
 import StaffManagementPage from './features/admin/StaffManagementPage'
 import ClinicSettingsPage from './features/admin/ClinicSettingsPage'
 
@@ -37,6 +41,9 @@ function App() {
               <Route path="/patients/:id" element={<PatientProfilePage />} />
               <Route path="/patients/:id/edit" element={<PatientEditPage />} />
               <Route path="/billing" element={<BillingPage />} />
+              <Route path="/patients/:id/billing" element={<PatientLedgerPage />} />
+              <Route path="/patients/:id/invoices/new" element={<InvoiceBuilderPage />} />
+              <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
 
               {/* tooth_records are dentist/admin-only at the RLS level
                   (0002_rls.sql), so the chart screens are guarded to match
@@ -47,6 +54,7 @@ function App() {
               </Route>
 
               <Route element={<ProtectedRoute allow={['admin']} />}>
+                <Route path="/billing/prices" element={<PriceListPage />} />
                 <Route path="/admin/staff" element={<StaffManagementPage />} />
                 <Route path="/admin/settings" element={<ClinicSettingsPage />} />
               </Route>

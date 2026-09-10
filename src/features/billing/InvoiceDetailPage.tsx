@@ -1,0 +1,253 @@
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
+import { supabase } from '../../core/supabaseClient'
+import { getPatient } from '../patients/api'
+import { getInvoice, recordPayment, voidInvoice } from './api'
+import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
+import { downloadReceipt, receiptNumber } from './receiptPdf'
+import type { InvoiceWithDetail, PaymentMethod } from './types'
+
+interface PaymentForm {
+  amount: string
+  method: PaymentMethod
+  reference: string
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  partial: 'bg-amber-50 text-amber-700 border-amber-200',
+  unpaid: 'bg-slate-100 text-slate-600 border-slate-200',
+  void: 'bg-slate-100 text-slate-400 border-slate-200',
+}
+
+export default function InvoiceDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { staff } = useAuth()
+  const [invoice, setInvoice] = useState<InvoiceWithDetail | null>(null)
+  const [patientName, setPatientName] = useState('')
+  const [clinic, setClinic] = useState({ clinic_name: '', operating_hours: '' })
+  const [error, setError] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<PaymentForm>({ defaultValues: { amount: '', method: 'cash', reference: '' } })
+
+  async function refresh(invoiceId: string) {
+    const fresh = await getInvoice(invoiceId)
+    setInvoice(fresh)
+    return fresh
+  }
+
+  useEffect(() => {
+    if (!id) return
+    getInvoice(id)
+      .then(async (inv) => {
+        setInvoice(inv)
+        const [patient, settings] = await Promise.all([
+          getPatient(inv.patient_id),
+          supabase.from('clinic_settings').select('clinic_name, operating_hours').eq('id', 1).maybeSingle(),
+        ])
+        setPatientName(patient.name)
+        if (settings.data) setClinic(settings.data)
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+  }, [id])
+
+  async function onRecordPayment(values: PaymentForm) {
+    if (!invoice || !staff) return
+    const amount = Number(values.amount)
+    if (!amount) {
+      setError('Enter a payment amount.')
+      return
+    }
+    setError(null)
+    try {
+      await recordPayment({
+        invoiceId: invoice.id,
+        staffId: staff.id,
+        amount,
+        method: values.method,
+        reference: values.reference.trim() || null,
+      })
+      reset({ amount: '', method: values.method, reference: '' })
+      // Totals and status are recalculated by database triggers, so the
+      // refetch is what tells us the real state — not local arithmetic.
+      await refresh(invoice.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleVoid() {
+    if (!invoice) return
+    setError(null)
+    try {
+      await voidInvoice(invoice.id)
+      await refresh(invoice.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  if (error && !invoice) {
+    return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+  }
+  if (!invoice) return <p className="text-slate-400 text-sm">Loading…</p>
+
+  const total = invoiceTotal(invoice)
+  const paid = invoicePaid(invoice)
+  const balance = invoiceBalance(invoice)
+  const isVoid = invoice.status === 'void'
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-lg font-semibold text-slate-800">Invoice {receiptNumber(invoice)}</h1>
+            <span className={`text-xs uppercase tracking-wide border rounded-full px-2.5 py-0.5 ${STATUS_STYLES[invoice.status]}`}>
+              {invoice.status}
+            </span>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">
+            {patientName} · {new Date(invoice.created_at).toLocaleDateString()}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => downloadReceipt({ invoice, patientName, clinicName: clinic.clinic_name, operatingHours: clinic.operating_hours })}
+            className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700"
+          >
+            Download receipt
+          </button>
+          <Link
+            to={`/patients/${invoice.patient_id}/billing`}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+          >
+            Back to ledger
+          </Link>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+
+      {isVoid && (
+        <p className="text-sm text-slate-500 bg-slate-100 border border-slate-200 rounded-md px-3 py-2">
+          This invoice is void. It is excluded from the patient's balance and kept for the record.
+        </p>
+      )}
+
+      <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th className="text-left px-4 py-2">Procedure</th>
+              <th className="text-right px-4 py-2">Fee</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoice.invoice_items.map((item) => (
+              <tr key={item.id} className="border-t border-slate-100">
+                <td className="px-4 py-2 text-slate-700">
+                  {item.description}
+                  {item.tooth_number && <span className="text-slate-400"> — tooth {item.tooth_number}</span>}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-700">{formatMoney(Number(item.amount))}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="border-t border-slate-200">
+            <tr>
+              <td className="px-4 py-2 text-slate-500">Total</td>
+              <td className="px-4 py-2 text-right text-slate-700">{formatMoney(total)}</td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2 text-slate-500">Paid</td>
+              <td className="px-4 py-2 text-right text-slate-700">{formatMoney(paid)}</td>
+            </tr>
+            <tr className="border-t border-slate-100">
+              <td className="px-4 py-2 font-medium text-slate-800">Balance</td>
+              <td className="px-4 py-2 text-right font-semibold text-slate-800">{formatMoney(balance)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+
+      <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-slate-700">Payments</h2>
+
+        {invoice.payments.length === 0 && <p className="text-sm text-slate-400">Nothing paid yet.</p>}
+        {invoice.payments.map((p) => (
+          <div key={p.id} className="flex items-center justify-between gap-3 text-sm border-t border-slate-100 pt-2">
+            <span className="text-slate-600">
+              {new Date(p.paid_at).toLocaleDateString()} · <span className="capitalize">{p.method.replace('_', ' ')}</span>
+              {p.reference && <span className="text-slate-400"> · ref {p.reference}</span>}
+            </span>
+            <span className={Number(p.amount) < 0 ? 'text-amber-700' : 'text-slate-700'}>
+              {formatMoney(Number(p.amount))}
+            </span>
+          </div>
+        ))}
+
+        {!isVoid && (
+          <form onSubmit={handleSubmit(onRecordPayment)} className="flex items-end gap-2 flex-wrap border-t border-slate-100 pt-4">
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              Amount
+              <input
+                type="number"
+                step="0.01"
+                {...register('amount', { required: true })}
+                className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm text-right"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              Method
+              <select {...register('method')} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="bank_transfer">Bank transfer</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-slate-700">
+              Reference
+              <input
+                {...register('reference')}
+                placeholder="OR no. (optional)"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Recording…' : 'Record payment'}
+            </button>
+          </form>
+        )}
+
+        <p className="text-xs text-slate-400">
+          Payments can't be edited or deleted — a correction is another entry, and a refund is a
+          negative amount, so the ledger is never silently rewritten.
+        </p>
+      </section>
+
+      {staff?.role === 'admin' && !isVoid && (
+        <button
+          type="button"
+          onClick={() => void handleVoid()}
+          className="self-start text-sm text-slate-400 hover:text-red-600 hover:underline"
+        >
+          Void this invoice
+        </button>
+      )}
+    </div>
+  )
+}
