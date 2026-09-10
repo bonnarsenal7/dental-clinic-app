@@ -51,12 +51,22 @@ export default function PatientProfilePage() {
             {patient.cell_number ?? patient.phone_number ?? 'No contact number on file'}
           </p>
         </div>
-        <Link
-          to={`/patients/${id}/edit`}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          Edit demographics & history
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          {staff && staff.role !== 'receptionist' && (
+            <Link
+              to={`/patients/${id}/chart`}
+              className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700"
+            >
+              Dental chart
+            </Link>
+          )}
+          <Link
+            to={`/patients/${id}/edit`}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+          >
+            Edit demographics & history
+          </Link>
+        </div>
       </div>
 
       <section className="bg-white border border-slate-200 rounded-xl p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">

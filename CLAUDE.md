@@ -290,3 +290,93 @@ supabase migration repair --status applied 0001
 supabase migration repair --status applied 0002
 supabase db push
 ```
+
+## Phase 3 — Dental Charting (Odontogram) (done)
+
+### Where it lives
+`src/features/charting/` — `chartVocabulary.ts` (FDI layout, surfaces,
+condition palette), `chartState.ts` (the fold), `types.ts`, `api.ts`,
+`ToothGlyph.tsx`, `Odontogram.tsx`, `ChartLegend.tsx`,
+`ToothDetailPanel.tsx`, `PatientChartPage.tsx`, `ChartingPage.tsx`.
+
+Routes: `/charting` (patient picker) and `/patients/:id/chart` (the chart),
+both wrapped in `ProtectedRoute allow={['dentist','admin']}` to match the
+RLS boundary on `tooth_records` — a receptionist never sees the nav item,
+the profile button, or the route.
+
+### The chart is an append-only log, not a current-state table
+`tooth_records` is never updated in place: re-charting a tooth writes a new
+row that supersedes the earlier one, so the history per tooth stays intact.
+`deriveChart()` folds the log in order into the state shown on screen.
+
+**`0004_charting.sql` adds a `seq bigserial` column, and the fold reads
+that — not `created_at`.** `created_at` defaults to `now()`, which is
+*transaction* time, so every row written in one save shares a timestamp;
+ordering by it would make "decayed, then sound" and "sound, then decayed"
+indistinguishable after a reload. `seq` is a total order over the log.
+
+How each condition folds (`kind` in `TOOTH_CONDITIONS`):
+- `sound` (`reset`) — clears every finding on the tooth
+- `decayed`, `filled` (`surface`) — apply to one named surface
+- `missing`, `crown` (`whole`) — apply to the tooth and clear its surfaces
+  (a missing tooth has no surfaces; a crown covers all of them)
+- `planned` (`plan`) — an **overlay**, drawn as a dashed ring around the
+  tooth. It does not erase existing findings, because planned work sits on
+  top of what is already charted. Clearing a plan means marking the tooth
+  `sound`, which clears the rest too.
+
+The vocabulary is constrained in the database as well as in TypeScript
+(`tooth_records_condition_check` / `_surface_check` / `_surface_scope_check`,
+plus `_fdi_number_check` for valid FDI numbers). Extending the palette
+therefore needs a migration alongside the `chartVocabulary.ts` edit — that
+coupling is deliberate: these values are what the chart means.
+
+### Surfaces
+Stored under five canonical names — `mesial`, `distal`, `buccal`,
+`lingual`, `occlusal` — and displayed with the term that fits the tooth
+(`surfaceLabel()`): incisal on anteriors, labial on anterior faces, palatal
+on the upper arch. Which edge of a tooth's square is which surface flips by
+quadrant and arch (`surfacesForTooth()`), because the chart is drawn as if
+facing the patient: their right is on the viewer's left.
+
+### Chairside interaction
+- The legend **is** the tool picker; `Inspect` is the default, so tapping a
+  tooth opens its history without marking anything.
+- The selected condition sets the click target: whole-tooth conditions take
+  the whole 44px square, surface conditions make the five zones live.
+  The detail panel also offers full-width surface buttons, since a 13px
+  zone is a poor fingertip target on a tablet.
+- **Marks are staged, not written on tap.** They accumulate with an amber
+  dot on the tooth and a sticky bar showing the count, and only reach the
+  database on `Save to chart`, so a mis-tap chairside is undone with a tap.
+  A `beforeunload` guard warns if the tab is closed with marks unsaved.
+
+### Linking chart entries to visits
+Every saved mark carries a `visit_id`. The chart page has a "Recording
+against visit" selector that defaults to today's visit if one exists, with
+`+ Start a visit for today` when it doesn't; saving is blocked until one is
+chosen. The tooth detail panel shows each entry's visit date and the
+dentist's note for that visit inline, which is the link back.
+
+### Per-tooth images
+A saved `tooth_record` can carry one image (`image_path`/`image_name`),
+uploaded from the tooth detail panel. Records only ever *gain* an image
+they don't have — replacing one would orphan the old object, which only an
+admin could clear up.
+
+Images go in the same private `patient-files` bucket as Phase 2, under
+`tooth/<patient_id>/<tooth_number>/…`. **`0004_charting.sql` replaces
+0003's bucket-wide front-desk storage policies** so they exclude the
+`tooth/` prefix, and adds dentist/admin-only policies for it — otherwise
+the dentist/admin-only boundary on `tooth_records` would leak through
+Storage, since `storage.objects` policies are permissive (OR'd) and a broad
+one can't be narrowed by adding another.
+
+### Applying this migration
+Same as before — run from a regular terminal on your own machine:
+```
+supabase db push
+```
+Note the new CHECK constraints validate existing rows, so any test data in
+`tooth_records` using conditions outside the vocabulary must be cleared
+first.

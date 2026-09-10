@@ -40,9 +40,11 @@ export default function AppShell() {
             <NavLink to="/patients" className={navLinkClass}>
               Patients
             </NavLink>
-            <NavLink to="/charting" className={navLinkClass}>
-              Charting
-            </NavLink>
+            {staff.role !== 'receptionist' && (
+              <NavLink to="/charting" className={navLinkClass}>
+                Charting
+              </NavLink>
+            )}
             <NavLink to="/billing" className={navLinkClass}>
               Billing
             </NavLink>

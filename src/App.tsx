@@ -11,6 +11,7 @@ import PatientRegisterPage from './features/patients/PatientRegisterPage'
 import PatientProfilePage from './features/patients/PatientProfilePage'
 import PatientEditPage from './features/patients/PatientEditPage'
 import ChartingPage from './features/charting/ChartingPage'
+import PatientChartPage from './features/charting/PatientChartPage'
 import BillingPage from './features/billing/BillingPage'
 import StaffManagementPage from './features/admin/StaffManagementPage'
 import ClinicSettingsPage from './features/admin/ClinicSettingsPage'
@@ -35,8 +36,15 @@ function App() {
               <Route path="/patients/new" element={<PatientRegisterPage />} />
               <Route path="/patients/:id" element={<PatientProfilePage />} />
               <Route path="/patients/:id/edit" element={<PatientEditPage />} />
-              <Route path="/charting" element={<ChartingPage />} />
               <Route path="/billing" element={<BillingPage />} />
+
+              {/* tooth_records are dentist/admin-only at the RLS level
+                  (0002_rls.sql), so the chart screens are guarded to match
+                  rather than showing a receptionist a chart that can't load. */}
+              <Route element={<ProtectedRoute allow={['dentist', 'admin']} />}>
+                <Route path="/charting" element={<ChartingPage />} />
+                <Route path="/patients/:id/chart" element={<PatientChartPage />} />
+              </Route>
 
               <Route element={<ProtectedRoute allow={['admin']} />}>
                 <Route path="/admin/staff" element={<StaffManagementPage />} />
