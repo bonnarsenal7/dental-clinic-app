@@ -68,7 +68,11 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
           <option value="id_scan">ID scan</option>
           <option value="other">Other</option>
         </select>
-        <input ref={inputRef} type="file" className="text-sm" />
+        <input
+          ref={inputRef}
+          type="file"
+          className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:text-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-slate-700 cursor-pointer"
+        />
         <button
           type="button"
           onClick={() => void handleUpload()}
