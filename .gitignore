@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local env files (contain Supabase keys)
+.env.local
+.env*.local
