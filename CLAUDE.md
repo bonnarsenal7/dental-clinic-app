@@ -34,7 +34,11 @@ Feature-first: each feature folder owns its own components, hooks, and Supabase 
 - `npm run lint` — oxlint
 
 ## Conventions
-- TypeScript strict mode (from the Vite react-ts template defaults) — keep it on.
+- TypeScript strict mode — `"strict": true` in both `tsconfig.app.json` and
+  `tsconfig.node.json`. Keep it on. This convention was documented from the
+  start but only actually set in the configs after Phase 3; the whole
+  codebase passed with zero errors when it was switched on, so there is no
+  legacy of strict-exempt code to be careful of.
 - Tooth numbering is FDI (two-digit): 11–48 for permanent teeth, 51–85 for primary/temporary teeth. This matches the clinic's real paper chart — do not switch to Universal numbering.
 - Medical and dental history are structured checklists (stored as JSON per patient), not free-text blobs — modeled directly on the clinic's real paper intake form.
 - Consent-for-treatment is captured per signing event (a `consents` row per signature), not a single yes/no flag, since the paper form is re-signed across visits.
@@ -245,12 +249,15 @@ supabase functions deploy manage-staff
 (`functions deploy` hasn't been exercised from a session yet — only
 `migration list` and `db push` are confirmed.)
 
-**What sessions still can't do: run the build.** Node isn't installed on
-this machine — `node`, `npm`, and `npx` are all absent from PATH, and the
-`node_modules/.bin` shims are `#!/usr/bin/env node` scripts that can't
-execute. So `npm run build` (which is the type-check) and `npm run lint`
-cannot run in-session, and TypeScript errors will not be caught here. Run
-both yourself before deploying.
+**Node is installed** (Homebrew, v26), so `npm run build` — which is the
+type-check — and `npm run lint` both run in-session. They were briefly
+unavailable: Node was missing from this machine when Phase 3 was written,
+which is why that phase shipped verified only by CI. If `npm run build`
+ever dies on a missing `@rolldown/binding-darwin-*` module, `node_modules`
+was populated for another platform — `npm ci` repairs it.
+
+CI pins Node 22 while local is 26, so a version-sensitive failure could
+appear in one and not the other.
 
 ## Phase 2 — Patient Records Module (done)
 
