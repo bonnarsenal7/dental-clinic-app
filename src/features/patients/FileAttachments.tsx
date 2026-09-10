@@ -26,7 +26,11 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
 
   async function handleUpload() {
     const file = inputRef.current?.files?.[0]
-    if (!file || !staff) return
+    if (!file) {
+      setError('Choose a file first, then click Upload.')
+      return
+    }
+    if (!staff) return
     setUploading(true)
     setError(null)
     try {
