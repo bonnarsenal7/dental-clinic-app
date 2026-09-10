@@ -75,7 +75,7 @@ export interface VisitNote {
 }
 
 export interface VisitWithNote extends Visit {
-  visit_notes: VisitNote[] | null
+  visit_notes: VisitNote | null
 }
 
 export interface PatientFile {

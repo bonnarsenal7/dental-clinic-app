@@ -88,8 +88,8 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
         {visits?.map((v) => (
           <div key={v.id} className="border-t border-slate-100 pt-3">
             <p className="text-sm font-medium text-slate-700">{new Date(v.visit_date).toLocaleDateString()}</p>
-            {v.visit_notes && v.visit_notes.length > 0 ? (
-              <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{v.visit_notes[0].notes}</p>
+            {v.visit_notes ? (
+              <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{v.visit_notes.notes}</p>
             ) : (
               <p className="text-sm text-slate-400 italic mt-1">
                 {canWriteNotes ? 'No notes for this visit.' : 'Clinical notes are only visible to dentist/admin accounts.'}
