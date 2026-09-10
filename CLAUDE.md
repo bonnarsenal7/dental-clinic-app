@@ -232,3 +232,61 @@ supabase link --project-ref xzpheuvthmsucvhytdjh
 supabase db push
 supabase functions deploy manage-staff
 ```
+
+## Phase 2 — Patient Records Module (done)
+
+### What's built
+- `src/features/patients/PatientsPage.tsx` — list + debounced search by
+  name/cell/phone (`ilike` across all three).
+- `src/features/patients/PatientForm.tsx` — shared demographics + medical
+  history + dental history form (used for both registration and edit).
+  Checklists render from `historyOptions.ts` (the condition/symptom/habit
+  vocab), each backed by a jsonb map on the corresponding table, with a
+  "specify" text field next to allergies, current medications, and any
+  "other" checkbox — never collapsed into one free-text box.
+- `src/features/patients/ConsentCapture.tsx` — signature pad
+  (`react-signature-canvas`) that uploads a trimmed PNG to the private
+  `patient-files` Storage bucket and writes a `consents` row. Reused for
+  both first-time registration and the "Re-confirm consent" action on a
+  patient's profile — consent is a log of signing events, not a flag.
+- `src/features/patients/PatientRegisterPage.tsx` — registration flow:
+  fill the form → patient + histories are created → immediately prompts
+  for the signature, so registration and consent happen as one motion
+  (with a "skip for now" escape hatch to capture consent later).
+- `src/features/patients/VisitTimeline.tsx` — chronological visit list.
+  The "add visit note" form only renders for dentist/admin (matches the
+  RLS boundary from Phase 1); a receptionist viewing the same timeline
+  sees the visit dates but an explicit "clinical notes are only visible
+  to dentist/admin accounts" message instead of the note text, since
+  `visit_notes` rows are invisible to them at the RLS level, not just
+  hidden by the UI.
+- `src/features/patients/FileAttachments.tsx` — upload/list X-rays, ID
+  scans, etc. Files are private; viewing one fetches a short-lived (10
+  minute) signed URL rather than a permanent public link.
+
+### Storage
+`supabase/migrations/0003_storage.sql` adds a private `patient-files`
+bucket (folders: `signatures/<patient_id>/…`, `attachments/<patient_id>/…`)
+and a `patient_files` metadata table (so attachments can be listed/labeled
+without listing the bucket directly — signatures don't need this since
+each is already tied 1:1 to a `consents` row). Bucket access follows the
+same front-desk tier as `patients` (receptionist/dentist/admin read/write,
+admin-only delete).
+
+### Consent text
+The wording in `historyOptions.ts` (`CONSENT_TEXT`) is a placeholder,
+clearly flagged in the UI as draft pending Phase 5's legal review under
+the Data Privacy Act — do not treat it as final, and don't remove the
+"draft" notice until Phase 5 actually replaces it.
+
+### Reconciling the Supabase CLI
+Migrations 0001 and 0002 were applied by pasting SQL directly into the
+Supabase SQL Editor (before the CLI was working locally), so the CLI's
+remote migration history doesn't know about them yet. Before running
+`supabase db push` for 0003, reconcile history first so it doesn't try to
+re-run 0001/0002:
+```
+supabase migration repair --status applied 0001
+supabase migration repair --status applied 0002
+supabase db push
+```

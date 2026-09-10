@@ -1,0 +1,81 @@
+import { useRef, useState } from 'react'
+import SignatureCanvas from 'react-signature-canvas'
+import { CONSENT_TEXT, CONSENT_TEXT_VERSION } from './historyOptions'
+import { saveConsent } from './api'
+
+interface ConsentCaptureProps {
+  patientId: string
+  staffId: string
+  onSaved: () => void
+  /** Shown on the button — differs for first-time vs. re-confirm. */
+  submitLabel?: string
+}
+
+export default function ConsentCapture({ patientId, staffId, onSaved, submitLabel }: ConsentCaptureProps) {
+  const padRef = useRef<SignatureCanvas>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  function handleClear() {
+    padRef.current?.clear()
+  }
+
+  async function handleSave() {
+    setError(null)
+    if (!padRef.current || padRef.current.isEmpty()) {
+      setError('Please sign before saving.')
+      return
+    }
+    setSaving(true)
+    try {
+      const dataUrl = padRef.current.getTrimmedCanvas().toDataURL('image/png')
+      await saveConsent({ patientId, staffId, consentTextVersion: CONSENT_TEXT_VERSION, signatureDataUrl: dataUrl })
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
+      <h2 className="text-sm font-semibold text-slate-700">Consent for treatment</h2>
+      <p className="text-xs text-slate-500 whitespace-pre-line bg-slate-50 border border-slate-200 rounded-md p-3">
+        {CONSENT_TEXT}
+      </p>
+      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+        Draft wording — pending legal review under the Data Privacy Act (see Phase 5 in CLAUDE.md). Version tag:{' '}
+        {CONSENT_TEXT_VERSION}.
+      </p>
+
+      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+
+      <div className="border border-slate-300 rounded-md bg-slate-50 w-full max-w-md">
+        <SignatureCanvas
+          ref={padRef}
+          penColor="black"
+          canvasProps={{ width: 460, height: 180, className: 'w-full h-[180px] touch-none' }}
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={handleClear}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700 disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : (submitLabel ?? 'Save signed consent')}
+        </button>
+      </div>
+    </div>
+  )
+}
