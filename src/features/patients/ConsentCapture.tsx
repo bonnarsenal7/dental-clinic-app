@@ -28,7 +28,11 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
     }
     setSaving(true)
     try {
-      const dataUrl = padRef.current.getTrimmedCanvas().toDataURL('image/png')
+      // getTrimmedCanvas() pulls in the unmaintained trim-canvas package,
+      // which has a known Vite production-build interop bug (works in dev,
+      // throws in the deployed build). Untrimmed is functionally fine --
+      // just a little transparent padding around the signature.
+      const dataUrl = padRef.current.toDataURL('image/png')
       await saveConsent({ patientId, staffId, consentTextVersion: CONSENT_TEXT_VERSION, signatureDataUrl: dataUrl })
       onSaved()
     } catch (e) {
