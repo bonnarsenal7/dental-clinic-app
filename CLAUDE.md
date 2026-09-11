@@ -853,6 +853,31 @@ control a user actually picks with unlabelled — invisible to a screen
 reader, and the reason `getByLabelText('Patient')` returned the wrong
 element. Label the control, not its neighbour.
 
+### A search box that filters a `<select>` owes three things
+Reported as "search in the schedule is not working or wired in the patient
+drop down". The wiring was fine — the debounce fired, the options narrowed.
+Three separate things around it were not:
+
+1. **Clear the form value when the chosen option disappears.** A `<select>`
+   whose selected `<option>` is removed silently falls back to displaying
+   the placeholder, but react-hook-form still holds the old id. The form
+   showed "— choose a patient —" and booked a patient who was nowhere on
+   screen. Reconcile the value against the new results on every search.
+2. **Enter must not submit.** A search box inside a `<form>` gets the
+   browser's implicit submission, so typing a name and pressing Enter fired
+   the booking and answered "Choose a patient first." `preventDefault` on
+   Enter.
+3. **Say how many matched.** A closed `<select>` hides its options, so
+   narrowing the list changes nothing a user can see — which is what "not
+   wired" meant. A live count next to the field is the feedback; a single
+   match is selected outright. Put the count *outside* the `Field`, since
+   `Field`'s label wraps the control and anything inside it joins the
+   select's accessible name.
+
+Also: don't render "No patients match that search." before the first search
+has resolved — an empty list at mount is "not loaded yet", not "no results",
+and the form opened by declaring itself broken.
+
 ### Completing an appointment leads into billing
 Finishing treatment is when someone gets billed, so the action lives on the
 appointment rather than making reception go and find the patient again. A

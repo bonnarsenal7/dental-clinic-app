@@ -35,6 +35,10 @@ export default function BookAppointmentForm({
   const [dentists, setDentists] = useState<{ id: string; name: string }[]>([])
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [query, setQuery] = useState('')
+  // Distinguishes "nothing matched" from "the first search hasn't landed
+  // yet" — the form used to greet you with "No patients match that search."
+  // before it had searched for anything.
+  const [searched, setSearched] = useState(false)
   const [defaultPatientName, setDefaultPatientName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,6 +46,7 @@ export default function BookAppointmentForm({
     register,
     handleSubmit,
     setValue,
+    getValues,
     watch,
     formState: { isSubmitting, errors },
   } = useForm<BookingForm>({
@@ -70,11 +75,26 @@ export default function BookAppointmentForm({
     if (defaultPatientId) return
     const handle = setTimeout(() => {
       searchPatients(query)
-        .then(setPatients)
+        .then((found) => {
+          setPatients(found)
+          setSearched(true)
+
+          // A <select> whose chosen <option> is removed falls back to showing
+          // the placeholder, but react-hook-form still holds the old id. The
+          // form then books a patient who is nowhere on screen — so drop the
+          // selection when the search no longer contains it.
+          const chosen = getValues('patient_id')
+          if (chosen && !found.some((p) => p.id === chosen)) setValue('patient_id', '')
+
+          // Narrowing to a single patient has already answered the question;
+          // selecting them is also the clearest sign that the search box and
+          // the dropdown are connected at all.
+          if (found.length === 1) setValue('patient_id', found[0].id)
+        })
         .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
-  }, [query, defaultPatientId])
+  }, [query, defaultPatientId, getValues, setValue])
 
   // With the chooser hidden there is nothing on screen saying who this
   // booking is for, which is a poor thing to be vague about.
@@ -84,6 +104,14 @@ export default function BookAppointmentForm({
       .then((p) => setDefaultPatientName(p.name))
       .catch((e) => setError(toMessage(e)))
   }, [defaultPatientId])
+
+  const matchHint = !searched
+    ? 'Loading patients…'
+    : patients.length === 0
+      ? 'No patients match that search.'
+      : patients.length === 1
+        ? '1 match, selected below.'
+        : `${patients.length} matches — pick one.`
 
   const selectedProcedure = watch('procedure_id')
 
@@ -136,21 +164,24 @@ export default function BookAppointmentForm({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          <label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor="appt-patient-search">
-            Search
-            <input
-              id="appt-patient-search"
+          <Field label="Search">
+            <TextInput
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              // Enter here means "search", not "book". Because the search box
+              // sits inside the booking form, the browser's implicit
+              // submission fired the booking instead — so typing a name and
+              // pressing Enter answered with "Choose a patient first."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.preventDefault()
+              }}
               placeholder="Search name or contact number…"
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             />
-          </label>
+          </Field>
           {/* A plain dropdown, not a `size` listbox. A multi-row select does
               not open the native picker on a tablet, which is where this is
               used — it renders as an inline list that is fiddly to tap and
-              easy to mistake for being inert. The label points at this
-              control rather than at the search box above it. */}
+              easy to mistake for being inert. */}
           <Field label="Patient">
             <NativeSelect {...register('patient_id')}>
               <option value="">— choose a patient —</option>
@@ -162,7 +193,9 @@ export default function BookAppointmentForm({
               ))}
             </NativeSelect>
           </Field>
-          {patients.length === 0 && <p className="text-xs text-slate-400">No patients match that search.</p>}
+          <p className="text-xs text-slate-400" aria-live="polite">
+            {matchHint}
+          </p>
         </div>
       )}
 
