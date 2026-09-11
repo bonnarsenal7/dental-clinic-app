@@ -789,8 +789,15 @@ on the session time zone) and generated columns require immutability.
 act on.
 
 ### Forms set `noValidate` and let react-hook-form validate
-Every form with `required` rules carries `noValidate`, and renders the
-message with `<FieldError>` from `core/components/states.tsx`.
+Every form with validation rules carries `noValidate`, and renders the
+message itself — via `<FieldError>` from `core/components/states.tsx`, or
+inline next to the field.
+
+**Check for this by searching `required:`, not `required: true`.** Half the
+forms pass a message string (`required: 'Name is required'`), and a
+narrower grep missed two of them — the staff form's `type="email"` and the
+intake form's `type="number"`, both of which would have had the browser
+validating instead.
 
 Without it the browser validates first, which means: messages differ per
 browser and can't be styled, native bubbles sit awkwardly on a tablet, and

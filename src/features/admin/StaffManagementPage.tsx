@@ -84,6 +84,7 @@ export default function StaffManagementPage() {
       )}
 
       <form
+        noValidate
         onSubmit={handleSubmit(onCreate)}
         className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4 max-w-lg"
       >

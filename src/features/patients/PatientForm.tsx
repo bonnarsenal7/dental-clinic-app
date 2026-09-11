@@ -66,7 +66,7 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
   const onMeds = watch('current_medications')
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+    <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <section className={sectionCls}>
         <h2 className="text-sm font-semibold text-slate-700">Demographics</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
