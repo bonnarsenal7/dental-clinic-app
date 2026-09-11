@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { STATUS_LABELS, STATUS_STYLES, nextStatuses, waitingMinutes } from './appointmentStatus'
+import { STATUS_LABELS, STATUS_STYLES, nextStatuses, waitSeverity, waitingMinutes } from './appointmentStatus'
 import type { AppointmentStatus, AppointmentWithPatient } from './types'
 
 function timeOf(iso: string) {
@@ -24,9 +24,21 @@ export default function AppointmentCard({
   // Only surfaced while they're still waiting — once seated, the number is
   // history and reception is being asked about someone else.
   const showWait = appointment.status === 'arrived' && waited !== null
+  const severity = showWait ? waitSeverity(waited) : 'settled'
 
   return (
-    <div className="border border-slate-200 rounded-lg px-4 py-3 flex items-start justify-between gap-3 flex-wrap bg-white">
+    <div
+      className={`rounded-lg px-4 py-3 flex items-start justify-between gap-3 flex-wrap bg-white border ${
+        // The patient being treated right now is the one thing on this
+        // screen that is happening rather than pending, so it gets an edge
+        // rather than only a differently coloured badge.
+        appointment.status === 'in_chair'
+          ? 'border-slate-200 border-l-4 border-l-slate-800'
+          : severity === 'overdue'
+            ? 'border-red-300'
+            : 'border-slate-200'
+      }`}
+    >
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium text-slate-800 tabular-nums">
@@ -42,8 +54,23 @@ export default function AppointmentCard({
           <span className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[appointment.status]}`}>
             {STATUS_LABELS[appointment.status]}
           </span>
+          {/* Reception is asked "how long have they been waiting" more than
+              anything else on this screen, so the number scales with how bad
+              the answer is rather than sitting at a constant 12px.
+
+              Amber would be the obvious colour and is not available: it means
+              "crown" on the chart and carries the brand. Record state is red,
+              green or neutral — see the colour rule in CLAUDE.md. */}
           {showWait && (
-            <span className={`text-xs font-medium ${waited >= 20 ? 'text-red-700' : 'text-amber-700'}`}>
+            <span
+              className={
+                severity === 'overdue'
+                  ? 'text-base font-semibold text-red-700 tabular-nums'
+                  : severity === 'noticeable'
+                    ? 'text-sm font-semibold text-slate-800 tabular-nums'
+                    : 'text-xs text-slate-500 tabular-nums'
+              }
+            >
               waiting {waited} min
             </span>
           )}

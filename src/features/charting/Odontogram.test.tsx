@@ -72,6 +72,9 @@ describe('Odontogram', () => {
     const { container } = renderChart()
     const scroller = container.querySelector('.overflow-x-auto')
     expect(scroller).toBeInTheDocument()
+    // ...and says so. A chart that silently clips reads as a chart with
+    // teeth missing, which on a portrait tablet is most of an arch.
+    expect(scroller).toHaveClass('scroll-hint-x')
     const svg = container.querySelector('svg')!
     expect(svg.getAttribute('width')).toBe('100%')
     expect(svg.style.minWidth).toBe('720px')

@@ -69,8 +69,10 @@ export default function Odontogram({
 }: OdontogramProps) {
   return (
     // The chart has a fixed aspect ratio and can't usefully reflow, so on a
-    // narrow tablet it scrolls sideways rather than shrinking past legible.
-    <div className="overflow-x-auto">
+    // narrow tablet it scrolls sideways rather than shrinking past legible —
+    // and scroll-hint-x shades whichever edge still has teeth behind it, so
+    // nobody mistakes a clipped chart for a missing tooth.
+    <div className="overflow-x-auto scroll-hint-x">
       <svg
         viewBox={`-14 -6 ${CHART_WIDTH + 28} ${CHART_HEIGHT + 12}`}
         width="100%"

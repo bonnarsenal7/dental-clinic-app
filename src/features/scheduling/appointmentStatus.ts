@@ -63,3 +63,17 @@ export function waitingMinutes(arrivedAt: string | null, now: Date = new Date())
   if (!arrivedAt) return null
   return Math.max(0, Math.floor((now.getTime() - new Date(arrivedAt).getTime()) / 60000))
 }
+
+export type WaitSeverity = 'settled' | 'noticeable' | 'overdue'
+
+/** Thresholds in minutes. A clinic that habitually runs ten minutes behind
+ *  should not be shouted at for it, so "noticeable" starts at 15 and the
+ *  red line at 25 — past that, someone is owed an explanation. */
+export const WAIT_NOTICEABLE = 15
+export const WAIT_OVERDUE = 25
+
+export function waitSeverity(minutes: number): WaitSeverity {
+  if (minutes >= WAIT_OVERDUE) return 'overdue'
+  if (minutes >= WAIT_NOTICEABLE) return 'noticeable'
+  return 'settled'
+}

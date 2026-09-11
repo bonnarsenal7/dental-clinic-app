@@ -25,6 +25,51 @@ const renderCard = (a: AppointmentWithPatient, invoiceId?: string | null) =>
     </MemoryRouter>,
   )
 
+function minutesAgo(n: number) {
+  return new Date(Date.now() - n * 60_000).toISOString()
+}
+
+describe('how long someone has been waiting', () => {
+  // The number scales with how bad the answer is, so a long wait reads from
+  // across the room rather than at a constant 12px.
+  it('grows and turns red once a wait is overdue', () => {
+    renderCard(appointment({ status: 'arrived', arrived_at: minutesAgo(30) }), null)
+    const wait = screen.getByText(/waiting 30 min/i)
+    expect(wait).toHaveClass('text-base', 'font-semibold', 'text-red-700')
+  })
+
+  it('stays quiet for a normal short wait', () => {
+    renderCard(appointment({ status: 'arrived', arrived_at: minutesAgo(5) }), null)
+    const wait = screen.getByText(/waiting 5 min/i)
+    expect(wait).toHaveClass('text-xs')
+    expect(wait.className).not.toContain('text-red')
+  })
+
+  // Amber would be the obvious middle step and is not available: it means
+  // "crown" on the chart and carries the brand.
+  it('never uses amber for a wait', () => {
+    for (const mins of [5, 20, 40]) {
+      const { unmount } = renderCard(appointment({ status: 'arrived', arrived_at: minutesAgo(mins) }), null)
+      expect(screen.getByText(new RegExp(`waiting ${mins} min`, 'i')).className).not.toMatch(/amber|gold/)
+      unmount()
+    }
+  })
+
+  // Once seated the number is history, and reception is being asked about
+  // someone else.
+  it('stops showing a wait once the patient is in the chair', () => {
+    renderCard(appointment({ status: 'in_chair', arrived_at: minutesAgo(30) }), null)
+    expect(screen.queryByText(/waiting/i)).not.toBeInTheDocument()
+  })
+
+  // The patient being treated is the one thing on this screen that is
+  // happening rather than pending.
+  it('marks the patient in the chair with an edge, not just a badge', () => {
+    const { container } = renderCard(appointment({ status: 'in_chair' }), null)
+    expect(container.firstElementChild).toHaveClass('border-l-4')
+  })
+})
+
 describe('billing a completed appointment', () => {
   // Treatment finishing is when someone gets billed. Without this the
   // receptionist has to go and find the patient again.

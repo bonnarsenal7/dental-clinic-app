@@ -74,6 +74,34 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/in the clinic/i)).toBeInTheDocument()
   })
 
+  // A dentist opening this at the start of a shift needs to know who cannot
+  // be treated as planned before they read how many are booked. An alert
+  // under four stat tiles is an alert someone scrolls past.
+  it('puts the medical alerts above the day\'s numbers', async () => {
+    vi.mocked(api.listTodaysPatients).mockResolvedValue([
+      {
+        appointment_id: 'a1', patient_id: 'p1', name: 'Ricardo Bautista',
+        scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: null,
+        medical: medical({ allergic_to_anesthesia: true }),
+      },
+    ])
+    const { container } = renderPage()
+    const alert = await screen.findByRole('alert')
+    const tiles = screen.getByText(/in the clinic/i)
+    // Node.compareDocumentPosition: 4 means the alert comes first.
+    expect(alert.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container).toBeTruthy()
+  })
+
+  it('counts how many patients need attention', async () => {
+    vi.mocked(api.listTodaysPatients).mockResolvedValue([
+      { appointment_id: 'a1', patient_id: 'p1', name: 'A', scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: null, medical: medical({ allergic_to_anesthesia: true }) },
+      { appointment_id: 'a2', patient_id: 'p2', name: 'B', scheduled_at: '2026-09-11T08:30:00Z', status: 'booked', reason: null, medical: null },
+    ])
+    renderPage()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/2 patients/i)
+  })
+
   it('flags a critical allergy for a patient due in today', async () => {
     vi.mocked(api.listTodaysPatients).mockResolvedValue([
       {

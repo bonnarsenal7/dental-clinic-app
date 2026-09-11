@@ -138,6 +138,29 @@
   }
 }
 
+/* Tells you a region scrolls sideways, and which way.
+ *
+ * The odontogram is wider than a tablet held in portrait, and a chart that
+ * silently clips is worse than one that obviously scrolls: a dentist who
+ * cannot see teeth 18 and 28 has no reason to assume they are off-screen
+ * rather than absent.
+ *
+ * The shadows are painted with background-attachment: the white covers
+ * scroll with the content and the shadows do not, so each edge reveals
+ * itself only while there is more content past it. No JS, no scroll
+ * listener, and nothing to keep in sync. */
+.scroll-hint-x {
+  background-image:
+    linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)),
+    radial-gradient(farthest-side at 0 50%, rgba(24, 26, 25, 0.14), transparent),
+    radial-gradient(farthest-side at 100% 50%, rgba(24, 26, 25, 0.14), transparent);
+  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-repeat: no-repeat;
+  background-size: 3rem 100%, 3rem 100%, 0.9rem 100%, 0.9rem 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
 /* The signature pad is drawn with the finger, so the browser must not
  * treat a stroke as a scroll or a double-tap zoom. */
 canvas {

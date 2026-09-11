@@ -82,31 +82,17 @@ export default function DashboardPage() {
 
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
 
-      {/* The day, at a glance. */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatTile
-          label="In the clinic"
-          value={n(summary.in_clinic)}
-          hint={n(summary.longest_wait_minutes) > 0 ? `longest wait ${n(summary.longest_wait_minutes)} min` : 'nobody waiting'}
-          to="/schedule"
-          tone={n(summary.longest_wait_minutes) >= 20 ? 'attention' : 'neutral'}
-        />
-        <StatTile label="Still to come" value={n(summary.still_to_come)} hint={`${n(summary.appointments_today)} booked today`} to="/schedule" />
-        <StatTile label="Completed" value={n(summary.completed_today)} hint="treated today" to="/schedule" />
-        <StatTile
-          label="No-shows"
-          value={n(summary.no_shows_today)}
-          hint={n(summary.cancelled_today) > 0 ? `${n(summary.cancelled_today)} cancelled` : 'none today'}
-          to="/schedule"
-          tone={n(summary.no_shows_today) > 0 ? 'attention' : 'neutral'}
-        />
-      </section>
-
-      {/* Clinical safety first, before the money. */}
+      {/* Above the day's numbers, not below them. A dentist opening this
+          at the start of a shift needs to know who cannot be treated as
+          planned before they read how many are booked — and an alert that
+          sits under four stat tiles is an alert someone scrolls past. */}
       {isClinical && (flagged.length > 0 || missingHistory.length > 0) && (
-        <section className="rounded-xl border border-red-300 bg-red-50 px-4 py-3" role="alert">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-800">
+        <section className="rounded-xl border-2 border-red-400 bg-red-50 px-4 py-3.5" role="alert">
+          <p className="text-sm font-semibold text-red-900">
             Medical alerts for today
+            <span className="ml-2 font-normal text-red-700">
+              {flagged.length + missingHistory.length} {flagged.length + missingHistory.length === 1 ? 'patient' : 'patients'}
+            </span>
           </p>
           <ul className="mt-2 flex flex-col gap-1.5">
             {flagged.map(({ patient, alerts }) => (
@@ -128,6 +114,26 @@ export default function DashboardPage() {
           </ul>
         </section>
       )}
+
+      {/* The day, at a glance. */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile
+          label="In the clinic"
+          value={n(summary.in_clinic)}
+          hint={n(summary.longest_wait_minutes) > 0 ? `longest wait ${n(summary.longest_wait_minutes)} min` : 'nobody waiting'}
+          to="/schedule"
+          tone={n(summary.longest_wait_minutes) >= 20 ? 'attention' : 'neutral'}
+        />
+        <StatTile label="Still to come" value={n(summary.still_to_come)} hint={`${n(summary.appointments_today)} booked today`} to="/schedule" />
+        <StatTile label="Completed" value={n(summary.completed_today)} hint="treated today" to="/schedule" />
+        <StatTile
+          label="No-shows"
+          value={n(summary.no_shows_today)}
+          hint={n(summary.cancelled_today) > 0 ? `${n(summary.cancelled_today)} cancelled` : 'none today'}
+          to="/schedule"
+          tone={n(summary.no_shows_today) > 0 ? 'attention' : 'neutral'}
+        />
+      </section>
 
       {seesMoney && (
         <section className="flex flex-col gap-3">

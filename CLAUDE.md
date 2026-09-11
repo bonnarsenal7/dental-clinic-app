@@ -1187,3 +1187,42 @@ offline banner and the unsaved-marks bar repeat on every page.
 **Not verified visually.** These rules are asserted in the stylesheet and
 nothing more — no one has put a page through a printer. That check belongs
 in the pilot.
+
+## Screen work (Phase D)
+
+Four changes, each with a stated reason — but **these are informed guesses,
+not findings.** Nobody has watched a receptionist use this. The friction log
+in `docs/PILOT.md` should confirm or overturn them.
+
+### The wait time escalates
+Reception is asked "how long have they been waiting" more than anything else
+on the schedule, so the figure grows and reddens instead of sitting at a
+constant 12px: quiet under 15 minutes, bold at 15, large and red at 25.
+Thresholds are `WAIT_NOTICEABLE` / `WAIT_OVERDUE` in `appointmentStatus.ts`
+— a clinic that habitually runs ten minutes behind should not be shouted at
+for it, or the red stops meaning anything.
+
+**Amber is not available here**, which is why this needed rebuilding rather
+than restyling: it means "crown" on the chart and carries the brand. Record
+state is red, green or neutral. A test asserts no wait ever renders amber.
+
+### The patient in the chair gets an edge
+`in_chair` is the one row that is happening rather than pending, so it
+carries a left border rather than only a differently coloured badge.
+
+### Medical alerts sit above the day's numbers
+A dentist opening the dashboard at the start of a shift needs to know who
+cannot be treated as planned before they read how many are booked, and an
+alert under four stat tiles is an alert someone scrolls past. The order is
+asserted by a test and mutation-checked.
+
+### The chart says that it scrolls
+`.scroll-hint-x` shades whichever edge still has teeth behind it, using
+`background-attachment` rather than a scroll listener — nothing to keep in
+sync. The odontogram is wider than a tablet in portrait, and a chart that
+silently clips reads as a chart with teeth missing.
+
+### Not done
+The rest of the tablet pass. Spacing, reach and one-handed use cannot be
+judged from a desktop browser, and guessing at them would be inventing
+findings.

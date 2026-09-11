@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  WAIT_NOTICEABLE,
+  WAIT_OVERDUE,
   QUEUE_STATUSES,
   canTransition,
   isInQueue,
   isPending,
   nextStatuses,
+  waitSeverity,
   waitingMinutes,
 } from './appointmentStatus'
 import type { AppointmentStatus } from './types'
@@ -102,5 +105,30 @@ describe('waiting time', () => {
   it('never reports negative waiting', () => {
     const now = new Date('2026-03-01T10:00:00Z')
     expect(waitingMinutes('2026-03-01T10:05:00Z', now)).toBe(0)
+  })
+})
+
+
+describe('how bad a wait is', () => {
+  // Reception is asked "how long have they been waiting" more than anything
+  // else on the schedule, so the answer has to escalate rather than sit at
+  // one size and one colour.
+  it.each([
+    [0, 'settled'],
+    [14, 'settled'],
+    [15, 'noticeable'],
+    [24, 'noticeable'],
+    [25, 'overdue'],
+    [60, 'overdue'],
+  ])('%i minutes reads as %s', (minutes, expected) => {
+    expect(waitSeverity(minutes)).toBe(expected)
+  })
+
+  // A clinic that habitually runs ten minutes behind should not be shouted
+  // at for it, or the red stops meaning anything.
+  it('does not raise an alarm over a normal short wait', () => {
+    expect(waitSeverity(10)).toBe('settled')
+    expect(WAIT_NOTICEABLE).toBeGreaterThan(10)
+    expect(WAIT_OVERDUE).toBeGreaterThan(WAIT_NOTICEABLE)
   })
 })
