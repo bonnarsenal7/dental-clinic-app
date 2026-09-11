@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './features/auth/AuthContext'
 import ProtectedRoute from './features/auth/ProtectedRoute'
@@ -5,23 +6,35 @@ import LoginPage from './features/auth/LoginPage'
 import ForgotPasswordPage from './features/auth/ForgotPasswordPage'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import AppShell from './core/components/AppShell'
-import DashboardPage from './features/dashboard/DashboardPage'
-import PatientsPage from './features/patients/PatientsPage'
-import PatientRegisterPage from './features/patients/PatientRegisterPage'
-import PatientProfilePage from './features/patients/PatientProfilePage'
-import PatientEditPage from './features/patients/PatientEditPage'
-import ChartingPage from './features/charting/ChartingPage'
-import PatientChartPage from './features/charting/PatientChartPage'
-import SchedulePage from './features/scheduling/SchedulePage'
-import RecallsPage from './features/scheduling/RecallsPage'
-import BillingPage from './features/billing/BillingPage'
-import PatientLedgerPage from './features/billing/PatientLedgerPage'
-import InvoiceBuilderPage from './features/billing/InvoiceBuilderPage'
-import InvoiceDetailPage from './features/billing/InvoiceDetailPage'
-import PriceListPage from './features/billing/PriceListPage'
-import StaffManagementPage from './features/admin/StaffManagementPage'
-import ClinicSettingsPage from './features/admin/ClinicSettingsPage'
-import AuditLogPage from './features/admin/AuditLogPage'
+import { routeChunks } from './core/routes'
+
+// Everything behind the login is loaded on demand.
+//
+// The whole app used to arrive in one file, so a tablet on clinic Wi-Fi
+// downloaded charting, billing and the admin screens — and jsPDF, pulled in
+// by the receipt generator — before the login form could paint. Nothing
+// above this line is lazy: the auth screens and the shell are what someone
+// waits for, and splitting those would only add a round trip.
+//
+// The Suspense boundary lives inside AppShell, around the outlet, so the
+// nav bar stays put while a route arrives rather than the screen blanking.
+const AuditLogPage = lazy(routeChunks.auditLog)
+const BillingPage = lazy(routeChunks.billing)
+const ChartingPage = lazy(routeChunks.charting)
+const ClinicSettingsPage = lazy(routeChunks.clinicSettings)
+const DashboardPage = lazy(routeChunks.dashboard)
+const InvoiceBuilderPage = lazy(routeChunks.invoiceBuilder)
+const InvoiceDetailPage = lazy(routeChunks.invoiceDetail)
+const PatientChartPage = lazy(routeChunks.patientChart)
+const PatientEditPage = lazy(routeChunks.patientEdit)
+const PatientLedgerPage = lazy(routeChunks.patientLedger)
+const PatientProfilePage = lazy(routeChunks.patientProfile)
+const PatientRegisterPage = lazy(routeChunks.patientRegister)
+const PatientsPage = lazy(routeChunks.patients)
+const PriceListPage = lazy(routeChunks.priceList)
+const RecallsPage = lazy(routeChunks.recalls)
+const SchedulePage = lazy(routeChunks.schedule)
+const StaffManagementPage = lazy(routeChunks.staffManagement)
 
 function App() {
   return (

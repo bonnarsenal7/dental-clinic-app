@@ -1,9 +1,12 @@
+import { Suspense } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../features/auth/AuthContext'
 import { supabase } from '../supabaseClient'
 import OfflineBanner from './OfflineBanner'
 import { Toaster } from './ui/toast'
+import { LoadingState } from './states'
+import { warmRoutesFor } from '../routes'
 import { CLINIC_NAME } from '../branding'
 import toothcoLogo from '../../assets/toothco-logo.png'
 
@@ -26,6 +29,13 @@ export default function AppShell() {
         if (data?.clinic_name) setClinicName(data.clinic_name)
       })
   }, [])
+
+  // Splitting the routes means tapping "Schedule" now waits on a fetch.
+  // Warming the handful this role opens first puts that back, without
+  // putting the whole bundle back on the wire.
+  useEffect(() => {
+    if (staff) warmRoutesFor(staff.role)
+  }, [staff])
 
   if (!staff) return null
 
@@ -90,8 +100,12 @@ export default function AppShell() {
         </div>
       </header>
 
+      {/* Inside the shell, so the nav stays put while a lazily loaded route
+          arrives instead of the whole screen blanking. */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <Outlet />
+        <Suspense fallback={<LoadingState />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <Toaster />

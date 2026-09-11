@@ -1085,8 +1085,43 @@ Phase B costs +100 kB raw, +32 kB gzipped. Measured by building with the
 imports stashed, not estimated — an earlier guess was wrong by a factor of
 six because it compared against a stale number.
 
-**The whole bundle is 1,560 kB uncompressed / ~355 kB gzipped on first
-load, and nothing is route-split.** That is the real weight problem, and it
-predates this phase: a tablet on clinic Wi-Fi downloads charting, billing
-and admin before the login screen paints. Lazy-loading the feature routes is
-the obvious fix and is not yet done.
+Route splitting since fixed the real weight problem — see below.
+
+## Route splitting
+
+Everything behind the login is `lazy()`. First load went from **1,560 kB to
+556 kB** — measured by summing what `index.html` actually asks for, which
+includes the module preloads, not just the entry chunk.
+
+The largest win is the PDF stack: `receiptPdf` (392 kB), `html2canvas`
+(195 kB) and `index.es` (148 kB) now arrive only when someone opens an
+invoice. Most sessions never generate a receipt.
+
+**The auth screens and the shell stay eager.** They are what someone
+actually waits for; splitting them would add a round trip to the one thing
+on the critical path.
+
+The Suspense boundary lives **inside `AppShell`, around the outlet**, so the
+nav bar stays put while a route arrives rather than the screen blanking.
+
+### `src/core/routes.ts` is the single import map
+`App.tsx` builds its `lazy()` components from `routeChunks`, and the shell
+warms from the same object. **Don't inline a dynamic import at a call
+site** — a second specifier for the same page fetches a second copy of the
+chunk and warms nothing.
+
+### Warming is short, role-aware, and declines on metered connections
+Splitting means tapping "Schedule" waits on a fetch, so once signed in the
+shell warms the handful of routes that role opens first — five at most.
+Warming everything would put the bundle back on the wire and undo the
+split. Reception gets the invoice screen warmed because it drags in the PDF
+stack, the worst thing to wait for with a patient at the desk; a dentist
+does not, and gets the chart instead.
+
+It skips entirely when `navigator.connection.saveData` is set: these
+tablets sometimes fall back to a phone hotspot, and speculatively pulling
+half a megabyte of someone's mobile data is not a trade to make for them.
+
+`requestIdleCallback` has a `setTimeout` fallback that is **not
+theoretical** — Safari on iPad only gained it in 16.4, so on an older clinic
+tablet the fallback is the live path. Both are tested.
