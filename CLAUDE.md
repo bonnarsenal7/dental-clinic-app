@@ -940,3 +940,112 @@ found exactly this way: its label pointed at the neighbouring search box.
 
 Re-check after adding a form; the scan is a short script over the JSX (see
 the commit that introduced this section).
+
+## Brand palette & logo (added post-Phase 7)
+
+The clinic supplied their real logo — a gold gradient tooth mark and
+"ToothCo Dental Clinic" wordmark on a marble background — and asked for the
+app's theme to be based on it. Two things came out of that: a gold color
+scale, and the logo itself in two header spots.
+
+### The gold scale was sampled from the logo, not eyeballed
+`gold-50` through `gold-900` in `src/index.css`'s `@theme` block were picked
+by sampling actual pixels from the logo with PIL (filtering by HSV
+saturation/hue to isolate the gold gradient from the white/marble
+background), then adjusting for contrast rather than trusting the raw
+sample. The logo's midtone gold is roughly `#D9A441`, which is only about
+3.1:1 against white — fine for a large logo mark, not fine for button text
+or focus rings. `gold-700` (`#8A6524`, ~5.3:1) and `gold-800` (`#6E4F1C`,
+~7.5:1) are the darkened, WCAG-checked shades actually used for interactive
+surfaces; the lighter steps exist for backgrounds/borders/highlights where
+contrast against white isn't the constraint.
+
+### gold-* is the brand/primary-action color, not a status color
+Before this change, `bg-slate-800` / `hover:bg-slate-700` /
+`border-slate-800` / `focus:ring-slate-400` were the de facto "primary
+action / active nav state" convention across the app (checked
+`ChartLegend.tsx`, `AppShell.tsx`, and `AuditLogPage.tsx` specifically to
+confirm slate-800 never doubled as a semantic/status color anywhere). That
+made it a mechanical, safe find-and-replace across all 28 files that used
+it:
+- `bg-slate-800` → `bg-gold-700`
+- `hover:bg-slate-700` → `hover:bg-gold-800`
+- `border-slate-800` → `border-gold-700`
+- `focus:ring-slate-400` → `focus:ring-gold-500`
+
+**Keep using `gold-*` only for brand/primary-action UI** (nav active state,
+primary buttons, focus rings) — never repurpose it for success/warning/error
+states. Those already have their own red/amber/green treatment elsewhere
+(chart alerts, form errors, audit log) and should stay off the brand scale
+so the two meanings never collide.
+
+### The logo file
+`src/assets/toothco-logo.png` is a processed copy of the clinic's upload:
+background removed (thresholded on HSV saturation so the white/marble
+background goes transparent while the gold gradient survives), then
+cropped to the mark's bounding box. The original, unprocessed upload isn't
+committed — regenerate from a fresh export if the clinic sends a new logo,
+rather than editing this file directly.
+
+It's used in two places:
+- `LoginPage.tsx` — shown large and centered above the sign-in form. The
+  `<h1>{CLINIC_NAME}</h1>` that used to be the visible heading is now
+  `sr-only`: the logo image carries `alt={CLINIC_NAME}` for meaning, and the
+  hidden heading exists only so `LoginPage.test.tsx`'s
+  `getByRole('heading').toHaveTextContent(CLINIC_NAME)` still has something
+  to find. Don't delete the hidden heading without updating that test.
+- `AppShell.tsx` — shown small in the header next to the clinic name text.
+  Here the `<img>` is `alt=""` (decorative) because the adjacent text node
+  already says the clinic's name out loud via `clinicName || CLINIC_NAME`;
+  giving the image its own alt text would announce the name twice to a
+  screen reader.
+
+The logo is a static asset for the "ToothCo" brand mark specifically, while
+the text next to it in `AppShell` stays driven by `clinic_settings.clinic_name`
+so an admin can still rename the clinic without a redeploy — only the
+image is fixed to this brand.
+
+## Design tokens
+
+**`src/index.css` is the design system.** Tailwind v4 declares its theme in
+CSS rather than a JS config, so the `@theme static` block there is the
+single source for colour and radius. `src/core/theme/` stays empty on
+purpose — a second place to look is a second place to drift.
+
+`static` matters: by default Tailwind emits only theme variables it sees a
+utility using, which left the chart and state tokens out of the bundle
+entirely and emitted an arbitrary three of the eight golds. A token nobody
+consumes yet still has to be inspectable in devtools.
+
+### The neutral scale overrides `slate-*`
+Not a new name — an override, so all 638 existing `slate-*` usages re-skin
+with no component edits. The hue moves warm; **the lightness does not**.
+Each step was solved to match the luminance of the Tailwind slate it
+replaces, so every contrast ratio the app already relied on survives: body
+text on a card stays 14.6:1, muted text 4.76:1. If you change a step, hold
+its luminance or you will silently regress contrast somewhere you are not
+looking.
+
+### The gold guard
+Gold is the clinic's colour, applied from Phase C. It is deliberately low in
+chroma so it never competes with a tooth, and one rule is load-bearing:
+
+**`gold-700` and lighter must never sit beside a tooth glyph.** Against the
+chart's crown amber it measures **1.65:1** — the same colour at a glance.
+`gold-900` measures **3.61:1**. So on the charting screen gold drops to 900;
+everywhere else 700 is the primary. `src/core/theme.test.ts` asserts both
+numbers, so editing either value fails the build rather than quietly
+breaking the chart.
+
+### Chart colours exist twice, for now
+`--color-chart-*` in CSS and hex literals in `chartVocabulary.ts`, which
+needs real values for SVG fills. The test pins them together so they cannot
+drift. A later phase collapses them into one source — at which point the
+`"node"` entry in `tsconfig.app.json`'s types (there only so that test can
+read the stylesheet) can go too.
+
+### No amber in record state
+Amber is the chart's crown and the brand's hue. A third meaning would make
+all three ambiguous, so paid/unpaid/waiting are red, green or neutral —
+asserted by hue in the token test. Anything merely informational (a
+part-paid invoice, a short wait) takes a neutral, not a warning colour.

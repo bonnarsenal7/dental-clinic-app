@@ -4,7 +4,12 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    /* "node" is here for src/core/theme.test.ts, which reads index.css off
+       disk to check the design tokens have not drifted from the charting
+       vocabulary. It is the one file in src/ that needs node APIs. When a
+       later phase collapses that duplication into a single source, this can
+       go back to ["vite/client"]. */
+    "types": ["vite/client", "node"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
