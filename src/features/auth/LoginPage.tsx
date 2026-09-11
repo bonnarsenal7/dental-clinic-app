@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { CLINIC_NAME } from '../../core/branding'
 
 export default function LoginPage() {
   const { session, staff, deniedReason, signIn } = useAuth()
@@ -27,7 +28,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-xl font-semibold text-slate-800 text-center">Dental Clinic App</h1>
+        <h1 className="text-xl font-semibold text-slate-800 text-center">{CLINIC_NAME}</h1>
         <p className="text-slate-500 text-sm text-center mt-1 mb-6">Staff sign in</p>
 
         {deniedReason && (

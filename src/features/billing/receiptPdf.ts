@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { CLINIC_NAME } from '../../core/branding'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import type { InvoiceWithDetail } from './types'
 
@@ -37,7 +38,7 @@ function buildReceipt({ invoice, patientName, clinicName, operatingHours }: Rece
   let y = MARGIN
 
   doc.setFont('helvetica', 'bold').setFontSize(16)
-  doc.text(clinicName || 'Dental Clinic', MARGIN, y)
+  doc.text(clinicName || CLINIC_NAME, MARGIN, y)
   y += 16
 
   if (operatingHours) {

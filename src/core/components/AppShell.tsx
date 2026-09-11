@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../features/auth/AuthContext'
 import { supabase } from '../supabaseClient'
 import OfflineBanner from './OfflineBanner'
+import { CLINIC_NAME } from '../branding'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-md text-sm font-medium ${
@@ -32,7 +33,7 @@ export default function AppShell() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-sm font-semibold text-slate-800">{clinicName || 'Dental Clinic App'}</p>
+            <p className="text-sm font-semibold text-slate-800">{clinicName || CLINIC_NAME}</p>
           </div>
 
           <nav className="flex items-center gap-1 flex-wrap">

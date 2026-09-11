@@ -211,6 +211,18 @@ insert into staff (id, name, email, role) values
 ```
 Every account after that is created through the in-app Staff screen.
 
+### Clinic name
+`src/core/branding.ts` holds `CLINIC_NAME` ("ToothCo Dental Clinic").
+
+For anyone signed in, the name in the nav bar and on receipts comes from
+`clinic_settings.clinic_name`, editable by an admin at `/admin/settings` —
+that remains the source of truth. `CLINIC_NAME` covers the two cases that
+can't read it: the **login screen**, which is pre-auth and so blocked by
+the `clinic_settings` RLS policy (it requires an active staff role), and
+the fallback when the setting is blank. Keep both in step when renaming —
+they had already drifted once, with the login saying "Dental Clinic App"
+while the header said "ToothCo".
+
 ### Navigation shell
 Top nav bar (not a side rail) — chosen because a side rail eats
 horizontal space on a portrait-orientation tablet, which is how staff
