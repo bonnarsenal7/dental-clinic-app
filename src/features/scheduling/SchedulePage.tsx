@@ -145,6 +145,7 @@ export default function SchedulePage() {
         <button type="button" onClick={() => shiftDay(-1)} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">←</button>
         <input
           type="date"
+          aria-label="Show this day"
           value={day}
           onChange={(e) => setDay(e.target.value)}
           className="rounded-md border border-slate-300 px-3 py-2 text-sm"

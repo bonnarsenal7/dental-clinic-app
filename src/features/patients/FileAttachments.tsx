@@ -62,6 +62,7 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
 
       <div className="flex items-center gap-2 flex-wrap">
         <select
+          aria-label="File type"
           value={fileType}
           onChange={(e) => setFileType(e.target.value)}
           className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
@@ -73,6 +74,7 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
         <input
           ref={inputRef}
           type="file"
+          aria-label="File to upload"
           className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:text-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-slate-700 cursor-pointer"
         />
         <button

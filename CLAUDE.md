@@ -892,6 +892,12 @@ render `NaN` or concatenate two totals.
 
 ## Test environment gotchas
 
+- **A `ref`-driven third-party component must be mocked as a class.** React
+  only hands an instance to a `ref` for a class component; a bare `class`
+  in a `vi.mock` is treated as a function component and called without
+  `new`. See `ConsentCapture.test.tsx`, where the signature pad stub extends
+  `React.Component` for exactly this reason.
+
 - **`testTimeout` (20s) must stay above testing-library's `asyncUtilTimeout`
   (5s).** If they are equal, a failing `findBy*` is cut off by the test
   timeout and reports "Test timed out" instead of "Unable to find an
@@ -899,3 +905,16 @@ render `NaN` or concatenate two totals.
 - **happy-dom mis-validates `step="0.01"`.** See the `noValidate` note
   above; it is a floating-point bug in its `stepMismatch` check, not a
   defect in the app.
+
+## Every form control has an accessible name
+Checked and held at zero: no `<input>`, `<select>` or `<textarea>` without a
+wrapping `<label>`, an `id` paired with `htmlFor`, or an `aria-label`.
+Placeholder-only is tolerated for search boxes and nothing else.
+
+This is not only an accessibility concern — it is what makes a control
+findable by `getByLabelText`, and an unlabelled control is usually a sign
+nobody has tried to use it from the outside. The patient chooser bug was
+found exactly this way: its label pointed at the neighbouring search box.
+
+Re-check after adding a form; the scan is a short script over the JSX (see
+the commit that introduced this section).

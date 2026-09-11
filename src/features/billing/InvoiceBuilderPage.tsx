@@ -338,6 +338,7 @@ export default function InvoiceBuilderPage() {
             <input
               type="number"
               step="0.01"
+              aria-label={`Fee for ${line.description || 'this line'}`}
               value={line.amount}
               onChange={(e) => updateLine(line.key, { amount: Number(e.target.value) })}
               className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm text-right"
@@ -354,6 +355,7 @@ export default function InvoiceBuilderPage() {
 
         <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-4">
           <select
+            aria-label="Procedure to add"
             value={manualProcedureId}
             onChange={(e) => setManualProcedureId(e.target.value)}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"

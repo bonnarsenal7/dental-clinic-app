@@ -223,6 +223,7 @@ export default function ToothDetailPanel({
                     }}
                     type="file"
                     accept="image/*,application/pdf"
+                    aria-label={`Image for ${describe(record, tooth)}`}
                     className="text-xs text-slate-500 file:mr-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-600 file:px-2 file:py-1 file:text-xs file:cursor-pointer hover:file:bg-slate-200 cursor-pointer max-w-[180px]"
                   />
                   <button
