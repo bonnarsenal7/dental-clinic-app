@@ -56,6 +56,9 @@ export default function AppShell() {
                 <NavLink to="/admin/settings" className={navLinkClass}>
                   Clinic Settings
                 </NavLink>
+                <NavLink to="/admin/audit" className={navLinkClass}>
+                  Audit Log
+                </NavLink>
               </>
             )}
           </nav>

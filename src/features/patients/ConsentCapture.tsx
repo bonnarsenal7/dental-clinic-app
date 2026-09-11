@@ -45,12 +45,16 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
       <h2 className="text-sm font-semibold text-slate-700">Consent for treatment</h2>
-      <p className="text-xs text-slate-500 whitespace-pre-line bg-slate-50 border border-slate-200 rounded-md p-3">
+      {/* Scrolls rather than growing: the full privacy notice would push
+          the signature pad off a tablet screen, and a patient signing
+          something they had to scroll past is the point of the exercise. */}
+      <div className="text-xs text-slate-500 whitespace-pre-line bg-slate-50 border border-slate-200 rounded-md p-3 max-h-64 overflow-y-auto">
         {CONSENT_TEXT}
-      </p>
+      </div>
       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-        Draft wording — pending legal review under the Data Privacy Act (see Phase 5 in CLAUDE.md). Version tag:{' '}
-        {CONSENT_TEXT_VERSION}.
+        Draft wording — not yet reviewed by anyone qualified in Philippine data privacy law, and the
+        bracketed fields (retention period, data protection officer, contact details) still need
+        filling in. See docs/COMPLIANCE.md. Version tag: {CONSENT_TEXT_VERSION}.
       </p>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}

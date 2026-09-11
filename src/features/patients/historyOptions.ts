@@ -47,10 +47,74 @@ export const ORAL_HABITS: { key: string; label: string }[] = [
   { key: 'other', label: 'Other' },
 ]
 
-export const CONSENT_TEXT_VERSION = 'v1-draft'
-export const CONSENT_TEXT = `I consent to dental examination and treatment as recommended by the dentist,
-and understand the risks, benefits, and alternatives have been explained to me.
-I also consent to the clinic storing my personal and health information for
-the purpose of providing dental care, in accordance with the Data Privacy Act.
+// Consent and data-privacy notice.
+//
+// Phase 5 replaced Phase 2's one-paragraph placeholder with a full draft
+// covering the Data Privacy Act of 2012 (RA 10173) disclosures: what is
+// collected, why, who sees it, how long it is kept, and the data subject's
+// rights. It is STILL A DRAFT. It has not been reviewed by anyone
+// qualified in Philippine data privacy law, and the bracketed fields below
+// are placeholders the clinic must fill in.
+//
+// Do not remove the draft notice in ConsentCapture.tsx until a lawyer has
+// signed this off. See docs/COMPLIANCE.md for what that review must cover.
+//
+// The version tag is stored on every consents row, so re-wording this text
+// means bumping the version — old signatures stay attached to the words
+// that were actually on screen when they were given.
+export const CONSENT_TEXT_VERSION = 'v2-draft'
+export const CONSENT_TEXT = `CONSENT FOR DENTAL TREATMENT
+
+I consent to dental examination and to the treatment recommended by the
+dentist. The nature of the proposed treatment, its risks and benefits, the
+alternatives available to me, and the likely result of declining treatment
+have been explained to me in language I understand, and I have had the
+opportunity to ask questions.
+
+I understand that dentistry is not an exact science and that no guarantee
+has been made to me about the result of treatment. I understand that during
+treatment the dentist may find conditions requiring a change of plan, and I
+authorise the dentist to use professional judgement in that event.
+
+PRIVACY NOTICE (Data Privacy Act of 2012, RA 10173)
+
+What we collect. Your name, address, date of birth, sex, contact numbers,
+occupation, and the name of your spouse; your medical and dental history,
+including conditions, allergies and medication; clinical notes, tooth
+charts, images and X-rays; and records of payments you make to the clinic.
+
+Why we collect it. To provide dental care safely, to keep a continuous
+record of your treatment, and to bill for it. Your medical history is
+collected specifically so that treatment is not given where it would be
+unsafe.
+
+Who can see it. Clinic staff, each according to their role: reception staff
+can see your contact and billing details but not the dentist's clinical
+notes or your tooth chart. Your records are held on secure servers operated
+by our hosting provider on the clinic's behalf. We do not sell your
+information, and we do not share it with anyone outside the clinic except
+where you ask us to, where another health professional needs it for your
+care, or where the law requires it.
+
+How long we keep it. Your records are retained for [RETENTION PERIOD] after
+your last visit, after which they are securely deleted.
+
+Your rights. You have the right to be informed about how your information
+is used, to access it, to have it corrected if it is wrong, to object to
+its processing, to have it erased or blocked in the circumstances the law
+allows, to receive a copy in a portable format, and to be compensated for
+damage caused by its misuse. To exercise any of these rights, contact
+[CLINIC CONTACT / DATA PROTECTION OFFICER] at [CONTACT DETAILS]. If you are
+not satisfied with our response, you may complain to the National Privacy
+Commission.
+
+Withdrawing consent. You may withdraw your consent at any time by telling
+us in writing. Withdrawal does not affect anything done before you withdrew,
+and we may still need to keep your records for the retention period above
+to meet our legal and professional obligations.
+
+I have read and understood the above. I consent to the treatment described
+and to the handling of my information as set out in this notice.
+
 This consent applies to the visit on the date signed below and may be
 re-confirmed at any future visit.`

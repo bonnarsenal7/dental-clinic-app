@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
+import { logPatientView } from '../../core/auditView'
 import { getPatient } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { listInvoices } from './api'
@@ -16,9 +18,15 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function PatientLedgerPage() {
   const { id: patientId } = useParams<{ id: string }>()
+  const { staff } = useAuth()
   const [patient, setPatient] = useState<Patient | null>(null)
   const [invoices, setInvoices] = useState<InvoiceWithDetail[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!patientId || !staff) return
+    logPatientView(patientId, staff.id, 'invoices')
+  }, [patientId, staff])
 
   useEffect(() => {
     if (!patientId) return

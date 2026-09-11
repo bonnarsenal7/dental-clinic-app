@@ -484,3 +484,62 @@ clinic needs one of those it goes in `payments.reference`.
 
 Payments remain append-only per 0002: a correction is another row and a
 refund is a negative amount.
+
+## Phase 5 — Compliance, security & backups (code done; sign-off outstanding)
+
+**Read `docs/COMPLIANCE.md` first.** It is the phase's actual deliverable —
+the written checklist the exit criteria asks for — and it records three
+BLOCKING items that mean the system is not ready for real patient data:
+no restorable backups exist, public signup is enabled, and the consent text
+has not had legal review. Don't treat Phase 5 as done because the code is.
+
+### Audit logging is done with triggers, not app code
+`0006_audit.sql` attaches an `AFTER INSERT OR UPDATE OR DELETE` trigger to
+all 13 tables holding patient data, money, or access control. **Never add
+app-side write logging** — the point is that the log fires regardless of
+what wrote the row, including the SQL editor and psql. A client-written
+audit log is worthless: the client that skips the entry is the one you
+need the log for.
+
+- The trigger is `SECURITY DEFINER`, so nobody can opt out of being logged,
+  and it does not swallow errors — a failed log fails the transaction.
+- `audit_log` is append-only: no update or delete policy for any role,
+  admin included.
+- `changed_fields` holds column **names, never values**. Storing values
+  would make the audit log a second copy of every medical history — a
+  bigger breach surface in the name of protecting one.
+- `patient_id` and `staff_id` are plain uuids, deliberately **not** foreign
+  keys, so entries outlive their subjects. A FK would have made patients
+  undeletable (the AFTER DELETE trigger names the row it just deleted);
+  a cascade would have erased the evidence.
+- Clients may only insert `operation = 'view'` rows (0006 narrowed 0002's
+  policy), so a write entry can't be forged.
+
+**Reads are the weak half and are meant to look that way.** PostgreSQL has
+no SELECT trigger, so view logging comes from the client
+(`src/core/auditView.ts`, wired into the profile, chart and ledger screens),
+fire-and-forget so a logging failure never blocks a clinician mid-
+appointment. The `operation` column keeps views distinguishable from
+trigger-written entries.
+
+Screen: `/admin/audit` (admin only) — filters plus CSV export of everything
+matching the filters, not just the visible page.
+
+### Consent text
+`CONSENT_TEXT` is now a full RA 10173 draft (`v2-draft`), replacing Phase
+2's placeholder. It still contains bracketed fields the clinic must fill in
+and **has not been reviewed by a lawyer** — leave the draft warning in
+`ConsentCapture.tsx` until it has. Re-wording means bumping
+`CONSENT_TEXT_VERSION`, so old signatures stay attached to the words that
+were on screen when they were given.
+
+### Backups
+`scripts/backup.sh` dumps roles, schema and data. It prefers direct
+`pg_dump` (needs `libpq` + `SUPABASE_DB_URL`) and falls back to the
+Supabase CLI (which needs Docker, since it runs pg_dump in a container).
+
+Two things to know: **the dump path is untested** — this environment has
+neither Docker nor the database password — and **storage objects are not
+backed up at all**, so a restore yields consent rows pointing at signature
+images that no longer exist. Both are recorded as open in
+`docs/COMPLIANCE.md`.

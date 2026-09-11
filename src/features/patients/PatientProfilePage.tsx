@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { logPatientView } from '../../core/auditView'
 import { getDentalHistory, getMedicalHistory, getPatient, listConsents } from './api'
 import ConsentCapture from './ConsentCapture'
 import VisitTimeline from './VisitTimeline'
@@ -26,6 +27,11 @@ export default function PatientProfilePage() {
   async function refreshConsents(patientId: string) {
     setConsents(await listConsents(patientId))
   }
+
+  useEffect(() => {
+    if (!id || !staff) return
+    logPatientView(id, staff.id, 'patients')
+  }, [id, staff])
 
   useEffect(() => {
     if (!id) return

@@ -19,6 +19,7 @@ import InvoiceDetailPage from './features/billing/InvoiceDetailPage'
 import PriceListPage from './features/billing/PriceListPage'
 import StaffManagementPage from './features/admin/StaffManagementPage'
 import ClinicSettingsPage from './features/admin/ClinicSettingsPage'
+import AuditLogPage from './features/admin/AuditLogPage'
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
                 <Route path="/billing/prices" element={<PriceListPage />} />
                 <Route path="/admin/staff" element={<StaffManagementPage />} />
                 <Route path="/admin/settings" element={<ClinicSettingsPage />} />
+                <Route path="/admin/audit" element={<AuditLogPage />} />
               </Route>
             </Route>
           </Route>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { logPatientView } from '../../core/auditView'
 import { getPatient } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { CONDITION_BY_KEY } from './chartVocabulary'
@@ -28,6 +29,11 @@ export default function PatientChartPage() {
   const [saving, setSaving] = useState(false)
   const [creatingVisit, setCreatingVisit] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!patientId || !staff) return
+    logPatientView(patientId, staff.id, 'tooth_records')
+  }, [patientId, staff])
 
   useEffect(() => {
     if (!patientId) return

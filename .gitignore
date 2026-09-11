@@ -26,3 +26,10 @@ dist-ssr
 # Local env files (contain Supabase keys)
 .env.local
 .env*.local
+
+# Supabase CLI scratch state — link target, cached versions, pooler URL.
+# Nothing secret is in it today (the pooler URL carries a username, not a
+# password), but it's machine-local churn and the wrong place for a secret
+# to land in a repo that holds a clinic's schema.
+supabase/.temp/
+backups/
