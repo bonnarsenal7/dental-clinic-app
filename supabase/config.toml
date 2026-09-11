@@ -1,0 +1,16 @@
+# Minimal, deliberately. `supabase config push` leaves undeclared
+# properties alone, so this file declares ONLY the settings the clinic
+# intends to control from the repo. Do not run `supabase init` over it:
+# that writes a full template of defaults (local site_url, disabled
+# toggles) which would overwrite real settings configured in the dashboard.
+
+project_id = "xzpheuvthmsucvhytdjh"
+
+[auth]
+# Accounts are created by an admin through the manage-staff Edge Function,
+# never by self-signup. Leaving this open let anyone on the internet create
+# an auth user against the clinic's project — they'd reach no patient data
+# (no staff row means current_staff_role() is null and every RLS policy
+# denies them), but it's a needless abuse surface and contradicts the
+# design. See docs/COMPLIANCE.md §1.2.
+enable_signup = false

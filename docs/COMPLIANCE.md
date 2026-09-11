@@ -49,9 +49,31 @@ and make the project send confirmation emails, which contradicts the design
 (accounts are supposed to be admin-created through the `manage-staff` Edge
 Function) and is a needless abuse surface for a clinic system.
 
-**To fix:** Supabase Dashboard → Authentication → Sign In / Providers →
-Email → turn off "Allow new users to sign up". Then re-check with the
-`/auth/v1/settings` call above.
+**To fix — two routes, both one step:**
+
+1. Supabase Dashboard → Authentication → Sign In / Providers → Email →
+   turn off "Allow new users to sign up".
+2. Or from the repo, `supabase/config.toml` already declares
+   `auth.enable_signup = false`; run `supabase config push`.
+
+Route 2 has been verified safe: `supabase config diff` reports
+`{"update": 1, "local_only": 0}`, and the only entry with
+`"declared": true` is `auth.enable_signup`. The other 13 differences are
+`"declared": false` — CLI built-in defaults that the config file does not
+declare, and which `config push` therefore leaves alone. That distinction
+matters, because several of them would be harmful if pushed: it would
+disable email confirmations, disable TOTP MFA, and change `site_url`.
+
+**Never run `supabase init` in this repo.** It overwrites `config.toml`
+with a full template of those defaults, at which point they all become
+`declared: true` and the next push applies them.
+
+Verify afterwards:
+```bash
+curl -s "$VITE_SUPABASE_URL/auth/v1/settings" -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['disable_signup'])"
+# expect: True
+```
 
 ### 1.3 The consent and privacy notice has not had legal review — BLOCKING
 
