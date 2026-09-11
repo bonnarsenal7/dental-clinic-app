@@ -75,13 +75,13 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
           ref={inputRef}
           type="file"
           aria-label="File to upload"
-          className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:text-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-slate-700 cursor-pointer"
+          className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-gold-700 file:text-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:cursor-pointer hover:file:bg-gold-800 cursor-pointer"
         />
         <button
           type="button"
           onClick={() => void handleUpload()}
           disabled={uploading}
-          className="rounded-md bg-slate-800 text-white text-sm font-medium px-3 py-1.5 hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-md bg-gold-700 text-white text-sm font-medium px-3 py-1.5 hover:bg-gold-800 disabled:opacity-50"
         >
           {uploading ? 'Uploading…' : 'Upload'}
         </button>

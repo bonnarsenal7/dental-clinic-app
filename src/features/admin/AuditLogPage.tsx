@@ -152,7 +152,7 @@ export default function AuditLogPage() {
           type="button"
           onClick={() => void handleExport()}
           disabled={exporting}
-          className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800 disabled:opacity-50"
         >
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>

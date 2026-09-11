@@ -249,7 +249,7 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
       <button
         type="submit"
         disabled={isSubmitting}
-        className="self-start rounded-md bg-slate-800 text-white text-sm font-medium px-5 py-2.5 hover:bg-slate-700 disabled:opacity-50"
+        className="self-start rounded-md bg-gold-700 text-white text-sm font-medium px-5 py-2.5 hover:bg-gold-800 disabled:opacity-50"
       >
         {isSubmitting ? 'Saving…' : submitLabel}
       </button>

@@ -117,7 +117,7 @@ export default function SchedulePage() {
           <button
             type="button"
             onClick={() => setBooking((b) => !b)}
-            className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700"
+            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
           >
             {booking ? 'Close' : '+ Book appointment'}
           </button>

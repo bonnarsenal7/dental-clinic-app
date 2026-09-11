@@ -64,7 +64,7 @@ export default function PatientProfilePage() {
           {staff && staff.role !== 'receptionist' && (
             <Link
               to={`/patients/${id}/chart`}
-              className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700"
+              className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
             >
               Dental chart
             </Link>

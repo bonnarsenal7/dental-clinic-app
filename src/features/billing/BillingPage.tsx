@@ -65,7 +65,7 @@ export default function BillingPage() {
             </div>
             <Link
               to={`/patients/${p.id}/billing`}
-              className="rounded-md bg-slate-800 text-white text-sm font-medium px-3 py-1.5 hover:bg-slate-700"
+              className="rounded-md bg-gold-700 text-white text-sm font-medium px-3 py-1.5 hover:bg-gold-800"
             >
               Open ledger
             </Link>

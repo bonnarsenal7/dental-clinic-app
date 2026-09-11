@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { CLINIC_NAME } from '../../core/branding'
+import toothcoLogo from '../../assets/toothco-logo.png'
 
 export default function LoginPage() {
   const { session, staff, deniedReason, signIn } = useAuth()
@@ -28,8 +29,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-xl font-semibold text-slate-800 text-center">{CLINIC_NAME}</h1>
-        <p className="text-slate-500 text-sm text-center mt-1 mb-6">Staff sign in</p>
+        <div className="flex justify-center mb-2">
+          <img src={toothcoLogo} alt={CLINIC_NAME} className="h-14 w-auto" />
+        </div>
+        <h1 className="sr-only">{CLINIC_NAME}</h1>
+        <p className="text-slate-500 text-sm text-center mb-6">Staff sign in</p>
 
         {deniedReason && (
           <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
@@ -51,7 +55,7 @@ export default function LoginPage() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-slate-700">
@@ -62,13 +66,13 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
             />
           </label>
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 rounded-md bg-slate-800 text-white text-sm font-medium py-2 hover:bg-slate-700 disabled:opacity-50"
+            className="mt-2 rounded-md bg-gold-700 text-white text-sm font-medium py-2 hover:bg-gold-800 disabled:opacity-50"
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>

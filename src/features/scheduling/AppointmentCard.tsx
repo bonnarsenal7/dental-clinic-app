@@ -85,7 +85,7 @@ export default function AppointmentCard({
               to={`/patients/${appointment.patient_id}/invoices/new?appointment=${appointment.id}${
                 appointment.visit_id ? `&visit=${appointment.visit_id}` : ''
               }`}
-              className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+              className="rounded-md bg-gold-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-gold-800"
             >
               Create invoice
             </Link>
@@ -98,7 +98,7 @@ export default function AppointmentCard({
             onClick={() => onStatusChange(appointment, status)}
             className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
               status === 'arrived' || status === 'in_chair' || status === 'completed'
-                ? 'bg-slate-800 text-white hover:bg-slate-700'
+                ? 'bg-gold-700 text-white hover:bg-gold-800'
                 : 'border border-slate-300 text-slate-500 hover:bg-slate-100'
             }`}
           >

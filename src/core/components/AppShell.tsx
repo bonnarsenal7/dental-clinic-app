@@ -4,10 +4,11 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { supabase } from '../supabaseClient'
 import OfflineBanner from './OfflineBanner'
 import { CLINIC_NAME } from '../branding'
+import toothcoLogo from '../../assets/toothco-logo.png'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-md text-sm font-medium ${
-    isActive ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'
+    isActive ? 'bg-gold-700 text-white' : 'text-slate-600 hover:bg-slate-100'
   }`
 
 export default function AppShell() {
@@ -32,7 +33,8 @@ export default function AppShell() {
       <OfflineBanner />
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <div>
+          <div className="flex items-center gap-2">
+            <img src={toothcoLogo} alt="" className="h-8 w-auto" />
             <p className="text-sm font-semibold text-slate-800">{clinicName || CLINIC_NAME}</p>
           </div>
 

@@ -124,7 +124,7 @@ export default function InvoiceDetailPage() {
           <button
             type="button"
             onClick={() => downloadReceipt({ invoice, patientName, clinicName: clinic.clinic_name, operatingHours: clinic.operating_hours })}
-            className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700"
+            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
           >
             Download receipt
           </button>
@@ -229,7 +229,7 @@ export default function InvoiceDetailPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800 disabled:opacity-50"
             >
               {isSubmitting ? 'Recording…' : 'Record payment'}
             </button>

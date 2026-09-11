@@ -60,7 +60,7 @@ export default function PatientLedgerPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Link
             to={`/patients/${patientId}/invoices/new`}
-            className="rounded-md bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-700"
+            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
           >
             + New invoice
           </Link>

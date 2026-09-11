@@ -20,7 +20,7 @@ export default function ChartLegend({ selected, onSelect }: ChartLegendProps) {
           onClick={() => onSelect(null)}
           className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
             selected === null
-              ? 'border-slate-800 bg-slate-800 text-white'
+              ? 'border-gold-700 bg-gold-100 text-slate-900 font-medium'
               : 'border-slate-300 text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -32,9 +32,16 @@ export default function ChartLegend({ selected, onSelect }: ChartLegendProps) {
             key={condition.key}
             type="button"
             onClick={() => onSelect(condition.key)}
+            // Selected reads as a light gold fill with a gold edge, not a
+            // solid gold button. The swatch beside the label *is* the
+            // information here, and a coloured patch on a dark saturated
+            // ground stops being legible: on gold-700 every one of the five
+            // measures between 1.02:1 and 2.05:1 — they disappear. On this
+            // tint they run 2.18:1 to 4.39:1, and the gold border still
+            // carries "selected" at 4.46:1 against it.
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
               selected === condition.key
-                ? 'border-slate-800 bg-slate-800 text-white'
+                ? 'border-gold-700 bg-gold-100 text-slate-900 font-medium'
                 : 'border-slate-300 text-slate-600 hover:bg-slate-100'
             }`}
           >
