@@ -8,6 +8,8 @@ import { getInvoice, recordPayment, voidInvoice } from './api'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import { downloadReceipt, receiptNumber } from './receiptPdf'
 import type { InvoiceWithDetail, PaymentMethod } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 interface PaymentForm {
   amount: string
@@ -55,7 +57,7 @@ export default function InvoiceDetailPage() {
         setPatientName(patient.name)
         if (settings.data) setClinic(settings.data)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
   }, [id])
 
   async function onRecordPayment(values: PaymentForm) {
@@ -79,7 +81,7 @@ export default function InvoiceDetailPage() {
       // refetch is what tells us the real state — not local arithmetic.
       await refresh(invoice.id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -90,14 +92,14 @@ export default function InvoiceDetailPage() {
       await voidInvoice(invoice.id)
       await refresh(invoice.id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
   if (error && !invoice) {
-    return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+    return <ErrorState message={error} />
   }
-  if (!invoice) return <p className="text-slate-400 text-sm">Loading…</p>
+  if (!invoice) return <LoadingState />
 
   const total = invoiceTotal(invoice)
   const paid = invoicePaid(invoice)
@@ -135,7 +137,7 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       {isVoid && (
         <p className="text-sm text-slate-500 bg-slate-100 border border-slate-200 rounded-md px-3 py-2">

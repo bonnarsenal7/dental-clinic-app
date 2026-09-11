@@ -543,3 +543,69 @@ neither Docker nor the database password — and **storage objects are not
 backed up at all**, so a restore yields consent rows pointing at signature
 images that no longer exist. Both are recorded as open in
 `docs/COMPLIANCE.md`.
+
+## Phase 6 — Offline resilience & polish (done)
+
+### Connectivity is detected centrally, in the Supabase client
+`src/core/supabaseClient.ts` wraps `fetch` and reports the outcome to
+`src/core/useOnlineStatus.ts`. **Don't add per-screen connectivity checks** —
+routing every call through one observer means a screen nobody thought about
+still drives the banner correctly, and a request that *succeeds* counts as
+proof the connection is back.
+
+That last part matters: `navigator.onLine` only knows the link layer, so it
+reports `true` for a tablet associated with a clinic access point whose
+uplink is down — precisely the failure this phase exists for. The flag is
+the starting value; an observed request outcome overrides it.
+
+It only observes. **Nothing is queued or retried**, per the project
+constraint: this is a clear offline state, not a sync engine. Writes to a
+health record are never silently deferred.
+
+### Errors
+`src/core/errors.ts` — `toMessage(e)` is what every catch block calls. It
+replaces network failures with a plain-language message and leaves real
+errors (constraint violations, RLS refusals) with their own wording, which
+is genuinely useful to read. Before this, all 21 error sites rendered
+`TypeError: Failed to fetch` verbatim, which reads as a bug in the app
+rather than as "the Wi-Fi went".
+
+Signature matching is tested against the real strings Chrome, Firefox,
+Safari and undici produce — if that list drifts, the banner stops firing,
+so extend `NETWORK_SIGNATURES` rather than special-casing at a call site.
+
+### No lost data
+The property holds because **every `reset()` and `navigate()` sits after
+its awaited write, inside the `try`**. A failed write throws, the reset
+never runs, and react-hook-form keeps what was typed. Preserve that
+ordering in new forms — moving a `reset()` before or outside the `await` is
+what would silently discard a half-filled registration.
+
+The odontogram additionally stages marks locally with a `beforeunload`
+guard (Phase 3).
+
+### Shared states
+`src/core/components/states.tsx` — `LoadingState`, `EmptyState`,
+`ErrorState` (the last takes an optional `onRetry`). Use these rather than
+improvising: before Phase 6 an empty list and a failed request looked
+identical on several screens.
+
+`ErrorBoundary` (in `main.tsx`, wrapping everything) stops a render crash
+blanking the screen mid-appointment, and says plainly what is and isn't
+saved.
+
+### Tablet ergonomics
+Handled once in `src/index.css` under `@media (pointer: coarse)` rather
+than as `min-h-[44px]` on ~80 className strings — so touch targets reach
+the 44px minimum on tablets, desktop stays compact, and screens added later
+inherit it. Links styled as buttons are matched via `a[class*="rounded-md"]`
+since they're `<a>`, not `<button>`. `canvas { touch-action: none }` stops
+the browser treating a signature stroke as a scroll.
+
+### Crash reporting
+`src/core/sentry.ts`, initialised before render. **Inert unless
+`VITE_SENTRY_DSN` is set** (see `.env.example`), so local dev and CI stay
+silent. `sendDefaultPii` is off and fetch breadcrumb bodies are dropped —
+this is a health records system and must not ship patient data to a
+third-party tracker. `beforeSend` drops network errors, which would
+otherwise bury real crashes under flaky-Wi-Fi noise.

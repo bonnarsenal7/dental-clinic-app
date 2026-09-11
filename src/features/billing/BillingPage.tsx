@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { searchPatients } from '../patients/api'
 import type { Patient } from '../patients/types'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 // Billing is always about one patient's ledger, so this is the way in —
 // the ledger itself lives at /patients/:id/billing with the rest of their
@@ -17,7 +19,7 @@ export default function BillingPage() {
     const handle = setTimeout(() => {
       searchPatients(query)
         .then(setPatients)
-        .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+        .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
   }, [query])
@@ -46,7 +48,7 @@ export default function BillingPage() {
         className="rounded-md border border-slate-300 px-3 py-2 text-sm max-w-md"
       />
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
         {patients === null && <p className="px-4 py-6 text-center text-slate-400 text-sm">Loading…</p>}

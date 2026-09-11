@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../core/supabaseClient'
 import type { StaffProfile } from '../auth/types'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 interface AuditEntry {
   id: string
@@ -129,7 +131,7 @@ export default function AuditLogPage() {
       link.click()
       URL.revokeObjectURL(url)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setExporting(false)
     }
@@ -156,7 +158,7 @@ export default function AuditLogPage() {
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
         <label className="flex flex-col gap-1 text-sm text-slate-700">

@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form'
 import { createProcedure, listProcedures, updateProcedure } from './api'
 import { formatMoney } from './ledger'
 import type { Procedure } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 interface ProcedureForm {
   name: string
@@ -30,7 +32,7 @@ export default function PriceListPage() {
       // brought back without losing the invoices that reference it.
       setProcedures(await listProcedures(true))
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -50,7 +52,7 @@ export default function PriceListPage() {
       reset(EMPTY)
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -60,7 +62,7 @@ export default function PriceListPage() {
       await updateProcedure(procedure.id, { active: !procedure.active })
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -74,7 +76,7 @@ export default function PriceListPage() {
         </p>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <form
         onSubmit={handleSubmit(onAdd)}

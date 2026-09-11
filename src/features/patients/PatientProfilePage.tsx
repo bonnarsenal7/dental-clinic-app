@@ -8,6 +8,8 @@ import VisitTimeline from './VisitTimeline'
 import FileAttachments from './FileAttachments'
 import { MEDICAL_CONDITIONS, DENTAL_SYMPTOMS, ORAL_HABITS } from './historyOptions'
 import type { Consent, DentalHistory, MedicalHistory, Patient } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 function trueKeys(map: Record<string, boolean> | undefined, options: { key: string; label: string }[]) {
   if (!map) return []
@@ -42,11 +44,11 @@ export default function PatientProfilePage() {
         setDental(d)
         setConsents(c)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
   }, [id])
 
-  if (error) return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
-  if (!patient || !id) return <p className="text-slate-400 text-sm">Loading…</p>
+  if (error) return <ErrorState message={error} />
+  if (!patient || !id) return <LoadingState />
 
   return (
     <div className="flex flex-col gap-6">

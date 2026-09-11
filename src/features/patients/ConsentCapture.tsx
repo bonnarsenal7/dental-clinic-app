@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
 import { CONSENT_TEXT, CONSENT_TEXT_VERSION } from './historyOptions'
 import { saveConsent } from './api'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 interface ConsentCaptureProps {
   patientId: string
@@ -36,7 +38,7 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
       await saveConsent({ patientId, staffId, consentTextVersion: CONSENT_TEXT_VERSION, signatureDataUrl: dataUrl })
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setSaving(false)
     }
@@ -57,7 +59,7 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
         filling in. See docs/COMPLIANCE.md. Version tag: {CONSENT_TEXT_VERSION}.
       </p>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <div className="border border-slate-300 rounded-md bg-slate-50 w-full max-w-md">
         <SignatureCanvas

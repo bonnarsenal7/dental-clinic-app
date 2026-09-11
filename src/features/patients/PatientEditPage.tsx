@@ -4,6 +4,8 @@ import PatientForm from './PatientForm'
 import { EMPTY_PATIENT_FORM } from './PatientForm'
 import { getDentalHistory, getMedicalHistory, getPatient, updatePatientHistory } from './api'
 import type { PatientRegistrationInput } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 function toStr(v: unknown): string {
   return v === null || v === undefined ? '' : String(v)
@@ -55,7 +57,7 @@ export default function PatientEditPage() {
           oral_habits_other_details: toStr(dental?.oral_habits_other_details),
         })
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
   }, [id])
 
   async function handleSubmit(values: PatientRegistrationInput) {
@@ -64,8 +66,8 @@ export default function PatientEditPage() {
     navigate(`/patients/${id}`)
   }
 
-  if (error) return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
-  if (!defaultValues) return <p className="text-slate-400 text-sm">Loading…</p>
+  if (error) return <ErrorState message={error} />
+  if (!defaultValues) return <LoadingState />
 
   return (
     <div className="flex flex-col gap-6">

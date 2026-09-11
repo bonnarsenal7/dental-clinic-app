@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form'
 import { useAuth } from '../auth/AuthContext'
 import { addVisitWithNote, listVisits } from './api'
 import type { VisitWithNote } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 interface NoteForm {
   visit_date: string
@@ -26,7 +28,7 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
     try {
       setVisits(await listVisits(patientId))
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -48,14 +50,14 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
       reset({ visit_date: new Date().toISOString().slice(0, 10), notes: '' })
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
       <h2 className="text-sm font-semibold text-slate-700">Visit history</h2>
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       {canWriteNotes && (
         <form onSubmit={handleSubmit(onAdd)} className="flex flex-col gap-3 border border-slate-200 rounded-lg p-4">
@@ -83,7 +85,7 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
       )}
 
       <div className="flex flex-col gap-3">
-        {visits === null && <p className="text-slate-400 text-sm">Loading…</p>}
+        {visits === null && <LoadingState />}
         {visits?.length === 0 && <p className="text-slate-400 text-sm">No visits recorded yet.</p>}
         {visits?.map((v) => (
           <div key={v.id} className="border-t border-slate-100 pt-3">

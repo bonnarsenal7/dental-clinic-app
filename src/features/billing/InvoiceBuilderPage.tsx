@@ -6,6 +6,8 @@ import type { Patient } from '../patients/types'
 import { createInvoice, listBillableCharting, listPatientVisits, listProcedures } from './api'
 import { formatMoney } from './ledger'
 import type { BillableCharting, Procedure } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 interface DraftLine {
   key: string
@@ -46,7 +48,7 @@ export default function InvoiceBuilderPage() {
         setProcedures(procs)
         setVisits(vs)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
       .finally(() => setLoading(false))
   }, [patientId])
 
@@ -57,7 +59,7 @@ export default function InvoiceBuilderPage() {
     }
     listBillableCharting(visitId)
       .then(setBillable)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
   }, [visitId, canReadChart])
 
   const total = useMemo(() => lines.reduce((sum, l) => sum + l.amount, 0), [lines])
@@ -146,12 +148,12 @@ export default function InvoiceBuilderPage() {
       })
       navigate(`/invoices/${invoice.id}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
       setSaving(false)
     }
   }
 
-  if (loading) return <p className="text-slate-400 text-sm">Loading…</p>
+  if (loading) return <LoadingState />
   if (!patient || !patientId) {
     return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error ?? 'Patient not found.'}</p>
   }
@@ -175,7 +177,7 @@ export default function InvoiceBuilderPage() {
         </Link>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 flex-wrap">
         <label className="text-sm text-slate-600" htmlFor="invoice-visit">For visit</label>

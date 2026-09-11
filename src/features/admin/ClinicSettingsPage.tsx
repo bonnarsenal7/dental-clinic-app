@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '../../core/supabaseClient'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 interface SettingsForm {
   clinic_name: string
@@ -47,7 +48,7 @@ export default function ClinicSettingsPage() {
     setSaved(true)
   }
 
-  if (loading) return <p className="text-slate-400 text-sm">Loading…</p>
+  if (loading) return <LoadingState />
 
   return (
     <div className="flex flex-col gap-6 max-w-lg">
@@ -57,7 +58,7 @@ export default function ClinicSettingsPage() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+        <ErrorState message={error} />
       )}
       {saved && (
         <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">

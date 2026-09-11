@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form'
 import { useAuth } from '../auth/AuthContext'
 import type { StaffProfile, StaffRole } from '../auth/types'
 import { createStaff, deactivateStaff, listStaff } from './api'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 interface CreateStaffForm {
   name: string
@@ -28,7 +30,7 @@ export default function StaffManagementPage() {
     try {
       setStaffList(await listStaff())
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -47,7 +49,7 @@ export default function StaffManagementPage() {
       reset({ name: '', email: '', role: 'receptionist' })
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -59,7 +61,7 @@ export default function StaffManagementPage() {
       await deactivateStaff(id)
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setBusyId(null)
     }
@@ -73,7 +75,7 @@ export default function StaffManagementPage() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+        <ErrorState message={error} />
       )}
       {newAccountNotice && (
         <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">

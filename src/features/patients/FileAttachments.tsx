@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { getSignedFileUrl, listPatientFiles, uploadPatientFile } from './api'
 import type { PatientFile } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 export default function FileAttachments({ patientId }: { patientId: string }) {
   const { staff } = useAuth()
@@ -15,7 +17,7 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
     try {
       setFiles(await listPatientFiles(patientId))
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -38,7 +40,7 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
       if (inputRef.current) inputRef.current.value = ''
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setUploading(false)
     }
@@ -49,14 +51,14 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
       const url = await getSignedFileUrl(path)
       window.open(url, '_blank', 'noopener')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
       <h2 className="text-sm font-semibold text-slate-700">Attachments</h2>
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <div className="flex items-center gap-2 flex-wrap">
         <select
@@ -84,7 +86,7 @@ export default function FileAttachments({ patientId }: { patientId: string }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        {files === null && <p className="text-slate-400 text-sm">Loading…</p>}
+        {files === null && <LoadingState />}
         {files?.length === 0 && <p className="text-slate-400 text-sm">No files attached yet.</p>}
         {files?.map((f) => (
           <button

@@ -13,6 +13,8 @@ import Odontogram from './Odontogram'
 import ToothDetailPanel from './ToothDetailPanel'
 import type { ChartVisit, PendingMark, ToothRecord } from './types'
 import type { InteractionMode } from './ToothGlyph'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 export default function PatientChartPage() {
   const { id: patientId } = useParams<{ id: string }>()
@@ -49,7 +51,7 @@ export default function PatientChartPage() {
         const todaysVisit = v.find((visit) => new Date(visit.visit_date).toDateString() === today)
         if (todaysVisit) setVisitId(todaysVisit.id)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
       .finally(() => setLoading(false))
   }, [patientId])
 
@@ -118,7 +120,7 @@ export default function PatientChartPage() {
       setVisits((current) => [visit, ...current])
       setVisitId(visit.id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setCreatingVisit(false)
     }
@@ -140,16 +142,16 @@ export default function PatientChartPage() {
       setRecords((current) => [...current, ...saved].sort((a, b) => a.seq - b.seq))
       setPending([])
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setSaving(false)
     }
   }
 
   if (error && !patient) {
-    return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+    return <ErrorState message={error} />
   }
-  if (loading || !patient || !patientId) return <p className="text-slate-400 text-sm">Loading chart…</p>
+  if (loading || !patient || !patientId) return <LoadingState label="Loading chart…" />
 
   return (
     <div className="flex flex-col gap-6 pb-24">
@@ -169,7 +171,7 @@ export default function PatientChartPage() {
         </Link>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 flex-wrap">
         <label className="text-sm text-slate-600" htmlFor="chart-visit">

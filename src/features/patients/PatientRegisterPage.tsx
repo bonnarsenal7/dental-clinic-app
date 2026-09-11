@@ -6,6 +6,8 @@ import RegistrationReview from './RegistrationReview'
 import ConsentCapture from './ConsentCapture'
 import { registerPatient } from './api'
 import type { PatientRegistrationInput } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 type Stage = 'form' | 'review' | 'consent'
 
@@ -37,7 +39,7 @@ export default function PatientRegisterPage() {
       setNewPatientName(patient.name)
       setStage('consent')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setSaving(false)
     }
@@ -79,7 +81,7 @@ export default function PatientRegisterPage() {
             signing consent. Nothing is saved yet.
           </p>
         </div>
-        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+        {error && <ErrorState message={error} />}
         <RegistrationReview values={pendingValues} />
         <div className="flex gap-3">
           <button

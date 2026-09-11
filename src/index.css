@@ -1,1 +1,51 @@
 @import "tailwindcss";
+
+/* Tablet ergonomics (Phase 6).
+ *
+ * The clinic uses this in a tablet browser, mostly held in portrait. The
+ * default Tailwind control sizes used across the app (py-2, text-sm) come
+ * out around 36px tall — fine with a mouse, fiddly with a fingertip, and
+ * below the 44px both Apple and Google publish as the minimum.
+ *
+ * Scoped to `pointer: coarse` so this only affects touch input: on a desk
+ * machine the same screens stay compact, and nothing has to be restyled
+ * per control. Doing it here rather than adding min-h-[44px] to ~80
+ * className strings also means screens added later inherit it. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  select,
+  textarea,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+    min-height: 44px;
+  }
+
+  /* Links styled as buttons are <a>, so the button selector misses them.
+     Every one in this app carries a rounded-md utility. */
+  a[class*="rounded-md"] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Stretching a checkbox with min-height would distort it; grow it
+     instead. The history forms are long checklists, so these get tapped
+     more than anything else in the app. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* The file input's own button is drawn by the browser and ignores the
+     rules above. */
+  input[type="file"]::file-selector-button {
+    min-height: 40px;
+  }
+}
+
+/* The signature pad is drawn with the finger, so the browser must not
+ * treat a stroke as a scroll or a double-tap zoom. */
+canvas {
+  touch-action: none;
+}

@@ -8,6 +8,8 @@ import { listInvoices } from './api'
 import { buildLedger, formatMoney, invoiceBalance, outstandingBalance } from './ledger'
 import { receiptNumber } from './receiptPdf'
 import type { InvoiceWithDetail } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState, LoadingState } from '../../core/components/states'
 
 const STATUS_STYLES: Record<string, string> = {
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -35,16 +37,16 @@ export default function PatientLedgerPage() {
         setPatient(p)
         setInvoices(inv)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(toMessage(e)))
   }, [patientId])
 
   const ledger = useMemo(() => (invoices ? buildLedger(invoices) : []), [invoices])
   const outstanding = useMemo(() => (invoices ? outstandingBalance(invoices) : 0), [invoices])
 
   if (error && !patient) {
-    return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+    return <ErrorState message={error} />
   }
-  if (!patient || !patientId || invoices === null) return <p className="text-slate-400 text-sm">Loading…</p>
+  if (!patient || !patientId || invoices === null) return <LoadingState />
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,7 +73,7 @@ export default function PatientLedgerPage() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <section className="bg-white border border-slate-200 rounded-xl px-6 py-5 flex items-baseline justify-between gap-3 flex-wrap">
         <span className="text-sm text-slate-500">Outstanding balance</span>

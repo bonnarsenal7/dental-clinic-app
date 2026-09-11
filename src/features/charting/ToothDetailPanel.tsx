@@ -10,6 +10,8 @@ import type { ToothConditionKey, ToothSurface } from './chartVocabulary'
 import { hasFindings } from './chartState'
 import { attachToothImage, getSignedToothImageUrl } from './api'
 import type { ChartVisit, PendingMark, ToothRecord, ToothState } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 interface ToothDetailPanelProps {
   patientId: string
@@ -81,7 +83,7 @@ export default function ToothDetailPanel({
       if (input) input.value = ''
       onRecordUpdated(updated)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     } finally {
       setUploadingFor(null)
     }
@@ -91,7 +93,7 @@ export default function ToothDetailPanel({
     try {
       window.open(await getSignedToothImageUrl(path), '_blank', 'noopener')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(toMessage(e))
     }
   }
 
@@ -105,7 +107,7 @@ export default function ToothDetailPanel({
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+        <ErrorState message={error} />
       )}
 
       <div className="flex flex-col gap-1.5">

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { searchPatients } from './api'
 import type { Patient } from './types'
+import { toMessage } from '../../core/errors'
+import { ErrorState } from '../../core/components/states'
 
 export default function PatientsPage() {
   const [query, setQuery] = useState('')
@@ -12,7 +14,7 @@ export default function PatientsPage() {
     const handle = setTimeout(() => {
       searchPatients(query)
         .then(setPatients)
-        .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+        .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
   }, [query])
@@ -39,7 +41,7 @@ export default function PatientsPage() {
         className="rounded-md border border-slate-300 px-3 py-2 text-sm max-w-md"
       />
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+      {error && <ErrorState message={error} />}
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
