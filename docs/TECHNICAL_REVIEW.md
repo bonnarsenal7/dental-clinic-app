@@ -275,13 +275,27 @@ Vercel **preview** deployments are deliberately not allowlisted: reset from
 a preview build will fall back to production. Add the origin if that ever
 matters.
 
-Still open, and deliberately not done here — it is a feature, not the fix:
+- [x] Added a `reset_password` action to `manage-staff` and a "Reset
+      password" action on the Staff screen, 2026-09-12. It issues a new
+      temporary password shown once rather than emailing a link, because the
+      case it exists for is someone locked out who cannot reach the mailbox
+      on file. Offered only for active accounts — a new password does nothing
+      against a GoTrue ban, which refuses the login before the password is
+      checked.
 
-- [ ] Consider a `reset` action on `manage-staff`, so an admin can recover a
-      locked-out staff member without going to the Supabase dashboard.
-      `StaffManagementPage.tsx:198` tells admins the user "can reset it from
-      the login screen", which now works — but only if the staff member can
-      still receive mail at the address on file.
+Two limits, recorded rather than smoothed over:
+
+- **An existing session survives the reset.** Changing the password does not
+  revoke refresh tokens, so an admin resetting because they suspect the old
+  password leaked must deactivate and restore instead — that path does ban
+  and unban in GoTrue, which does cut sessions off. The confirmation dialog
+  says so.
+- **The Edge Function branch was not exercised against production.** Its
+  guard was: an anon-key call returns the function's own `Not authenticated`,
+  so the new bundle is live and the admin check holds. Exercising the reset
+  itself would have meant changing a real staff member's password. The
+  client half is unit-tested; the server branch is reviewed, not run. Worth
+  one manual pass on the Staff screen during the pilot.
 
 ### F-6 No clinic day has been run through the system — OPEN
 

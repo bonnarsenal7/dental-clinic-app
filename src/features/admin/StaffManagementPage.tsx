@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../auth/AuthContext'
 import type { StaffProfile, StaffRole } from '../auth/types'
-import { createStaff, deactivateStaff, listStaff, reactivateStaff } from './api'
+import { createStaff, deactivateStaff, listStaff, reactivateStaff, resetStaffPassword } from './api'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import ConfirmDialog from '../../core/components/ui/ConfirmDialog'
@@ -25,6 +25,7 @@ export default function StaffManagementPage() {
   // The account the confirmation is currently asking about, or null.
   const [pendingDeactivation, setPendingDeactivation] = useState<StaffProfile | null>(null)
   const [pendingReactivation, setPendingReactivation] = useState<StaffProfile | null>(null)
+  const [pendingReset, setPendingReset] = useState<StaffProfile | null>(null)
 
   const {
     register,
@@ -82,9 +83,24 @@ export default function StaffManagementPage() {
     }
   }
 
+  async function onResetPassword(s: StaffProfile) {
+    setBusyId(s.id)
+    setNewAccountNotice(null)
+    try {
+      const result = await resetStaffPassword(s.id)
+      // Shown once, in the same place a new account's password appears —
+      // there is nowhere to look it up again afterwards.
+      setNewAccountNotice(
+        `New temporary password for ${s.name}: ${result.tempPassword} — share this with them directly; they should change it after logging in.`,
+      )
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Staff accounts" description="Create, list, and deactivate staff logins." />
+      <PageHeader title="Staff accounts" description="Create, list, deactivate and recover staff logins." />
 
       {error && <ErrorState message={error} />}
       {newAccountNotice && (
@@ -182,6 +198,18 @@ export default function StaffManagementPage() {
                       {busyId === s.id ? 'Restoring…' : 'Restore access'}
                     </button>
                   )}
+                  {/* Only for active accounts: a new password does nothing
+                      for a deactivated one, because the GoTrue ban refuses
+                      the login before the password is checked. */}
+                  {s.active && (
+                    <button
+                      onClick={() => setPendingReset(s)}
+                      disabled={busyId === s.id}
+                      className="text-xs text-slate-600 hover:underline disabled:opacity-50 ml-3"
+                    >
+                      {busyId === s.id ? 'Resetting…' : 'Reset password'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -190,12 +218,26 @@ export default function StaffManagementPage() {
       </div>
 
       <ConfirmDialog
+        open={pendingReset !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingReset(null)
+        }}
+        title={`Reset the password for ${pendingReset?.name ?? 'this account'}?`}
+        description="Their current password stops working immediately. A new temporary one is shown once, for you to pass on in person. Any session they already have open stays valid until it times out."
+        confirmLabel="Reset password"
+        tone="default"
+        onConfirm={async () => {
+          if (pendingReset) await onResetPassword(pendingReset)
+        }}
+      />
+
+      <ConfirmDialog
         open={pendingReactivation !== null}
         onOpenChange={(open) => {
           if (!open) setPendingReactivation(null)
         }}
         title={`Restore access for ${pendingReactivation?.name ?? 'this account'}?`}
-        description="They will be able to log in again immediately, with the role shown. Their password is unchanged — if they no longer have it, they can reset it from the login screen."
+        description="They will be able to log in again immediately, with the role shown. Their password is unchanged — if they no longer have it, they can reset it from the login screen, or you can issue a new one here once they are active."
         confirmLabel="Restore access"
         tone="default"
         onConfirm={async () => {

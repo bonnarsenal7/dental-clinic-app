@@ -1,7 +1,7 @@
 // Edge Function: manage-staff
 //
-// Handles the two privileged staff-account operations (create, deactivate)
-// that need the service-role key. That key must never reach the browser,
+// Handles the privileged staff-account operations (create, deactivate,
+// reactivate, reset_password) that need the service-role key. That key must never reach the browser,
 // so this function is the only place it's used — the React app calls this
 // function instead of touching auth.admin.* directly.
 //
@@ -148,6 +148,58 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
+  if (action === 'reset_password') {
+    const { staffId } = payload as { staffId?: string }
+    if (!staffId) {
+      return json({ error: 'staffId is required' }, 400)
+    }
+
+    // Issues a new temporary password rather than emailing a reset link.
+    // The reason is the failure this exists for: a staff member locked out
+    // mid-clinic-day often cannot reach the mailbox on file, or the address
+    // is a shared one. A password an admin can read out is recoverable in
+    // the room. It also matches how accounts are created here — there is no
+    // email-invite flow either.
+    //
+    // The self-service email route still exists at /forgot-password for
+    // anyone who can receive mail.
+    const { data: target, error: lookupError } = await adminClient
+      .from('staff')
+      .select('name, active')
+      .eq('id', staffId)
+      .maybeSingle()
+    if (lookupError) {
+      return json({ error: lookupError.message }, 400)
+    }
+    if (!target) {
+      // Without this the admin API returns a bare 404 that reads as a bug.
+      return json({ error: 'No staff account with that id.' }, 404)
+    }
+    if (!target.active) {
+      // A new password does nothing for a deactivated account: the GoTrue
+      // ban blocks the login before the password is ever checked. Saying so
+      // is better than handing over a credential that cannot be used.
+      return json(
+        { error: 'That account is deactivated. Restore access first, then reset the password.' },
+        400,
+      )
+    }
+
+    const tempPassword = generateTempPassword()
+    const { error: updateError } = await adminClient.auth.admin.updateUserById(staffId, {
+      password: tempPassword,
+    })
+    if (updateError) {
+      return json({ error: updateError.message }, 400)
+    }
+
+    return json({
+      staffId,
+      tempPassword,
+      note: 'Share this temporary password with them directly. They should change it after logging in. Any session they already have open stays valid until it times out — deactivate and restore the account if you need to cut those off.',
+    })
+  }
+
   if (action === 'reactivate') {
     const { staffId } = payload as { staffId?: string }
     if (!staffId) {
@@ -177,5 +229,8 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
-  return json({ error: 'Unknown action. Use "create", "deactivate" or "reactivate".' }, 400)
+  return json(
+    { error: 'Unknown action. Use "create", "deactivate", "reactivate" or "reset_password".' },
+    400,
+  )
 })

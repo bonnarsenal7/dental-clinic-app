@@ -36,6 +36,25 @@ export async function reactivateStaff(staffId: string) {
   return data
 }
 
+/** Issues a new temporary password for an account, returned once.
+ *
+ *  Not an emailed reset link: the case this exists for is a staff member
+ *  locked out mid-clinic-day who often cannot reach the mailbox on file.
+ *  Self-service by email still lives at /forgot-password.
+ *
+ *  Goes through the Edge Function because setting another user's password
+ *  needs the service role, which must never reach the browser. */
+export async function resetStaffPassword(staffId: string) {
+  const { data, error } = await supabase.functions.invoke<{
+    staffId: string
+    tempPassword: string
+    note: string
+  }>('manage-staff', { body: { action: 'reset_password', staffId } })
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('No response from server')
+  return data
+}
+
 export async function deactivateStaff(staffId: string) {
   const { data, error } = await supabase.functions.invoke<{ ok: true }>('manage-staff', {
     body: { action: 'deactivate', staffId },

@@ -8,6 +8,7 @@ vi.mock('./api', () => ({
   createStaff: vi.fn(),
   deactivateStaff: vi.fn(),
   reactivateStaff: vi.fn(),
+  resetStaffPassword: vi.fn(),
 }))
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
@@ -61,6 +62,99 @@ describe('StaffManagementPage', () => {
     })
     vi.mocked(api.deactivateStaff).mockResolvedValue({ ok: true })
     vi.mocked(api.reactivateStaff).mockResolvedValue({ ok: true })
+    vi.mocked(api.resetStaffPassword).mockResolvedValue({
+      staffId: 'd1',
+      tempPassword: 'Tmp-7hK2pQ',
+      note: 'ok',
+    })
+  })
+
+  // --- Password recovery -------------------------------------------------
+
+  // The reason this exists: production password reset emails were broken for
+  // the life of the project, and even fixed, a staff member locked out
+  // mid-clinic-day often cannot reach the mailbox on file.
+  it('lets an admin issue a new password without the Supabase dashboard', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /reset password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^reset password$/i }))
+    await waitFor(() => expect(api.resetStaffPassword).toHaveBeenCalledWith('d1'))
+  })
+
+  it('shows the new password once, with what to do with it', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /reset password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^reset password$/i }))
+    expect(await screen.findByText(/Tmp-7hK2pQ/)).toBeInTheDocument()
+    expect(screen.getByText(/share this with them directly/i)).toBeInTheDocument()
+  })
+
+  // Resetting invalidates the password they may still be using, so it asks
+  // first — like every other irreversible action on this screen.
+  it('asks before resetting, and names the consequence', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /reset password/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(/reset the password for test dentist/i)
+    expect(dialog).toHaveTextContent(/stops working immediately/i)
+    expect(api.resetStaffPassword).not.toHaveBeenCalled()
+  })
+
+  // An open session survives a password change, and an admin resetting
+  // because they suspect the password leaked needs to know that.
+  it('says an existing session is not cut off', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /reset password/i }))
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/session .* stays valid/i)
+  })
+
+  it('does not reset if the confirmation is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /reset password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.resetStaffPassword).not.toHaveBeenCalled()
+  })
+
+  // A new password does nothing for a deactivated account: the GoTrue ban
+  // refuses the login before the password is checked. Offering it would hand
+  // an admin a credential that cannot be used.
+  it('does not offer a reset on a deactivated account', async () => {
+    render(<StaffManagementPage />)
+    await screen.findByText('Former Receptionist')
+    const row = within(screen.getByText('Former Receptionist').closest('tr')!)
+    expect(row.queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument()
+    expect(row.getByRole('button', { name: /restore access/i })).toBeInTheDocument()
+  })
+
+  it('reports a failed reset inside the dialog', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.resetStaffPassword).mockRejectedValue(new Error('Admin role required'))
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /reset password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^reset password$/i }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/admin role required/i)
   })
 
   it('lists every account with its role and status', async () => {
