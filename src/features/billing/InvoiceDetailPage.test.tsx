@@ -8,6 +8,7 @@ import type { InvoiceWithDetail } from './types'
 vi.mock('./api', () => ({ getInvoice: vi.fn(), recordPayment: vi.fn(), voidInvoice: vi.fn() }))
 vi.mock('./receiptPdf', () => ({ downloadReceipt: vi.fn(), receiptNumber: () => 'ABCD1234' }))
 vi.mock('../patients/api', () => ({ getPatient: vi.fn() }))
+vi.mock('../../core/components/ui/toast', () => ({ toastSaved: vi.fn() }))
 vi.mock('../../core/supabaseClient', () => ({
   supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { clinic_name: 'ToothCo Dental Clinic', operating_hours: '' } }) }) }) }) },
 }))
@@ -20,6 +21,7 @@ vi.mock('../auth/AuthContext', () => ({
 const api = await import('./api')
 const patients = await import('../patients/api')
 const receipt = await import('./receiptPdf')
+const toast = await import('../../core/components/ui/toast')
 
 function invoice(partial: Partial<InvoiceWithDetail> = {}): InvoiceWithDetail {
   return {
@@ -74,6 +76,33 @@ describe('InvoiceDetailPage', () => {
   // The form sets noValidate and lets react-hook-form validate, so the
   // message is the app's own and points at the field — rather than a
   // browser-native bubble, which differs per browser and can't be styled.
+  // Inline confirmation near the form is often already scrolled past on a
+  // tablet by the time the request returns, so the answer is anchored to
+  // the viewport instead — and it carries the new balance, which is the
+  // number reception is about to say out loud.
+  it('confirms the payment with the amount and the new balance', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText(/composite filling/i)
+    await user.type(screen.getByLabelText(/amount/i), '500')
+    await user.click(screen.getByRole('button', { name: /record payment/i }))
+    await waitFor(() => expect(toast.toastSaved).toHaveBeenCalled())
+    const [message, description] = vi.mocked(toast.toastSaved).mock.calls[0]
+    expect(message).toMatch(/₱500\.00 recorded/)
+    expect(description).toMatch(/balance now/i)
+  })
+
+  it('says nothing when the payment fails', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.recordPayment).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderPage()
+    await screen.findByText(/composite filling/i)
+    await user.type(screen.getByLabelText(/amount/i), '500')
+    await user.click(screen.getByRole('button', { name: /record payment/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/you're offline/i)
+    expect(toast.toastSaved).not.toHaveBeenCalled()
+  })
+
   it('refuses an empty payment, with a message', async () => {
     const user = userEvent.setup()
     renderPage()

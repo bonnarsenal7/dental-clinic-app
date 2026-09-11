@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import StaffManagementPage from './StaffManagementPage'
@@ -21,7 +21,7 @@ describe('StaffManagementPage', () => {
     vi.mocked(api.listStaff).mockResolvedValue(STAFF as never)
     vi.mocked(api.createStaff).mockResolvedValue({ staffId: 'n1', tempPassword: 'Tmp-9fA2xQ', note: 'ok' })
     vi.mocked(api.deactivateStaff).mockResolvedValue({ ok: true })
-    vi.stubGlobal('confirm', vi.fn(() => true))
+
   })
 
   it('lists every account with its role and status', async () => {
@@ -49,23 +49,67 @@ describe('StaffManagementPage', () => {
     expect(row.querySelector('button')).toBeNull()
   })
 
-  // Deactivation signs someone out and blocks future logins, so it asks.
-  it('confirms before deactivating', async () => {
+  // Deactivation signs someone out and blocks future logins, so it asks —
+  // in a real dialog now, not a browser confirm that cannot be styled,
+  // tested through the UI, or made to say who is being deactivated.
+  it('asks in a dialog that names the account and the consequence', async () => {
     const user = userEvent.setup()
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: /deactivate/i }))
-    expect(window.confirm).toHaveBeenCalled()
-    await waitFor(() => expect(api.deactivateStaff).toHaveBeenCalledWith('d1'))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(/deactivate test dentist/i)
+    expect(dialog).toHaveTextContent(/signed out immediately/i)
+    expect(api.deactivateStaff).not.toHaveBeenCalled()
   })
 
-  it('does nothing if the confirmation is declined', async () => {
+  it('deactivates once confirmed, and closes', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('confirm', vi.fn(() => false))
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     await user.click(screen.getByRole('button', { name: /deactivate/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^deactivate$/i }))
+    await waitFor(() => expect(api.deactivateStaff).toHaveBeenCalledWith('d1'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('does nothing if the confirmation is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    await user.click(screen.getByRole('button', { name: /deactivate/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(api.deactivateStaff).not.toHaveBeenCalled()
+  })
+
+  // Escape must work, or the dialog is a trap on a keyboard.
+  it('closes on Escape without deactivating', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    await user.click(screen.getByRole('button', { name: /deactivate/i }))
+    await screen.findByRole('dialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.deactivateStaff).not.toHaveBeenCalled()
+  })
+
+  // A failure behind the dialog is a failure nobody reads.
+  it('reports a failure inside the dialog and stays open', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.deactivateStaff).mockRejectedValue(new Error('Only an active admin may deactivate accounts'))
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    await user.click(screen.getByRole('button', { name: /deactivate/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^deactivate$/i }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/only an active admin/i)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   // The temporary password is shown once, for the admin to relay

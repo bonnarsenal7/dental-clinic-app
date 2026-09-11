@@ -5,6 +5,7 @@ import type { StaffProfile, StaffRole } from '../auth/types'
 import { createStaff, deactivateStaff, listStaff } from './api'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import ConfirmDialog from '../../core/components/ui/ConfirmDialog'
 
 interface CreateStaffForm {
   name: string
@@ -18,6 +19,8 @@ export default function StaffManagementPage() {
   const [error, setError] = useState<string | null>(null)
   const [newAccountNotice, setNewAccountNotice] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  // The account the confirmation is currently asking about, or null.
+  const [pendingDeactivation, setPendingDeactivation] = useState<StaffProfile | null>(null)
 
   const {
     register,
@@ -53,15 +56,13 @@ export default function StaffManagementPage() {
     }
   }
 
+  // Throws rather than catching: ConfirmDialog shows the failure inside
+  // itself, where the person who pressed the button is still looking.
   async function onDeactivate(id: string) {
-    if (!window.confirm('Deactivate this account? They will be signed out and unable to log in again.')) return
     setBusyId(id)
-    setError(null)
     try {
       await deactivateStaff(id)
       await refresh()
-    } catch (e) {
-      setError(toMessage(e))
     } finally {
       setBusyId(null)
     }
@@ -164,7 +165,7 @@ export default function StaffManagementPage() {
                 <td className="px-4 py-2 text-right">
                   {s.active && s.id !== currentStaff?.id && (
                     <button
-                      onClick={() => void onDeactivate(s.id)}
+                      onClick={() => setPendingDeactivation(s)}
                       disabled={busyId === s.id}
                       className="text-xs text-red-600 hover:underline disabled:opacity-50"
                     >
@@ -177,6 +178,17 @@ export default function StaffManagementPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={pendingDeactivation !== null}
+        onOpenChange={(open) => { if (!open) setPendingDeactivation(null) }}
+        title={`Deactivate ${pendingDeactivation?.name ?? 'this account'}?`}
+        description="They will be signed out immediately and will not be able to log in again. Their record stays, and an admin can restore access later."
+        confirmLabel="Deactivate"
+        onConfirm={async () => {
+          if (pendingDeactivation) await onDeactivate(pendingDeactivation.id)
+        }}
+      />
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { getPatient } from '../patients/api'
 import { getInvoice, recordPayment, voidInvoice } from './api'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import { downloadReceipt, receiptNumber } from './receiptPdf'
+import { toastSaved } from '../../core/components/ui/toast'
 import type { InvoiceWithDetail, PaymentMethod } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState, FieldError, LoadingState } from '../../core/components/states'
@@ -79,7 +80,11 @@ export default function InvoiceDetailPage() {
       reset({ amount: '', method: values.method, reference: '' })
       // Totals and status are recalculated by database triggers, so the
       // refetch is what tells us the real state — not local arithmetic.
-      await refresh(invoice.id)
+      const fresh = await refresh(invoice.id)
+      toastSaved(
+        `${formatMoney(amount)} recorded`,
+        `Balance now ${formatMoney(invoiceBalance(fresh))}.`,
+      )
     } catch (e) {
       setError(toMessage(e))
     }

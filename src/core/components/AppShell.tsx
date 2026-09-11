@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../features/auth/AuthContext'
 import { supabase } from '../supabaseClient'
 import OfflineBanner from './OfflineBanner'
+import { Toaster } from './ui/toast'
 import { CLINIC_NAME } from '../branding'
 import toothcoLogo from '../../assets/toothco-logo.png'
 
@@ -92,6 +93,8 @@ export default function AppShell() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <Outlet />
       </main>
+
+      <Toaster />
     </div>
   )
 }

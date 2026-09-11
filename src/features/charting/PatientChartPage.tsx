@@ -16,6 +16,7 @@ import type { ChartVisit, PendingMark, ToothRecord } from './types'
 import type { InteractionMode } from './ToothGlyph'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
+import { toastSaved } from '../../core/components/ui/toast'
 
 export default function PatientChartPage() {
   const { id: patientId } = useParams<{ id: string }>()
@@ -148,6 +149,9 @@ export default function PatientChartPage() {
       // the fold reads the log in seq order, so the in-memory copy has to
       // match what a reload would give.
       setRecords((current) => [...current, ...saved].sort((a, b) => a.seq - b.seq))
+      toastSaved(
+        `${saved.length} ${saved.length === 1 ? 'mark' : 'marks'} saved to the chart`,
+      )
       setPending([])
     } catch (e) {
       setError(toMessage(e))

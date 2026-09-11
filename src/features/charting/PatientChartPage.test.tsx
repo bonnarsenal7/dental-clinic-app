@@ -26,6 +26,7 @@ vi.mock('../auth/AuthContext', () => ({
 }))
 
 vi.mock('../../core/auditView', () => ({ logPatientView: vi.fn() }))
+vi.mock('../../core/components/ui/toast', () => ({ toastSaved: vi.fn() }))
 
 const patientsApi = await import('../patients/api')
 
