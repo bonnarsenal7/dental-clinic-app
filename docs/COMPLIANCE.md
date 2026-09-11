@@ -203,19 +203,31 @@ scratch project and logged in against it.
 
 ### Taking a backup
 
-```bash
-# Preferred: direct pg_dump (no Docker needed)
-brew install libpq
-export PATH="$(brew --prefix libpq)/bin:$PATH"
-export SUPABASE_DB_URL='postgresql://postgres.<ref>:<pw>@<host>:5432/postgres'
-./scripts/backup.sh ~/clinic-backups
+One-time setup (libpq is already installed on the build machine):
 
-# Alternative: via the Supabase CLI, which runs pg_dump in a container
-# and therefore needs Docker Desktop or Podman running
+```bash
+brew install libpq   # if not already present
+
+# Supabase dashboard → Project Settings → Database → Connection string →
+# URI. Use port 5432 (session mode); pg_dump does not work against the
+# transaction-mode pooler on 6543.
+echo "SUPABASE_DB_URL='postgresql://postgres.<ref>:<pw>@<host>:5432/postgres'" \
+  > .env.backup.local
+```
+
+`.env.backup.local` matches the `.env*.local` rule already in `.gitignore`,
+so the password cannot be committed. The script picks it up automatically,
+and finds libpq's binaries itself (Homebrew keeps it keg-only and off PATH,
+to avoid shadowing a full PostgreSQL install).
+
+```bash
 ./scripts/backup.sh ~/clinic-backups
 ```
 
 Produces `<stamp>-roles.sql`, `<stamp>-schema.sql`, `<stamp>-data.sql`.
+
+If Docker or Podman is running, the script falls back to `supabase db dump`
+and needs no connection string at all.
 
 ### Rehearsing the restore
 
@@ -274,7 +286,7 @@ Not yet established — Phase 8 owns it. The intended cadence:
 | RLS verified against live logins | **not done** | — | — |
 | Audit logging active | done | — | 2026-09-11 |
 | Automated backups confirmed | **FAILED — none exist** | — | 2026-09-11 |
-| Manual export routine | script written, **dump path untested** | — | — |
+| Manual export routine | script written, libpq installed, **dump path untested — needs connection string** | — | — |
 | Restore rehearsed | **not done** | — | — |
 | Storage backup | **not solved** | — | — |
 | Public signup disabled | **not done** | — | — |
