@@ -205,12 +205,16 @@ gitignored so a dump cannot be committed by accident.
 
 ---
 
-## 3. Restore procedure — BACKUP VERIFIED, RESTORE NOT YET REHEARSED
+## 3. Restore procedure — REHEARSED 2026-09-11, AND IT FOUND A BUG
 
-**The backup half is done and checked.** A real dump was taken on
-2026-09-11 and its contents verified — see §3.1. **The restore half has not
-been rehearsed**, because it needs a scratch database to restore into.
-§1.1 stays blocking until someone has restored and logged in against it.
+A full restore was rehearsed into a throwaway Supabase project
+(`dental-clinic-restore-test`, since deleted). **It did not pass first
+time**, which is the entire argument for rehearsing: the backup reported
+success and silently restored zero billing records. See §3.2.
+
+After the fix in `0007_fix_invoice_trigger_search_path.sql`, the restore
+is verified complete and correct — including the check that matters most,
+that RLS still separates roles afterwards (§3.3).
 
 ### 3.1 What the verified backup contains
 
@@ -237,6 +241,73 @@ populated and the audit triggers were installed minutes before the dump.
 The `auth.users` result is the one that would have been easy to miss: a
 dump of only the `public` schema would restore every patient record into a
 database nobody could log in to.
+
+### 3.2 The bug the rehearsal found
+
+Restoring the data produced **0 `invoice_items` and 0 `payments`** where
+the source had 2 of each — with `psql` exiting 0. Every invoice would have
+come back with its line items and payment history gone.
+
+Root cause: `0005_billing.sql` created `refresh_invoice_totals()` and
+`invoice_totals_trigger()` **without pinning `search_path`**. That is
+invisible in normal traffic, where the session's `search_path` contains
+`public`. Every pg_dump file, however, begins with
+
+```sql
+SELECT pg_catalog.set_config('search_path', '', false);
+```
+
+so during a restore the function's unqualified `from invoice_items`
+resolved against an empty `search_path`, raised `relation "invoice_items"
+does not exist`, aborted the trigger, and took the INSERT down with it.
+`current_staff_role()` and `audit_row_change()` already pinned
+`search_path`; these two were the exceptions.
+
+Fixed in `0007_fix_invoice_trigger_search_path.sql`, and the fix was
+verified by replaying the identical COPY blocks under `search_path = ''`:
+0 rows before, 2 `invoice_items` + 2 `payments` after, with the triggers
+still deriving the right totals (₱2,500 paid, ₱500 paid).
+
+**The general lesson for this codebase: every function must pin
+`set search_path`.** Check it on any new one —
+`select proname, proconfig from pg_proc join pg_namespace ... where
+nspname = 'public'` lists them.
+
+### 3.3 Post-restore RLS verification
+
+Run against the restored copy by impersonating each role
+(`set local role authenticated` plus a `request.jwt.claims` sub inside a
+transaction — note that `SET LOCAL` outside a transaction silently does
+nothing and leaves you querying as superuser, which looks like a pass).
+
+| Acting as | `current_staff_role()` | patients | visit_notes | tooth_records | audit_log |
+|---|---|---|---|---|---|
+| receptionist, deactivated | NULL | 0 | 0 | 0 | 0 |
+| receptionist, active | receptionist | 3 | **0** | **0** | **0** |
+| dentist | dentist | 3 | 4 | 19 | 0 |
+| admin | admin | 3 | 4 | 19 | 58 |
+
+Role separation survives a restore intact, and deactivation still locks an
+account out. This was the failure mode worth rehearsing for — rows
+restoring without their policies — and it did not happen.
+
+### 3.4 Expected noise, and one artifact
+
+The schema restore emits ~530 errors and the data restore ~10. Nearly all
+are `permission denied for schema auth/storage/realtime` and `must be
+owner of table …`: a fresh Supabase project already has those schemas, and
+`postgres` is not superuser there. **They are expected.** What matters is
+the `public` schema, which came back exact: 15 tables, 53 policies, 15 RLS
+enables, 15 triggers — identical to the dump.
+
+When checking the logs yourself, note that psql prefixes errors with
+`psql:<file>:<line>:`, so grepping `^ERROR` matches nothing and looks
+clean. Grep for `ERROR:` instead.
+
+One artifact: the restored `audit_log` held 58 rows where the source had 0,
+because the audit triggers fire as the data loads. A restored audit log
+therefore contains entries for the restore itself. That is harmless but
+worth knowing before reading one as evidence.
 
 ### Taking a backup
 
@@ -327,7 +398,8 @@ Not yet established — Phase 8 owns it. The intended cadence:
 | Audit logging active | done, **verified live** | — | 2026-09-11 |
 | Automated backups confirmed | **FAILED — none exist** | — | 2026-09-11 |
 | Manual export routine | done, **run and contents verified** | — | 2026-09-11 |
-| Restore rehearsed | **not done — needs a scratch database** | — | — |
+| Restore rehearsed | done — **failed, bug fixed, re-verified** | — | 2026-09-11 |
+| Post-restore RLS verified by impersonation | done | — | 2026-09-11 |
 | Storage backup | **not solved** | — | — |
 | Public signup disabled | **not done** | — | — |
 | Consent + privacy notice legal review | **not done** | — | — |
