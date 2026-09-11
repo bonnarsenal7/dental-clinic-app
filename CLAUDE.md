@@ -710,6 +710,16 @@ targets, and the signature pad are unverified by automation and still need
 a human on a tablet. happy-dom has no layout engine, so these tests say
 nothing about how anything looks.
 
+## Documentation
+
+- `docs/PROCESS_FLOW.md` — how a patient moves through the clinic and the
+  system: who does each step, what carries forward automatically, what the
+  database guarantees, and where the flow currently stalls. Start here when
+  picking the project up.
+- `docs/PILOT.md` — the scripted clinic day, friction log and sign-off sheet.
+- `docs/COMPLIANCE.md` — the RLS, backup, restore and audit checklist, and
+  the three items still blocking real patient data.
+
 ## Phase 7 — Staff testing & pilot (prepared; the pilot itself is the clinic's to run)
 
 **`docs/PILOT.md` is the deliverable.** It carries the scripted clinic day,
