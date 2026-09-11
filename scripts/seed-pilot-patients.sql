@@ -196,3 +196,57 @@ from actors, (values
 commit;
 
 select count(*) || ' pilot patients seeded (ids beginning 5eed)' from patients where id::text like '5eed%';
+
+-- --- Appointments and recalls (Phase 8 scheduling) -----------------------
+-- Appended after the commit above so the schedule has something to show on
+-- the pilot's first day: someone waiting, someone in the chair, some still
+-- to come, and a recall list that isn't empty.
+
+begin;
+
+delete from appointments where patient_id::text like '5eed%';
+delete from recalls where patient_id::text like '5eed%';
+
+create temp table sched_actors on commit drop as
+  select (select id from staff where role = 'dentist' and active order by created_at limit 1) as dentist;
+
+insert into appointments (patient_id, dentist_id, scheduled_at, duration_minutes, reason, status, arrived_at, seated_at, reception_notes)
+select v.pid::uuid, sched_actors.dentist,
+       date_trunc('day', now()) + v.at::interval,
+       v.mins, v.reason, v.status::appointment_status,
+       case when v.status in ('arrived','in_chair') then now() - (v.waited || ' minutes')::interval end,
+       case when v.status = 'in_chair' then now() - interval '5 minutes' end,
+       v.note
+from sched_actors, (values
+  ('5eed0001-0000-4000-8000-000000000001','09:00',30,'Oral prophylaxis',     'completed', 0,  null),
+  ('5eed0007-0000-4000-8000-000000000007','09:30',30,'Gum review',           'in_chair',  25, 'Diabetic — see medical alerts'),
+  ('5eed0002-0000-4000-8000-000000000002','10:00',60,'Root canal, upper left','arrived',  12, 'Anxious — allow extra time'),
+  ('5eed0008-0000-4000-8000-000000000008','11:00',30,'Paediatric check-up',  'confirmed', 0,  'Mother attending'),
+  ('5eed0005-0000-4000-8000-000000000005','13:30',30,'First consultation',   'booked',    0,  'New patient — no consent on file yet'),
+  ('5eed0010-0000-4000-8000-000000000010','14:30',45,'Denture adjustment',   'booked',    0,  null),
+  ('5eed0004-0000-4000-8000-000000000004','15:30',30,'Post-extraction check','booked',    0,  'Hypertensive — check BP')
+) as v(pid, at, mins, reason, status, waited, note);
+
+-- Tomorrow, so the day navigation has somewhere to go.
+insert into appointments (patient_id, dentist_id, scheduled_at, duration_minutes, reason, status)
+select v.pid::uuid, sched_actors.dentist, date_trunc('day', now()) + interval '1 day' + v.at::interval, v.mins, v.reason, 'booked'
+from sched_actors, (values
+  ('5eed0003-0000-4000-8000-000000000003','09:00',30,'Cleaning'),
+  ('5eed0006-0000-4000-8000-000000000006','10:00',30,'Nightguard fitting')
+) as v(pid, at, mins, reason);
+
+-- A mix of overdue and upcoming, so the recall horizons all show something.
+insert into recalls (patient_id, due_on, reason, interval_months, created_by)
+select v.pid::uuid, (current_date + v.days)::date, v.reason, v.months, sched_actors.dentist
+from sched_actors, (values
+  ('5eed0001-0000-4000-8000-000000000001', -45,'Six-month check-up and cleaning', 6),
+  ('5eed0004-0000-4000-8000-000000000004', -12,'Review healing after extraction', null),
+  ('5eed0009-0000-4000-8000-000000000009',  -3,'Six-month check-up and cleaning', 6),
+  ('5eed0006-0000-4000-8000-000000000006',  14,'Nightguard review',               null),
+  ('5eed0003-0000-4000-8000-000000000003',  60,'Six-month check-up and cleaning', 6)
+) as v(pid, days, reason, months);
+
+commit;
+
+select (select count(*) from appointments where patient_id::text like '5eed%') || ' pilot appointments, ' ||
+       (select count(*) from recalls where patient_id::text like '5eed%') || ' pilot recalls';

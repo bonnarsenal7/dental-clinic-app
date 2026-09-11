@@ -40,6 +40,9 @@ export default function AppShell() {
             <NavLink to="/" end className={navLinkClass}>
               Dashboard
             </NavLink>
+            <NavLink to="/schedule" className={navLinkClass}>
+              Schedule
+            </NavLink>
             <NavLink to="/patients" className={navLinkClass}>
               Patients
             </NavLink>

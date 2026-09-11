@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { logPatientView } from '../../core/auditView'
 import { getDentalHistory, getMedicalHistory, getPatient, listConsents } from './api'
 import ConsentCapture from './ConsentCapture'
+import PatientScheduling from '../scheduling/PatientScheduling'
 import VisitTimeline from './VisitTimeline'
 import FileAttachments from './FileAttachments'
 import { MEDICAL_CONDITIONS, DENTAL_SYMPTOMS, ORAL_HABITS } from './historyOptions'
@@ -161,6 +162,7 @@ export default function PatientProfilePage() {
         )}
       </section>
 
+      <PatientScheduling patientId={id} />
       <VisitTimeline patientId={id} />
       <FileAttachments patientId={id} />
     </div>

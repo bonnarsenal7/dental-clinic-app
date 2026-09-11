@@ -12,6 +12,8 @@ import PatientProfilePage from './features/patients/PatientProfilePage'
 import PatientEditPage from './features/patients/PatientEditPage'
 import ChartingPage from './features/charting/ChartingPage'
 import PatientChartPage from './features/charting/PatientChartPage'
+import SchedulePage from './features/scheduling/SchedulePage'
+import RecallsPage from './features/scheduling/RecallsPage'
 import BillingPage from './features/billing/BillingPage'
 import PatientLedgerPage from './features/billing/PatientLedgerPage'
 import InvoiceBuilderPage from './features/billing/InvoiceBuilderPage'
@@ -37,6 +39,8 @@ function App() {
 
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
+              <Route path="/schedule" element={<SchedulePage />} />
+              <Route path="/recalls" element={<RecallsPage />} />
               <Route path="/patients" element={<PatientsPage />} />
               <Route path="/patients/new" element={<PatientRegisterPage />} />
               <Route path="/patients/:id" element={<PatientProfilePage />} />

@@ -728,3 +728,65 @@ pilot exists to test. An admin must fix this at `/admin/staff`.
 Phase 5's blockers also apply: take a backup at the end of each pilot day,
 close public signup first, and don't capture *real* patients' consent
 against the unreviewed draft wording — use paper until §1.3 is signed off.
+
+## Scheduling — appointments, queue, recalls (added after Phase 7)
+
+The largest functional gap in the roadmap, and the thing the v2 backlog's
+"appointment reminders" actually depends on: until `0008_scheduling.sql`,
+`visits` recorded what had already happened and nothing recorded what was
+going to.
+
+`src/features/scheduling/` — `types.ts`, `appointmentStatus.ts` (the state
+machine), `api.ts`, `SchedulePage` (day sheet + live queue),
+`BookAppointmentForm`, `RecallsPage`, `PatientScheduling` (profile panel),
+`AppointmentCard`. Routes: `/schedule`, `/recalls`.
+
+### The queue is derived, never stored
+"Who is in the clinic right now" is today's appointments with status
+`arrived` or `in_chair`. **Don't add a queue table** — where a patient is
+*is* their status, and a second copy would drift from it within a day.
+`isInQueue` / `isPending` in `appointmentStatus.ts` are the whole
+definition, and a test asserts every status lands in at most one section of
+the day sheet so nothing can vanish from the screen.
+
+### The day only runs forwards
+`TRANSITIONS` allows `booked → confirmed → arrived → in_chair → completed`,
+plus writing a booking off as cancelled/no-show **before** it is seated, and
+rebooking from either. `completed` is terminal. Letting a day run backwards
+would make the queue meaningless — "arrived" after "completed" puts a
+treated patient back in the waiting room. The UI only ever offers
+`nextStatuses()`, so the buttons and the rules can't diverge.
+
+### Seating a patient creates the visit
+Moving to `in_chair` inserts the `visits` row and stores `visit_id` on the
+appointment, so the dentist charts against the booking instead of pressing
+"Start a visit for today" by hand. Same no-re-entry thread that already runs
+chart → invoice.
+
+### Double-booking is refused by the database
+A GiST exclusion constraint over `(dentist_id, tstzrange(scheduled_at,
+ends_at))` — not a UI check, since the UI is not the only thing that will
+ever write here. Cancelled and no-show rows are excluded from it, so they
+free the slot. `ends_at` is maintained by a trigger rather than being a
+generated column because `timestamptz + interval` is only STABLE (it depends
+on the session time zone) and generated columns require immutability.
+`api.ts` translates the constraint name into something a receptionist can
+act on.
+
+### reception_notes is not clinical
+`appointments.reception_notes` is administrative — "bring HMO card", "allow
+extra time" — and **reception can read it**. That is exactly why it is a
+separate field from `visit_notes`, which reception cannot see at all
+(0002_rls.sql). Don't put clinical content in it.
+
+### Recalls
+Their own table, because a patient can owe more than one return at once: a
+six-month hygiene recall *and* the second half of a root canal.
+`interval_months` null means a one-off follow-up rather than a repeating
+recall. Set from the patient profile at the end of an appointment, which is
+the only moment anyone reliably remembers to.
+
+### Dates are local, never UTC
+Day bounds and booking times are built from local date/time fields. Using
+`toISOString().slice(0,10)` would push the clinic's evening appointments
+onto the following day.
