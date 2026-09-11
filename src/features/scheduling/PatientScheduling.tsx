@@ -8,6 +8,7 @@ import { STATUS_LABELS, STATUS_STYLES } from './appointmentStatus'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { Appointment, Recall } from './types'
 import { Field, TextInput } from '../../core/components/ui/Field'
+import { toLocalDateString } from '../../core/localDate'
 
 interface RecallForm {
   reason: string
@@ -17,7 +18,7 @@ interface RecallForm {
 function addMonths(months: number): string {
   const d = new Date()
   d.setMonth(d.getMonth() + months)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return toLocalDateString(d)
 }
 
 export default function PatientScheduling({ patientId }: { patientId: string }) {

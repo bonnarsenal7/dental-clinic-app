@@ -1,4 +1,5 @@
 import { supabase } from '../../core/supabaseClient'
+import { toLocalDateString } from '../../core/localDate'
 import type {
   Appointment,
   AppointmentStatus,
@@ -158,7 +159,7 @@ export async function listDueRecalls(through: Date): Promise<RecallWithPatient[]
     .from('recalls')
     .select(WITH_PATIENT)
     .eq('status', 'due')
-    .lte('due_on', through.toISOString().slice(0, 10))
+    .lte('due_on', toLocalDateString(through))
     .order('due_on', { ascending: true })
   if (error) throw new Error(error.message)
   return data as unknown as RecallWithPatient[]

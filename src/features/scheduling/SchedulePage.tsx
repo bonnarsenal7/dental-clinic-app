@@ -10,12 +10,7 @@ import AppointmentCard from './AppointmentCard'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { AppointmentStatus, AppointmentWithPatient } from './types'
 import { PageHeader } from '../../core/components/ui/Page'
-
-function toDateInput(d: Date) {
-  // Local, not toISOString() — that would shift the clinic's evening
-  // appointments onto the following day.
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { toLocalDateString } from '../../core/localDate'
 
 export default function SchedulePage() {
   const { staff } = useAuth()
@@ -24,7 +19,7 @@ export default function SchedulePage() {
   // Without this the Book button there dropped you on an unchanged schedule
   // with the form closed and nothing selected.
   const bookFor = searchParams.get('patient')
-  const [day, setDay] = useState(() => toDateInput(new Date()))
+  const [day, setDay] = useState(() => toLocalDateString(new Date()))
   const [appointments, setAppointments] = useState<AppointmentWithPatient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -79,7 +74,7 @@ export default function SchedulePage() {
     [appointments],
   )
 
-  const isToday = day === toDateInput(new Date())
+  const isToday = day === toLocalDateString(new Date())
 
   async function handleStatus(appointment: AppointmentWithPatient, status: AppointmentStatus) {
     if (!staff) return
@@ -98,7 +93,7 @@ export default function SchedulePage() {
   function shiftDay(days: number) {
     const d = new Date(`${day}T12:00:00`)
     d.setDate(d.getDate() + days)
-    setDay(toDateInput(d))
+    setDay(toLocalDateString(d))
   }
 
   return (
@@ -164,7 +159,7 @@ export default function SchedulePage() {
         {!isToday && (
           <button
             type="button"
-            onClick={() => setDay(toDateInput(new Date()))}
+            onClick={() => setDay(toLocalDateString(new Date()))}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
           >
             Today

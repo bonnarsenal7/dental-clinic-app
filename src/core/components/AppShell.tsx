@@ -8,6 +8,7 @@ import { Toaster } from './ui/toast'
 import { LoadingState } from './states'
 import { warmRoutesFor } from '../routes'
 import { CLINIC_NAME } from '../branding'
+import Button, { ButtonLink } from './ui/Button'
 import toothcoLogo from '../../assets/toothco-logo.png'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -43,10 +44,38 @@ export default function AppShell() {
     <div className="min-h-screen bg-slate-50">
       <OfflineBanner />
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <img src={toothcoLogo} alt="" className="h-8 w-auto" />
-            <p className="text-sm font-semibold text-slate-800">{clinicName || CLINIC_NAME}</p>
+        {/* Two rows, not one.
+            As a single `justify-between` row the brand, the nav and the
+            account cluster were three wrapping siblings: at an admin's eight
+            nav links the cluster broke onto its own line and `justify-between`
+            then spread it across the full width, which is what read as
+            "out of place". Splitting identity from navigation means neither
+            can push the other around. */}
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 min-w-0">
+              <img src={toothcoLogo} alt="" className="h-8 w-auto shrink-0" />
+              <p className="text-sm font-semibold text-slate-800 truncate">{clinicName || CLINIC_NAME}</p>
+            </div>
+
+            {/* The name and role are read, not pressed, so they stay text —
+                but both controls beside them are now the same shape and
+                size. They were a bare text link next to a bordered button:
+                on a tablet the `pointer: coarse` rule grows a <button> to
+                44px and only matches links carrying a rounded-md utility,
+                so the link stayed at text height next to a 44px button. */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-right leading-tight mr-1">
+                <p className="text-sm font-medium text-slate-700 whitespace-nowrap">{staff.name}</p>
+                <p className="text-xs text-slate-400 capitalize">{staff.role}</p>
+              </div>
+              <ButtonLink to="/change-password" variant="subtle" size="sm">
+                Change password
+              </ButtonLink>
+              <Button variant="secondary" size="sm" onClick={() => void signOut()}>
+                Sign out
+              </Button>
+            </div>
           </div>
 
           <nav className="flex items-center gap-1 flex-wrap">
@@ -81,22 +110,6 @@ export default function AppShell() {
               </>
             )}
           </nav>
-
-          <div className="flex items-center gap-3 text-sm">
-            <div className="text-right leading-tight">
-              <p className="font-medium text-slate-700">{staff.name}</p>
-              <p className="text-slate-400 text-xs capitalize">{staff.role}</p>
-            </div>
-            <NavLink to="/change-password" className="text-slate-500 hover:text-slate-700">
-              Change password
-            </NavLink>
-            <button
-              onClick={() => void signOut()}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 hover:bg-slate-100"
-            >
-              Sign out
-            </button>
-          </div>
         </div>
       </header>
 

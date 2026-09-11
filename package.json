@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "TZ=Asia/Manila vitest run",
+    "test:watch": "TZ=Asia/Manila vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

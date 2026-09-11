@@ -10,8 +10,12 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
     setError(null)
+    if (!email.trim()) {
+      setError('Enter your email address.')
+      return
+    }
+    setSubmitting(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
@@ -33,7 +37,7 @@ export default function ForgotPasswordPage() {
             If an account exists for {email}, a reset link has been sent to it.
           </p>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
+          <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                 {error}
@@ -43,7 +47,6 @@ export default function ForgotPasswordPage() {
               Email
               <input
                 type="email"
-                required
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

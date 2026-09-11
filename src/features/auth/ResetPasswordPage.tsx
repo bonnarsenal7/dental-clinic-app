@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
         {done ? (
           <p className="text-sm text-emerald-600 text-center mt-6">Password updated. Redirecting…</p>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
+          <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                 {error}
@@ -53,7 +53,6 @@ export default function ResetPasswordPage() {
               New password
               <input
                 type="password"
-                required
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -64,7 +63,6 @@ export default function ResetPasswordPage() {
               Confirm new password
               <input
                 type="password"
-                required
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
