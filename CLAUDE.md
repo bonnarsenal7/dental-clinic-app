@@ -1125,3 +1125,41 @@ half a megabyte of someone's mobile data is not a trade to make for them.
 `requestIdleCallback` has a `setTimeout` fallback that is **not
 theoretical** — Safari on iPad only gained it in 16.4, so on an older clinic
 tablet the fallback is the live path. Both are tested.
+
+## UI components (Phase C, partial)
+
+`src/core/components/ui/` — `Button`/`ButtonLink`, `Field` with `TextInput`
+/ `TextArea` / `NativeSelect`, `PageHeader`, `Card`, plus Phase B's `Dialog`
+/ `ConfirmDialog` / `toast`. Reach for these before writing a class string.
+
+### Two properties worth not breaking
+**`Button` defaults to `type="button"`.** A bare `<button>` inside a form
+submits it, and that bug only shows when someone clicks the wrong control.
+Submitting has to be asked for.
+
+**`Field` wraps its control rather than pairing by `id`/`htmlFor`.** Both are
+valid HTML; only one can drift. An `htmlFor` pointing at the wrong element
+typechecks perfectly and is exactly what made the patient chooser
+unreachable. Where the migration found a redundant `id`/`htmlFor` pair it
+dropped the id.
+
+**`TextInput` must keep passing `ref` through to the DOM node** —
+react-hook-form's `register()` registers the field through it. If that
+broke, every form in the app would submit empty values while looking
+correct. There is a test for exactly that.
+
+### Progress, and what is left
+Hand-rolled label wrappers went from 32 to 10, and total `className` uses
+from 682 to 615. `PatientForm` — the largest form, 23 fields — is fully
+converted.
+
+Still hand-rolled: the ten remaining labels in the auth screens and the
+audit log, which pair by `htmlFor` in a shape the migration did not match,
+and most primary buttons outside the three converted files. These are
+consistency debt rather than risk; convert them when touching those files.
+
+### Why this refactor was safe
+The suite queries by **accessible name and role**, never by class. So the
+282 tests passing through a 19-field conversion is real evidence the names
+survived — and a failing query during this work means a control genuinely
+stopped saying what it said, not that a style changed.

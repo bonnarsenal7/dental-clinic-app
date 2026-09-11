@@ -7,6 +7,7 @@ import { createRecall, listPatientAppointments, listPatientRecalls } from './api
 import { STATUS_LABELS, STATUS_STYLES } from './appointmentStatus'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { Appointment, Recall } from './types'
+import { Field, TextInput } from '../../core/components/ui/Field'
 
 interface RecallForm {
   reason: string
@@ -148,14 +149,12 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
         {/* Set at the end of an appointment, which is the only moment anyone
             reliably remembers to. */}
         <form onSubmit={handleSubmit(onAddRecall)} className="flex items-end gap-2 flex-wrap mt-2">
-          <label className="flex flex-col gap-1 text-sm text-slate-700 flex-1 min-w-[180px]">
-            Set a recall
-            <input {...register('reason')} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            In months
-            <input type="number" min="1" max="60" {...register('interval_months')} className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm" />
-          </label>
+          <Field label="Set a recall" className="flex-1 min-w-[180px]">
+<TextInput {...register('reason')} />
+</Field>
+          <Field label="In months">
+<TextInput type="number" min="1" max="60" {...register('interval_months')} className="w-24" />
+</Field>
           <button
             type="submit"
             disabled={isSubmitting}

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createProcedure, listProcedures, updateProcedure } from './api'
-import { FieldError } from '../../core/components/states'
+
 import { formatMoney } from './ledger'
 import type { Procedure } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import { PageHeader } from '../../core/components/ui/Page'
+import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
 
 interface ProcedureForm {
   name: string
@@ -69,13 +71,13 @@ export default function PriceListPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-800">Procedure price list</h1>
-        <p className="text-slate-500 text-sm mt-1">
+      <PageHeader
+        title="Procedure price list"
+        description={<>
           The fees the invoice builder offers. Linking a procedure to a charted condition lets an
           invoice be built straight from the dental chart.
-        </p>
-      </div>
+        </>}
+      />
 
       {error && <ErrorState message={error} />}
 
@@ -84,41 +86,22 @@ export default function PriceListPage() {
         onSubmit={handleSubmit(onAdd)}
         className="bg-white border border-slate-200 rounded-xl p-6 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
       >
-        <label className="flex flex-col gap-1 text-sm text-slate-700 sm:col-span-2">
-          Procedure
-          <input
-            {...register('name', { required: 'Name the procedure' })}
-            placeholder="e.g. Composite filling"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <FieldError message={errors.name?.message} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Code
-          <input {...register('code')} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Fee (PHP)
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            {...register('default_fee', { required: 'Enter a fee' })}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <FieldError message={errors.default_fee?.message} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Charted as
-          <select
-            {...register('chart_condition')}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">— not charted —</option>
+        <Field label="Procedure" error={errors.name?.message} className="sm:col-span-2">
+<TextInput {...register('name', { required: 'Name the procedure' })} placeholder="e.g. Composite filling" />
+</Field>
+        <Field label="Code">
+<TextInput {...register('code')} />
+</Field>
+        <Field label="Fee (PHP)" error={errors.default_fee?.message}>
+<TextInput type="number" step="0.01" min="0" {...register('default_fee', { required: 'Enter a fee' })} />
+</Field>
+        <Field label="Charted as">
+<NativeSelect {...register('chart_condition')}>
+<option value="">— not charted —</option>
             <option value="filled">Filled</option>
             <option value="crown">Crown</option>
-          </select>
-        </label>
+</NativeSelect>
+</Field>
         <button
           type="submit"
           disabled={isSubmitting}

@@ -4,6 +4,7 @@ import { searchPatients } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import { PageHeader } from '../../core/components/ui/Page'
 
 // A chart only means anything in the context of a patient, so the Charting
 // nav entry is a way in to one — the chart itself lives at
@@ -24,12 +25,7 @@ export default function ChartingPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-800">Dental charting</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Find the patient whose chart you want to open.
-        </p>
-      </div>
+      <PageHeader title="Dental charting" description="Find the patient whose chart you want to open." />
 
       <input
         value={query}

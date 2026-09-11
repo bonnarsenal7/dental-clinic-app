@@ -9,6 +9,7 @@ import { isInQueue, isPending } from './appointmentStatus'
 import AppointmentCard from './AppointmentCard'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { AppointmentStatus, AppointmentWithPatient } from './types'
+import { PageHeader } from '../../core/components/ui/Page'
 
 function toDateInput(d: Date) {
   // Local, not toISOString() — that would shift the clinic's evening
@@ -101,12 +102,7 @@ export default function SchedulePage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-800">Schedule</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            The day's bookings, and who is in the clinic right now.
-          </p>
-        </div>
+        <PageHeader title="Schedule" description="The day's bookings, and who is in the clinic right now." />
         <div className="flex items-center gap-2 flex-wrap">
           <Link
             to="/recalls"

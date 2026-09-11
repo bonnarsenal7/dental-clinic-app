@@ -4,8 +4,9 @@ import { useAuth } from '../auth/AuthContext'
 import { addVisitWithNote, listVisits } from './api'
 import type { VisitWithNote } from './types'
 import { toMessage } from '../../core/errors'
-import { FieldError } from '../../core/components/states'
+
 import { ErrorState, LoadingState } from '../../core/components/states'
+import { Field, TextArea, TextInput } from '../../core/components/ui/Field'
 
 interface NoteForm {
   visit_date: string
@@ -63,20 +64,12 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
       {canWriteNotes && (
         <form noValidate onSubmit={handleSubmit(onAdd)} className="flex flex-col gap-3 border border-slate-200 rounded-lg p-4">
           <p className="text-xs font-medium text-slate-600">Add visit note</p>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Date
-            <input type="date" className="rounded-md border border-slate-300 px-3 py-2 text-sm" {...register('visit_date', { required: 'Pick a date' })} />
-            <FieldError message={errors.visit_date?.message} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Notes
-            <textarea
-              rows={3}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              {...register('notes', { required: 'Write the note before saving' })}
-            />
-            <FieldError message={errors.notes?.message} />
-          </label>
+          <Field label="Date" error={errors.visit_date?.message}>
+<TextInput type="date" {...register('visit_date', { required: 'Pick a date' })} />
+</Field>
+          <Field label="Notes" error={errors.notes?.message}>
+<TextArea rows={3} {...register('notes', { required: 'Write the note before saving' })} />
+</Field>
           <button
             type="submit"
             disabled={isSubmitting}

@@ -6,6 +6,9 @@ import { createStaff, deactivateStaff, listStaff } from './api'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import ConfirmDialog from '../../core/components/ui/ConfirmDialog'
+import Button from '../../core/components/ui/Button'
+import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
+import { PageHeader } from '../../core/components/ui/Page'
 
 interface CreateStaffForm {
   name: string
@@ -70,10 +73,7 @@ export default function StaffManagementPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-800">Staff accounts</h1>
-        <p className="text-slate-500 text-sm mt-1">Create, list, and deactivate staff logins.</p>
-      </div>
+      <PageHeader title="Staff accounts" description="Create, list, and deactivate staff logins." />
 
       {error && (
         <ErrorState message={error} />
@@ -90,38 +90,22 @@ export default function StaffManagementPage() {
         className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4 max-w-lg"
       >
         <h2 className="text-sm font-semibold text-slate-700">Add a staff account</h2>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Full name
-          <input
-            {...register('name', { required: 'Name is required' })}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          {errors.name && <span className="text-xs text-red-600">{errors.name.message}</span>}
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Email
-          <input
-            type="email"
-            {...register('email', { required: 'Email is required' })}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          {errors.email && <span className="text-xs text-red-600">{errors.email.message}</span>}
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Role
-          <select {...register('role')} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+        <Field label="Full name" error={errors.name?.message}>
+          <TextInput {...register('name', { required: 'Name is required' })} />
+        </Field>
+        <Field label="Email" error={errors.email?.message}>
+          <TextInput type="email" {...register('email', { required: 'Email is required' })} />
+        </Field>
+        <Field label="Role">
+          <NativeSelect {...register('role')}>
             <option value="receptionist">Receptionist</option>
             <option value="dentist">Dentist</option>
             <option value="admin">Admin</option>
-          </select>
-        </label>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="self-start rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800 disabled:opacity-50"
-        >
+          </NativeSelect>
+        </Field>
+        <Button type="submit" disabled={isSubmitting} className="self-start">
           {isSubmitting ? 'Creating…' : 'Create account'}
-        </button>
+        </Button>
       </form>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

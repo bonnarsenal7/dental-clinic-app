@@ -1,6 +1,8 @@
 import { useForm } from 'react-hook-form'
 import { DENTAL_SYMPTOMS, MEDICAL_CONDITIONS, ORAL_HABITS } from './historyOptions'
 import type { PatientRegistrationInput } from './types'
+import { Field, NativeSelect, TextArea, TextInput } from '../../core/components/ui/Field'
+import Button from '../../core/components/ui/Button'
 
 const EMPTY_CONDITIONS = Object.fromEntries(MEDICAL_CONDITIONS.map((c) => [c.key, false]))
 const EMPTY_SYMPTOMS = Object.fromEntries(DENTAL_SYMPTOMS.map((s) => [s.key, false]))
@@ -41,8 +43,6 @@ export const EMPTY_PATIENT_FORM: PatientRegistrationInput = {
   oral_habits_other_details: '',
 }
 
-const inputCls = 'rounded-md border border-slate-300 px-3 py-2 text-sm w-full'
-const labelCls = 'flex flex-col gap-1 text-sm text-slate-700'
 const sectionCls = 'bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4'
 const checkboxRowCls = 'flex items-center gap-2 text-sm text-slate-700'
 
@@ -70,60 +70,47 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
       <section className={sectionCls}>
         <h2 className="text-sm font-semibold text-slate-700">Demographics</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className={labelCls}>
-            Full name
-            <input className={inputCls} {...register('name', { required: 'Name is required' })} />
-            {errors.name && <span className="text-xs text-red-600">{errors.name.message}</span>}
-          </label>
-          <label className={labelCls}>
-            Address
-            <input className={inputCls} {...register('address')} />
-          </label>
-          <label className={labelCls}>
-            Birthday
-            <input type="date" className={inputCls} {...register('birthday')} />
-          </label>
-          <label className={labelCls}>
-            Age
-            <input type="number" className={inputCls} {...register('age')} />
-          </label>
-          <label className={labelCls}>
-            Sex
-            <select className={inputCls} {...register('sex')}>
-              <option value="">—</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </label>
-          <label className={labelCls}>
-            Height
-            <input className={inputCls} {...register('height')} />
-          </label>
-          <label className={labelCls}>
-            Weight
-            <input className={inputCls} {...register('weight')} />
-          </label>
-          <label className={labelCls}>
-            Occupation
-            <input className={inputCls} {...register('occupation')} />
-          </label>
-          <label className={labelCls}>
-            Spouse
-            <input className={inputCls} {...register('spouse')} />
-          </label>
-          <label className={labelCls}>
-            Phone number
-            <input className={inputCls} {...register('phone_number')} />
-          </label>
-          <label className={labelCls}>
-            Cell number
-            <input className={inputCls} {...register('cell_number')} />
-          </label>
+          <Field label="Full name" error={errors.name?.message}>
+            <TextInput {...register('name', { required: 'Name is required' })} />
+          </Field>
+          <Field label="Address">
+            <TextInput {...register('address')} />
+          </Field>
+          <Field label="Birthday">
+            <TextInput type="date" {...register('birthday')} />
+          </Field>
+          <Field label="Age">
+            <TextInput type="number" {...register('age')} />
+          </Field>
+          <Field label="Sex">
+            <NativeSelect {...register('sex')}>
+            <option value="">—</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            </NativeSelect>
+          </Field>
+          <Field label="Height">
+            <TextInput {...register('height')} />
+          </Field>
+          <Field label="Weight">
+            <TextInput {...register('weight')} />
+          </Field>
+          <Field label="Occupation">
+            <TextInput {...register('occupation')} />
+          </Field>
+          <Field label="Spouse">
+            <TextInput {...register('spouse')} />
+          </Field>
+          <Field label="Phone number">
+            <TextInput {...register('phone_number')} />
+          </Field>
+          <Field label="Cell number">
+            <TextInput {...register('cell_number')} />
+          </Field>
         </div>
-        <label className={labelCls}>
-          Remarks
-          <textarea className={inputCls} rows={2} {...register('remarks')} />
-        </label>
+        <Field label="Remarks">
+          <TextArea rows={2} {...register('remarks')} />
+        </Field>
       </section>
 
       <section className={sectionCls}>
@@ -134,14 +121,12 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
         </label>
         {underPhysicianCare && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-6">
-            <label className={labelCls}>
-              Physician name
-              <input className={inputCls} {...register('physician_name')} />
-            </label>
-            <label className={labelCls}>
-              Physician phone
-              <input className={inputCls} {...register('physician_phone')} />
-            </label>
+            <Field label="Physician name">
+              <TextInput {...register('physician_name')} />
+            </Field>
+            <Field label="Physician phone">
+              <TextInput {...register('physician_phone')} />
+            </Field>
           </div>
         )}
 
@@ -149,10 +134,9 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
           <input type="checkbox" {...register('hospitalized')} /> Has been hospitalized
         </label>
         {hospitalized && (
-          <label className={labelCls + ' pl-6'}>
-            Reason
-            <input className={inputCls} {...register('hospitalized_reason')} />
-          </label>
+          <Field label="Reason" className="pl-6">
+            <TextInput {...register('hospitalized_reason')} />
+          </Field>
         )}
 
         <div>
@@ -164,30 +148,27 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
               </label>
             ))}
           </div>
-          <label className={labelCls + ' mt-2'}>
-            Specify (for "Other" or any condition needing detail)
-            <input className={inputCls} {...register('other_condition_details')} />
-          </label>
+          <Field label={'Specify (for "Other" or any condition needing detail)'} className="mt-2">
+            <TextInput {...register('other_condition_details')} />
+          </Field>
         </div>
 
         <label className={checkboxRowCls}>
           <input type="checkbox" {...register('allergic_to_food_or_drug')} /> Allergic to food or drug
         </label>
         {allergic && (
-          <label className={labelCls + ' pl-6'}>
-            Specify
-            <input className={inputCls} {...register('allergy_details')} />
-          </label>
+          <Field label="Specify" className="pl-6">
+            <TextInput {...register('allergy_details')} />
+          </Field>
         )}
 
         <label className={checkboxRowCls}>
           <input type="checkbox" {...register('current_medications')} /> Currently taking medication
         </label>
         {onMeds && (
-          <label className={labelCls + ' pl-6'}>
-            Specify
-            <input className={inputCls} {...register('medication_details')} />
-          </label>
+          <Field label="Specify" className="pl-6">
+            <TextInput {...register('medication_details')} />
+          </Field>
         )}
 
         <label className={checkboxRowCls}>
@@ -201,22 +182,18 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
       <section className={sectionCls}>
         <h2 className="text-sm font-semibold text-slate-700">Dental history</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className={labelCls}>
-            Last visit date
-            <input type="date" className={inputCls} {...register('last_visit_date')} />
-          </label>
-          <label className={labelCls}>
-            Last dental problem
-            <input className={inputCls} {...register('last_dental_problem')} />
-          </label>
-          <label className={labelCls}>
-            Previous dentist name
-            <input className={inputCls} {...register('previous_dentist_name')} />
-          </label>
-          <label className={labelCls}>
-            Previous dentist address
-            <input className={inputCls} {...register('previous_dentist_address')} />
-          </label>
+          <Field label="Last visit date">
+            <TextInput type="date" {...register('last_visit_date')} />
+          </Field>
+          <Field label="Last dental problem">
+            <TextInput {...register('last_dental_problem')} />
+          </Field>
+          <Field label="Previous dentist name">
+            <TextInput {...register('previous_dentist_name')} />
+          </Field>
+          <Field label="Previous dentist address">
+            <TextInput {...register('previous_dentist_address')} />
+          </Field>
         </div>
 
         <div>
@@ -239,20 +216,15 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
               </label>
             ))}
           </div>
-          <label className={labelCls + ' mt-2'}>
-            Specify (for "Other")
-            <input className={inputCls} {...register('oral_habits_other_details')} />
-          </label>
+          <Field label={'Specify (for "Other")'} className="mt-2">
+            <TextInput {...register('oral_habits_other_details')} />
+          </Field>
         </div>
       </section>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="self-start rounded-md bg-gold-700 text-white text-sm font-medium px-5 py-2.5 hover:bg-gold-800 disabled:opacity-50"
-      >
+      <Button type="submit" disabled={isSubmitting} className="self-start px-5 py-2.5">
         {isSubmitting ? 'Saving…' : submitLabel}
-      </button>
+      </Button>
     </form>
   )
 }

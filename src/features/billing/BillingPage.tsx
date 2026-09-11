@@ -5,6 +5,7 @@ import { searchPatients } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import { PageHeader } from '../../core/components/ui/Page'
 
 // Billing is always about one patient's ledger, so this is the way in —
 // the ledger itself lives at /patients/:id/billing with the rest of their
@@ -27,10 +28,7 @@ export default function BillingPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-800">Billing</h1>
-          <p className="text-slate-500 text-sm mt-1">Find a patient to open their treatment ledger.</p>
-        </div>
+        <PageHeader title="Billing" description="Find a patient to open their treatment ledger." />
         {staff?.role === 'admin' && (
           <Link
             to="/billing/prices"

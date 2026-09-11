@@ -4,6 +4,7 @@ import { searchPatients } from './api'
 import type { Patient } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import { PageHeader } from '../../core/components/ui/Page'
 
 export default function PatientsPage() {
   const [query, setQuery] = useState('')
@@ -22,10 +23,7 @@ export default function PatientsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-800">Patients</h1>
-          <p className="text-slate-500 text-sm mt-1">Search by name or contact number.</p>
-        </div>
+        <PageHeader title="Patients" description="Search by name or contact number." />
         <Link
           to="/patients/new"
           className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"

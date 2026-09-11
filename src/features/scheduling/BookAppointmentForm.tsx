@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toMessage } from '../../core/errors'
-import { ErrorState, FieldError } from '../../core/components/states'
+import { ErrorState } from '../../core/components/states'
 import { getPatient, searchPatients } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { listProcedures } from '../billing/api'
 import type { Procedure } from '../billing/types'
 import { bookAppointment, listDentists } from './api'
+import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
 
 interface BookingForm {
   patient_id: string
@@ -148,21 +149,16 @@ export default function BookAppointmentForm({
               used — it renders as an inline list that is fiddly to tap and
               easy to mistake for being inert. The label points at this
               control rather than at the search box above it. */}
-          <label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor="appt-patient">
-            Patient
-            <select
-              id="appt-patient"
-              {...register('patient_id')}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">— choose a patient —</option>
+          <Field label="Patient">
+<NativeSelect {...register('patient_id')}>
+<option value="">— choose a patient —</option>
               {patients.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}{p.cell_number ? ` · ${p.cell_number}` : ''}
                 </option>
               ))}
-            </select>
-          </label>
+</NativeSelect>
+</Field>
           {patients.length === 0 && (
             <p className="text-xs text-slate-400">No patients match that search.</p>
           )}
@@ -170,60 +166,43 @@ export default function BookAppointmentForm({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Date
-          <input type="date" {...register('date', { required: 'Pick a date' })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-          <FieldError message={errors.date?.message} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Time
-          <input type="time" {...register('time', { required: 'Pick a time' })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-          <FieldError message={errors.time?.message} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Minutes
-          <input type="number" min="5" max="480" step="5" {...register('duration_minutes', { required: 'How long?' })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-          <FieldError message={errors.duration_minutes?.message} />
-        </label>
+        <Field label="Date" error={errors.date?.message}>
+<TextInput type="date" {...register('date', { required: 'Pick a date' })} />
+</Field>
+        <Field label="Time" error={errors.time?.message}>
+<TextInput type="time" {...register('time', { required: 'Pick a time' })} />
+</Field>
+        <Field label="Minutes" error={errors.duration_minutes?.message}>
+<TextInput type="number" min="5" max="480" step="5" {...register('duration_minutes', { required: 'How long?' })} />
+</Field>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Dentist
-          <select {...register('dentist_id')} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-            <option value="">— unassigned —</option>
+        <Field label="Dentist">
+<NativeSelect {...register('dentist_id')}>
+<option value="">— unassigned —</option>
             {dentists.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Procedure
-          <select {...register('procedure_id')} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-            <option value="">— not specified —</option>
+</NativeSelect>
+</Field>
+        <Field label="Procedure">
+<NativeSelect {...register('procedure_id')}>
+<option value="">— not specified —</option>
             {procedures.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
-          </select>
-        </label>
+</NativeSelect>
+</Field>
       </div>
 
-      <label className="flex flex-col gap-1 text-sm text-slate-700">
-        Reason
-        <input {...register('reason')} placeholder="e.g. Cleaning" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      </label>
+      <Field label="Reason">
+<TextInput {...register('reason')} placeholder="e.g. Cleaning" />
+</Field>
 
-      <label className="flex flex-col gap-1 text-sm text-slate-700">
-        Front-desk note
-        <input
-          {...register('reception_notes')}
-          placeholder="e.g. bring HMO card — not for clinical notes"
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-        />
-        <span className="text-xs text-slate-400">
-          Visible to reception. Clinical notes belong on the visit, where reception can't see them.
-        </span>
-      </label>
+      <Field label="Front-desk note" hint={<>Visible to reception. Clinical notes belong on the visit, where reception can't see them.</>}>
+<TextInput {...register('reception_notes')} placeholder="e.g. bring HMO card — not for clinical notes" />
+</Field>
 
       <button
         type="submit"

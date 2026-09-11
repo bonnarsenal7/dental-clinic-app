@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '../../core/supabaseClient'
 import { ErrorState, LoadingState } from '../../core/components/states'
+import Button from '../../core/components/ui/Button'
+import { Field, TextInput } from '../../core/components/ui/Field'
+import { PageHeader } from '../../core/components/ui/Page'
 
 interface SettingsForm {
   clinic_name: string
@@ -52,10 +55,10 @@ export default function ClinicSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-lg">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-800">Clinic settings</h1>
-        <p className="text-slate-500 text-sm mt-1">Shown in the app's header for every staff member.</p>
-      </div>
+      <PageHeader
+        title="Clinic settings"
+        description="Shown in the app's header for every staff member."
+      />
 
       {error && (
         <ErrorState message={error} />
@@ -70,25 +73,15 @@ export default function ClinicSettingsPage() {
         onSubmit={handleSubmit(onSave)}
         className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4"
       >
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Clinic name
-          <input {...register('clinic_name')} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Operating hours
-          <input
-            {...register('operating_hours')}
-            placeholder="e.g. Mon–Sat, 9am–6pm"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="self-start rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800 disabled:opacity-50"
-        >
+        <Field label="Clinic name">
+          <TextInput {...register('clinic_name')} />
+        </Field>
+        <Field label="Operating hours">
+          <TextInput {...register('operating_hours')} placeholder="e.g. Mon–Sat, 9am–6pm" />
+        </Field>
+        <Button type="submit" disabled={isSubmitting} className="self-start">
           {isSubmitting ? 'Saving…' : 'Save'}
-        </button>
+        </Button>
       </form>
     </div>
   )

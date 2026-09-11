@@ -4,6 +4,7 @@ import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
 import { listDueRecalls, setRecallStatus } from './api'
 import type { RecallWithPatient } from './types'
+import { PageHeader } from '../../core/components/ui/Page'
 
 const HORIZONS = [
   { label: 'Overdue now', days: 0 },
@@ -59,12 +60,7 @@ export default function RecallsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-800">Recalls</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Patients due back. Book them from here, or dismiss if they've moved on.
-          </p>
-        </div>
+        <PageHeader title="Recalls" description="Patients due back. Book them from here, or dismiss if they've moved on." />
         <Link
           to="/schedule"
           className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"

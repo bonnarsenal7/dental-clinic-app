@@ -3,6 +3,7 @@ import { supabase } from '../../core/supabaseClient'
 import type { StaffProfile } from '../auth/types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import { PageHeader } from '../../core/components/ui/Page'
 
 interface AuditEntry {
   id: string
@@ -140,14 +141,7 @@ export default function AuditLogPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-800">Audit log</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Every write to a patient, clinical, or billing record. Writes are recorded by the
-            database itself and can't be skipped by an app; views are reported by the app and carry
-            a weaker guarantee.
-          </p>
-        </div>
+        <PageHeader title="Audit log" description="Every write to a patient, clinical, or billing record. Writes are recorded by the database itself and can't be skipped by an app; views are reported by the app and carry a weaker guarantee." />
         <button
           type="button"
           onClick={() => void handleExport()}
