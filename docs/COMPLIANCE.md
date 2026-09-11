@@ -218,8 +218,22 @@ that RLS still separates roles afterwards (§3.3).
 
 ### 3.1 What the verified backup contains
 
-Taken 2026-09-11 (`20260911T023325Z`, direct `pg_dump`, 358 KB across three
-files). Verified rather than assumed:
+**Current good backup: `20260911T025358Z`.** Taken after the `0007` fix and
+after the database password was rotated. It carries the fix — all four
+`public` functions pin `search_path` in the dump — and its data section has
+`invoice_items` = 2 and `payments` = 2, the rows the earlier dump lost.
+
+> **Delete `20260911T023325Z`.** That earlier dump predates `0007`, so
+> restoring it silently drops all billing lines and payments. It is also
+> plaintext patient data sitting in a home directory. It served its purpose
+> (it is what the rehearsal below was run against) and should not be kept
+> as a backup.
+
+The verification below was performed against `20260911T023325Z`; the
+structure checks apply unchanged to the new dump, which differs only in the
+two function definitions and the restored billing rows.
+
+Verified rather than assumed:
 
 | Check | Result |
 |---|---|
@@ -269,9 +283,15 @@ verified by replaying the identical COPY blocks under `search_path = ''`:
 still deriving the right totals (₱2,500 paid, ₱500 paid).
 
 **The general lesson for this codebase: every function must pin
-`set search_path`.** Check it on any new one —
-`select proname, proconfig from pg_proc join pg_namespace ... where
-nspname = 'public'` lists them.
+`set search_path`.** Confirmed clean as of 2026-09-11 — `audit_row_change`,
+`current_staff_role`, `invoice_totals_trigger` and `refresh_invoice_totals`
+all pin `search_path=public`. Re-check after adding any function:
+
+```sql
+select proname, coalesce(array_to_string(proconfig, ','), '*** NONE ***')
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' order by 1;
+```
 
 ### 3.3 Post-restore RLS verification
 
