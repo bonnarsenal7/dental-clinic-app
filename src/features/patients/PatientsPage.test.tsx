@@ -8,11 +8,28 @@ vi.mock('./api', () => ({ searchPatients: vi.fn() }))
 const api = await import('./api')
 
 const PATIENTS = [
-  { id: 'p1', name: 'Angelica Dela Cruz', cell_number: '0920 555 0388', phone_number: null, created_at: '2026-01-05T00:00:00Z' },
-  { id: 'p2', name: 'Ricardo Bautista', cell_number: '0927 555 0411', phone_number: '(02) 8724 1190', created_at: '2026-02-11T00:00:00Z' },
+  {
+    id: 'p1',
+    name: 'Angelica Dela Cruz',
+    cell_number: '0920 555 0388',
+    phone_number: null,
+    created_at: '2026-01-05T00:00:00Z',
+  },
+  {
+    id: 'p2',
+    name: 'Ricardo Bautista',
+    cell_number: '0927 555 0411',
+    phone_number: '(02) 8724 1190',
+    created_at: '2026-02-11T00:00:00Z',
+  },
 ]
 
-const renderPage = () => render(<MemoryRouter><PatientsPage /></MemoryRouter>)
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <PatientsPage />
+    </MemoryRouter>,
+  )
 
 describe('PatientsPage', () => {
   beforeEach(() => {
@@ -45,7 +62,10 @@ describe('PatientsPage', () => {
 
   it('offers registration', async () => {
     renderPage()
-    expect(await screen.findByRole('link', { name: /register patient/i })).toHaveAttribute('href', '/patients/new')
+    expect(await screen.findByRole('link', { name: /register patient/i })).toHaveAttribute(
+      'href',
+      '/patients/new',
+    )
   })
 
   it('reports a dropped connection in plain language', async () => {

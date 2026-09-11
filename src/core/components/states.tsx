@@ -14,15 +14,7 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   )
 }
 
-export function EmptyState({
-  title,
-  hint,
-  action,
-}: {
-  title: string
-  hint?: string
-  action?: ReactNode
-}) {
+export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="text-center py-10 px-4">
       <p className="text-sm font-medium text-slate-600">{title}</p>

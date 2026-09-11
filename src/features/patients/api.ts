@@ -114,10 +114,7 @@ export async function registerPatient(input: PatientRegistrationInput, createdBy
   return patient as Patient
 }
 
-export async function updatePatientHistory(
-  patientId: string,
-  input: PatientRegistrationInput,
-) {
+export async function updatePatientHistory(patientId: string, input: PatientRegistrationInput) {
   const { error: patientError } = await supabase
     .from('patients')
     .update({
@@ -231,7 +228,11 @@ export async function addVisitWithNote(params: {
 }) {
   const { data: visit, error: visitError } = await supabase
     .from('visits')
-    .insert({ patient_id: params.patientId, staff_id: params.staffId, visit_date: params.visitDate })
+    .insert({
+      patient_id: params.patientId,
+      staff_id: params.staffId,
+      visit_date: params.visitDate,
+    })
     .select()
     .single()
   if (visitError) throw new Error(`Visit: ${visitError.message}`)

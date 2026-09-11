@@ -43,8 +43,11 @@ const ACTIVE = (role: string) => ({ id: 'u1', role })
 
 describe('ProtectedRoute', () => {
   beforeEach(() => {
-    state.session = null; state.staff = null; state.loading = false
-    idle.onIdle = null; idle.enabled = false
+    state.session = null
+    state.staff = null
+    state.loading = false
+    idle.onIdle = null
+    idle.enabled = false
     signOut.mockClear()
   })
 
@@ -63,13 +66,15 @@ describe('ProtectedRoute', () => {
   // A valid auth session with no staff row must not pass — public signup
   // is still open, so this is reachable by a stranger.
   it('sends a session with no staff record to login', () => {
-    state.session = { user: { id: 'u1' } }; state.staff = null
+    state.session = { user: { id: 'u1' } }
+    state.staff = null
     renderAt('/patients')
     expect(screen.getByText(/login screen/i)).toBeInTheDocument()
   })
 
   it('lets any signed-in staff member through an ungated route', () => {
-    state.session = { user: { id: 'u1' } }; state.staff = ACTIVE('receptionist')
+    state.session = { user: { id: 'u1' } }
+    state.staff = ACTIVE('receptionist')
     renderAt('/patients')
     expect(screen.getByText('patients')).toBeInTheDocument()
   })
@@ -81,7 +86,8 @@ describe('ProtectedRoute', () => {
     ['dentist', false],
     ['receptionist', false],
   ])('admin-only route with a %s: allowed=%s', (role, allowed) => {
-    state.session = { user: { id: 'u1' } }; state.staff = ACTIVE(role)
+    state.session = { user: { id: 'u1' } }
+    state.staff = ACTIVE(role)
     renderAt('/admin/staff', ['admin'])
     if (allowed) {
       expect(screen.getByText('staff admin')).toBeInTheDocument()
@@ -92,8 +98,13 @@ describe('ProtectedRoute', () => {
   })
 
   it('lets dentist and admin into a clinical route but not reception', () => {
-    for (const [role, allowed] of [['dentist', true], ['admin', true], ['receptionist', false]] as const) {
-      state.session = { user: { id: 'u1' } }; state.staff = ACTIVE(role)
+    for (const [role, allowed] of [
+      ['dentist', true],
+      ['admin', true],
+      ['receptionist', false],
+    ] as const) {
+      state.session = { user: { id: 'u1' } }
+      state.staff = ACTIVE(role)
       const { unmount } = renderAt('/patients', ['dentist', 'admin'])
       expect(screen.queryByText('patients') !== null, role).toBe(allowed)
       unmount()
@@ -106,13 +117,15 @@ describe('ProtectedRoute', () => {
     renderAt('/patients')
     expect(idle.enabled).toBe(false)
 
-    state.session = { user: { id: 'u1' } }; state.staff = ACTIVE('dentist')
+    state.session = { user: { id: 'u1' } }
+    state.staff = ACTIVE('dentist')
     renderAt('/patients')
     expect(idle.enabled).toBe(true)
   })
 
   it('signs out when the idle timeout fires', () => {
-    state.session = { user: { id: 'u1' } }; state.staff = ACTIVE('dentist')
+    state.session = { user: { id: 'u1' } }
+    state.staff = ACTIVE('dentist')
     renderAt('/patients')
     idle.onIdle?.()
     expect(signOut).toHaveBeenCalled()

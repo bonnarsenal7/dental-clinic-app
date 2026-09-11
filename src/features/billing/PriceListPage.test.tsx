@@ -3,12 +3,32 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PriceListPage from './PriceListPage'
 
-vi.mock('./api', () => ({ listProcedures: vi.fn(), createProcedure: vi.fn(), updateProcedure: vi.fn() }))
+vi.mock('./api', () => ({
+  listProcedures: vi.fn(),
+  createProcedure: vi.fn(),
+  updateProcedure: vi.fn(),
+}))
 const api = await import('./api')
 
 const PROCS = [
-  { id: 'p1', name: 'Composite filling (light cure)', code: 'COMP', default_fee: 1800, chart_condition: 'filled', active: true, created_at: '2026-01-01' },
-  { id: 'p2', name: 'Retired procedure', code: null, default_fee: 500, chart_condition: null, active: false, created_at: '2026-01-01' },
+  {
+    id: 'p1',
+    name: 'Composite filling (light cure)',
+    code: 'COMP',
+    default_fee: 1800,
+    chart_condition: 'filled',
+    active: true,
+    created_at: '2026-01-01',
+  },
+  {
+    id: 'p2',
+    name: 'Retired procedure',
+    code: null,
+    default_fee: 500,
+    chart_condition: null,
+    active: false,
+    created_at: '2026-01-01',
+  },
 ]
 
 describe('PriceListPage', () => {
@@ -52,7 +72,9 @@ describe('PriceListPage', () => {
     await user.click(screen.getByRole('button', { name: /add procedure/i }))
     await waitFor(() => expect(api.createProcedure).toHaveBeenCalled())
     expect(vi.mocked(api.createProcedure).mock.calls[0][0]).toMatchObject({
-      name: 'Zirconia crown', default_fee: 22000, chart_condition: 'crown',
+      name: 'Zirconia crown',
+      default_fee: 22000,
+      chart_condition: 'crown',
     })
   })
 

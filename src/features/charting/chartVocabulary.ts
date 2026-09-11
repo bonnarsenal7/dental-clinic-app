@@ -172,13 +172,7 @@ const PERMANENT_POSITION_NAMES = [
   'third molar',
 ]
 
-const PRIMARY_POSITION_NAMES = [
-  'central incisor',
-  'lateral incisor',
-  'canine',
-  'first molar',
-  'second molar',
-]
+const PRIMARY_POSITION_NAMES = ['central incisor', 'lateral incisor', 'canine', 'first molar', 'second molar']
 
 /** e.g. 16 → "Upper right first molar", 65 → "Upper left second primary molar". */
 export function toothName(toothNumber: number): string {
@@ -186,9 +180,7 @@ export function toothName(toothNumber: number): string {
   const side = isPatientRight(toothNumber) ? 'right' : 'left'
   const names = isPrimary(toothNumber) ? PRIMARY_POSITION_NAMES : PERMANENT_POSITION_NAMES
   const name = names[positionOf(toothNumber) - 1] ?? 'tooth'
-  return isPrimary(toothNumber)
-    ? `${arch} ${side} ${name} (primary)`
-    : `${arch} ${side} ${name}`
+  return isPrimary(toothNumber) ? `${arch} ${side} ${name} (primary)` : `${arch} ${side} ${name}`
 }
 
 // --- Surfaces ------------------------------------------------------------

@@ -15,7 +15,15 @@ vi.mock('../auth/AuthContext', () => ({
 const api = await import('./api')
 
 const FILES = [
-  { id: 'f1', patient_id: 'p1', storage_path: 'attachments/p1/xray.png', file_name: 'xray.png', file_type: 'xray', uploaded_by: null, created_at: '2026-09-01T00:00:00Z' },
+  {
+    id: 'f1',
+    patient_id: 'p1',
+    storage_path: 'attachments/p1/xray.png',
+    file_name: 'xray.png',
+    file_type: 'xray',
+    uploaded_by: null,
+    created_at: '2026-09-01T00:00:00Z',
+  },
 ]
 
 describe('FileAttachments', () => {
@@ -63,7 +71,8 @@ describe('FileAttachments', () => {
     await user.click(screen.getByRole('button', { name: /upload/i }))
     await waitFor(() => expect(api.uploadPatientFile).toHaveBeenCalled())
     expect(vi.mocked(api.uploadPatientFile).mock.calls[0][0]).toMatchObject({
-      patientId: 'p1', fileType: 'id_scan',
+      patientId: 'p1',
+      fileType: 'id_scan',
     })
   })
 

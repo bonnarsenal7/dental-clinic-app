@@ -9,7 +9,10 @@ function mark(tooth: number, condition: ToothConditionKey, surface: ToothSurface
 describe('deriveChart', () => {
   it('applies surface findings to the named surface only', () => {
     const chart = deriveChart([mark(16, 'decayed', 'occlusal'), mark(16, 'filled', 'mesial')])
-    expect(toothStateOf(chart, 16).surfaces).toEqual({ occlusal: 'decayed', mesial: 'filled' })
+    expect(toothStateOf(chart, 16).surfaces).toEqual({
+      occlusal: 'decayed',
+      mesial: 'filled',
+    })
   })
 
   // The property the whole append-only design rests on: order decides
@@ -61,10 +64,7 @@ describe('deriveChart', () => {
   })
 
   it('skips an unrecognised condition rather than crashing', () => {
-    const chart = deriveChart([
-      mark(16, 'decayed', 'occlusal'),
-      mark(16, 'implant' as ToothConditionKey),
-    ])
+    const chart = deriveChart([mark(16, 'decayed', 'occlusal'), mark(16, 'implant' as ToothConditionKey)])
     expect(toothStateOf(chart, 16).surfaces.occlusal).toBe('decayed')
   })
 })

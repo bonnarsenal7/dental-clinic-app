@@ -3,7 +3,13 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { getPatient } from '../patients/api'
 import type { Patient } from '../patients/types'
-import { createInvoice, findInvoiceForVisit, listBillableCharting, listPatientVisits, listProcedures } from './api'
+import {
+  createInvoice,
+  findInvoiceForVisit,
+  listBillableCharting,
+  listPatientVisits,
+  listProcedures,
+} from './api'
 import { getAppointment } from '../scheduling/api'
 import { formatMoney } from './ledger'
 import type { BillableCharting, Procedure } from './types'
@@ -121,10 +127,7 @@ export default function InvoiceBuilderPage() {
 
   const total = useMemo(() => lines.reduce((sum, l) => sum + l.amount, 0), [lines])
 
-  const pulledRecordIds = useMemo(
-    () => new Set(lines.map((l) => l.tooth_record_id).filter(Boolean)),
-    [lines],
-  )
+  const pulledRecordIds = useMemo(() => new Set(lines.map((l) => l.tooth_record_id).filter(Boolean)), [lines])
 
   function newKey() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -212,7 +215,11 @@ export default function InvoiceBuilderPage() {
 
   if (loading) return <LoadingState />
   if (!patient || !patientId) {
-    return <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error ?? 'Patient not found.'}</p>
+    return (
+      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+        {error ?? 'Patient not found.'}
+      </p>
+    )
   }
 
   const unpulled = billable.filter((b) => !pulledRecordIds.has(b.tooth_record_id))
@@ -237,7 +244,9 @@ export default function InvoiceBuilderPage() {
       {error && <ErrorState message={error} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 flex-wrap">
-        <label className="text-sm text-slate-600" htmlFor="invoice-visit">For visit</label>
+        <label className="text-sm text-slate-600" htmlFor="invoice-visit">
+          For visit
+        </label>
         <select
           id="invoice-visit"
           value={visitId}
@@ -246,7 +255,9 @@ export default function InvoiceBuilderPage() {
         >
           <option value="">— no visit —</option>
           {visits.map((v) => (
-            <option key={v.id} value={v.id}>{new Date(v.visit_date).toLocaleDateString()}</option>
+            <option key={v.id} value={v.id}>
+              {new Date(v.visit_date).toLocaleDateString()}
+            </option>
           ))}
         </select>
       </section>
@@ -267,22 +278,25 @@ export default function InvoiceBuilderPage() {
 
         {!canReadChart ? (
           <p className="text-sm text-slate-400">
-            Charted procedures are only visible to dentist/admin accounts. Ask the dentist to build
-            the invoice from the chart, or add the lines by hand below.
+            Charted procedures are only visible to dentist/admin accounts. Ask the dentist to build the
+            invoice from the chart, or add the lines by hand below.
           </p>
         ) : !visitId ? (
           <p className="text-sm text-slate-400">Choose a visit above to see what was charted.</p>
         ) : unpulled.length === 0 ? (
           <p className="text-sm text-slate-400">
-            Nothing billable charted at this visit that isn't already invoiced. Only completed work
-            (fillings, crowns) is billable — findings and planned treatment aren't.
+            Nothing billable charted at this visit that isn't already invoiced. Only completed work (fillings,
+            crowns) is billable — findings and planned treatment aren't.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
             {unpulled.map((entry) => {
               const procedure = procedureFor(entry.condition)
               return (
-                <div key={entry.tooth_record_id} className="flex items-center justify-between gap-3 flex-wrap border border-slate-200 rounded-lg px-3 py-2">
+                <div
+                  key={entry.tooth_record_id}
+                  className="flex items-center justify-between gap-3 flex-wrap border border-slate-200 rounded-lg px-3 py-2"
+                >
                   <div className="text-sm">
                     <span className="font-medium text-slate-700 capitalize">{entry.condition}</span>
                     <span className="text-slate-500"> — tooth {entry.tooth_number}</span>
@@ -308,7 +322,10 @@ export default function InvoiceBuilderPage() {
       </section>
 
       {existingInvoice && (
-        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-300 rounded-md px-3 py-2" role="alert">
+        <p
+          className="text-sm text-amber-900 bg-amber-50 border border-amber-300 rounded-md px-3 py-2"
+          role="alert"
+        >
           This visit has already been invoiced.{' '}
           <Link to={`/invoices/${existingInvoice}`} className="font-semibold underline">
             Open that invoice

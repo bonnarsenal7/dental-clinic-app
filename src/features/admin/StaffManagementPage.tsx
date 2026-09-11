@@ -75,9 +75,7 @@ export default function StaffManagementPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Staff accounts" description="Create, list, and deactivate staff logins." />
 
-      {error && (
-        <ErrorState message={error} />
-      )}
+      {error && <ErrorState message={error} />}
       {newAccountNotice && (
         <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
           {newAccountNotice}
@@ -141,9 +139,13 @@ export default function StaffManagementPage() {
                 <td className="px-4 py-2 text-slate-500 capitalize">{s.role}</td>
                 <td className="px-4 py-2">
                   {s.active ? (
-                    <span className="text-emerald-700 bg-emerald-50 text-xs px-2 py-0.5 rounded-full">Active</span>
+                    <span className="text-emerald-700 bg-emerald-50 text-xs px-2 py-0.5 rounded-full">
+                      Active
+                    </span>
                   ) : (
-                    <span className="text-slate-500 bg-slate-100 text-xs px-2 py-0.5 rounded-full">Deactivated</span>
+                    <span className="text-slate-500 bg-slate-100 text-xs px-2 py-0.5 rounded-full">
+                      Deactivated
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-2 text-right">
@@ -165,7 +167,9 @@ export default function StaffManagementPage() {
 
       <ConfirmDialog
         open={pendingDeactivation !== null}
-        onOpenChange={(open) => { if (!open) setPendingDeactivation(null) }}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeactivation(null)
+        }}
         title={`Deactivate ${pendingDeactivation?.name ?? 'this account'}?`}
         description="They will be signed out immediately and will not be able to log in again. Their record stays, and an admin can restore access later."
         confirmLabel="Deactivate"

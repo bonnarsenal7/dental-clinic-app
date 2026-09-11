@@ -12,9 +12,12 @@ export default function ProtectedRoute({ allow }: ProtectedRouteProps) {
   const { session, staff, loading, signOut } = useAuth()
   const location = useLocation()
 
-  useIdleTimeout(() => {
-    void signOut()
-  }, Boolean(session && staff))
+  useIdleTimeout(
+    () => {
+      void signOut()
+    },
+    Boolean(session && staff),
+  )
 
   if (loading) {
     return (

@@ -23,7 +23,8 @@ describe('FDI layout', () => {
 
   it('uses only valid FDI numbers', () => {
     const valid = (n: number) => {
-      const q = Math.floor(n / 10), p = n % 10
+      const q = Math.floor(n / 10),
+        p = n % 10
       return (q >= 1 && q <= 4 && p >= 1 && p <= 8) || (q >= 5 && q <= 8 && p >= 1 && p <= 5)
     }
     for (const n of ARCH_ROWS.flatMap((r) => [...r.left, ...r.right])) {
@@ -33,7 +34,7 @@ describe('FDI layout', () => {
 
   // The chart is read facing the patient, so their right is the viewer's
   // left. Getting this backwards mirrors the entire chart.
-  it('puts the patient\'s right on the viewer\'s left', () => {
+  it("puts the patient's right on the viewer's left", () => {
     for (const row of ARCH_ROWS) {
       for (const n of row.left) expect(isPatientRight(n), `tooth ${n}`).toBe(true)
       for (const n of row.right) expect(isPatientRight(n), `tooth ${n}`).toBe(false)
@@ -42,8 +43,8 @@ describe('FDI layout', () => {
 
   it('runs each half from distal in to the midline', () => {
     for (const row of ARCH_ROWS) {
-      expect(row.left.at(-1)! % 10).toBe(1)   // ends at the midline
-      expect(row.right[0] % 10).toBe(1)       // starts at the midline
+      expect(row.left.at(-1)! % 10).toBe(1) // ends at the midline
+      expect(row.right[0] % 10).toBe(1) // starts at the midline
     }
   })
 })
@@ -53,9 +54,9 @@ describe('surface mapping', () => {
   // flips between the two halves of the chart. Charting a filling on the
   // distal when it was mesial is a wrong clinical record.
   it('flips mesial and distal between the halves', () => {
-    expect(surfacesForTooth(16).right).toBe('mesial')  // upper right, midline is to the right
+    expect(surfacesForTooth(16).right).toBe('mesial') // upper right, midline is to the right
     expect(surfacesForTooth(16).left).toBe('distal')
-    expect(surfacesForTooth(26).left).toBe('mesial')   // upper left, midline is to the left
+    expect(surfacesForTooth(26).left).toBe('mesial') // upper left, midline is to the left
     expect(surfacesForTooth(26).right).toBe('distal')
   })
 
@@ -109,9 +110,12 @@ describe('tooth naming', () => {
   })
 
   it('classifies arches, sides and dentitions', () => {
-    expect(isUpper(16)).toBe(true); expect(isUpper(46)).toBe(false)
-    expect(isPrimary(55)).toBe(true); expect(isPrimary(15)).toBe(false)
-    expect(isAnterior(13)).toBe(true); expect(isAnterior(14)).toBe(false)
+    expect(isUpper(16)).toBe(true)
+    expect(isUpper(46)).toBe(false)
+    expect(isPrimary(55)).toBe(true)
+    expect(isPrimary(15)).toBe(false)
+    expect(isAnterior(13)).toBe(true)
+    expect(isAnterior(14)).toBe(false)
   })
 })
 
@@ -119,9 +123,14 @@ describe('condition vocabulary', () => {
   // The database constrains these values too (0004_charting.sql), so the
   // two must not drift.
   it('matches the keys the database allows', () => {
-    expect(TOOTH_CONDITIONS.map((c) => c.key).sort()).toEqual(
-      ['crown', 'decayed', 'filled', 'missing', 'planned', 'sound'],
-    )
+    expect(TOOTH_CONDITIONS.map((c) => c.key).sort()).toEqual([
+      'crown',
+      'decayed',
+      'filled',
+      'missing',
+      'planned',
+      'sound',
+    ])
   })
 
   // Only these two carry a surface; the schema enforces the same rule with

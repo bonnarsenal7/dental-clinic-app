@@ -1,11 +1,5 @@
 export type AppointmentStatus =
-  | 'booked'
-  | 'confirmed'
-  | 'arrived'
-  | 'in_chair'
-  | 'completed'
-  | 'cancelled'
-  | 'no_show'
+  'booked' | 'confirmed' | 'arrived' | 'in_chair' | 'completed' | 'cancelled' | 'no_show'
 
 export interface Appointment {
   id: string
@@ -31,7 +25,12 @@ export interface Appointment {
 
 /** PostgREST returns a to-one embed as an object, not an array. */
 export interface AppointmentWithPatient extends Appointment {
-  patients: { id: string; name: string; cell_number: string | null; phone_number: string | null } | null
+  patients: {
+    id: string
+    name: string
+    cell_number: string | null
+    phone_number: string | null
+  } | null
 }
 
 export type RecallStatus = 'due' | 'scheduled' | 'completed' | 'dismissed'
@@ -52,5 +51,10 @@ export interface Recall {
 }
 
 export interface RecallWithPatient extends Recall {
-  patients: { id: string; name: string; cell_number: string | null; phone_number: string | null } | null
+  patients: {
+    id: string
+    name: string
+    cell_number: string | null
+    phone_number: string | null
+  } | null
 }

@@ -18,10 +18,18 @@ vi.mock('react-signature-canvas', async () => {
   const { Component } = await import('react')
   return {
     default: class SignatureCanvasStub extends Component {
-      isEmpty() { return pad.empty }
-      clear() { pad.empty = true }
-      toDataURL() { return 'data:image/png;base64,SIGNATURE' }
-      render() { return null }
+      isEmpty() {
+        return pad.empty
+      }
+      clear() {
+        pad.empty = true
+      }
+      toDataURL() {
+        return 'data:image/png;base64,SIGNATURE'
+      }
+      render() {
+        return null
+      }
     },
   }
 })
@@ -90,7 +98,14 @@ describe('ConsentCapture', () => {
   })
 
   it('uses the label the caller asked for', () => {
-    render(<ConsentCapture patientId="p1" staffId="s1" onSaved={vi.fn()} submitLabel="Save re-confirmed consent" />)
+    render(
+      <ConsentCapture
+        patientId="p1"
+        staffId="s1"
+        onSaved={vi.fn()}
+        submitLabel="Save re-confirmed consent"
+      />,
+    )
     expect(screen.getByRole('button', { name: /save re-confirmed consent/i })).toBeInTheDocument()
   })
 })

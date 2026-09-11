@@ -10,9 +10,14 @@ function warmed(role: StaffRole): RouteKey[] {
   // stubGlobal rather than spyOn: happy-dom has no requestIdleCallback to
   // spy on, and neither does Safari before 16.4 — the browser on an older
   // clinic iPad — so the timer fallback is a live path, not a theoretical one.
-  vi.stubGlobal('requestIdleCallback', (cb: () => void) => { cb(); return 1 })
+  vi.stubGlobal('requestIdleCallback', (cb: () => void) => {
+    cb()
+    return 1
+  })
   try {
-    warmRoutesFor(role, async (key) => { asked.push(key) })
+    warmRoutesFor(role, async (key) => {
+      asked.push(key)
+    })
   } finally {
     vi.unstubAllGlobals()
   }
@@ -58,7 +63,9 @@ describe('route warming', () => {
     vi.useFakeTimers()
     const asked: RouteKey[] = []
     try {
-      warmRoutesFor('dentist', async (key) => { asked.push(key) })
+      warmRoutesFor('dentist', async (key) => {
+        asked.push(key)
+      })
       expect(asked, 'should wait rather than fetch immediately').toHaveLength(0)
       vi.advanceTimersByTime(1500)
       expect(asked.length).toBeGreaterThan(0)
@@ -71,7 +78,10 @@ describe('route warming', () => {
   // not a trade to make on their behalf.
   it('downloads nothing when the device asks to save data', () => {
     const original = Object.getOwnPropertyDescriptor(navigator, 'connection')
-    Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true })
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true,
+    })
     try {
       expect(warmed('receptionist')).toHaveLength(0)
     } finally {

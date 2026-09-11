@@ -131,10 +131,7 @@ Deno.serve(async (req) => {
       return json({ error: "You can't deactivate your own account." }, 400)
     }
 
-    const { error: updateError } = await adminClient
-      .from('staff')
-      .update({ active: false })
-      .eq('id', staffId)
+    const { error: updateError } = await adminClient.from('staff').update({ active: false }).eq('id', staffId)
     if (updateError) {
       return json({ error: updateError.message }, 400)
     }

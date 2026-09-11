@@ -24,7 +24,9 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
     handleSubmit,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm<NoteForm>({ defaultValues: { visit_date: new Date().toISOString().slice(0, 10), notes: '' } })
+  } = useForm<NoteForm>({
+    defaultValues: { visit_date: new Date().toISOString().slice(0, 10), notes: '' },
+  })
 
   async function refresh() {
     try {
@@ -62,14 +64,18 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
       {error && <ErrorState message={error} />}
 
       {canWriteNotes && (
-        <form noValidate onSubmit={handleSubmit(onAdd)} className="flex flex-col gap-3 border border-slate-200 rounded-lg p-4">
+        <form
+          noValidate
+          onSubmit={handleSubmit(onAdd)}
+          className="flex flex-col gap-3 border border-slate-200 rounded-lg p-4"
+        >
           <p className="text-xs font-medium text-slate-600">Add visit note</p>
           <Field label="Date" error={errors.visit_date?.message}>
-<TextInput type="date" {...register('visit_date', { required: 'Pick a date' })} />
-</Field>
+            <TextInput type="date" {...register('visit_date', { required: 'Pick a date' })} />
+          </Field>
           <Field label="Notes" error={errors.notes?.message}>
-<TextArea rows={3} {...register('notes', { required: 'Write the note before saving' })} />
-</Field>
+            <TextArea rows={3} {...register('notes', { required: 'Write the note before saving' })} />
+          </Field>
           <button
             type="submit"
             disabled={isSubmitting}
@@ -85,12 +91,16 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
         {visits?.length === 0 && <p className="text-slate-400 text-sm">No visits recorded yet.</p>}
         {visits?.map((v) => (
           <div key={v.id} className="border-t border-slate-100 pt-3">
-            <p className="text-sm font-medium text-slate-700">{new Date(v.visit_date).toLocaleDateString()}</p>
+            <p className="text-sm font-medium text-slate-700">
+              {new Date(v.visit_date).toLocaleDateString()}
+            </p>
             {v.visit_notes ? (
               <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{v.visit_notes.notes}</p>
             ) : (
               <p className="text-sm text-slate-400 italic mt-1">
-                {canWriteNotes ? 'No notes for this visit.' : 'Clinical notes are only visible to dentist/admin accounts.'}
+                {canWriteNotes
+                  ? 'No notes for this visit.'
+                  : 'Clinical notes are only visible to dentist/admin accounts.'}
               </p>
             )}
           </div>

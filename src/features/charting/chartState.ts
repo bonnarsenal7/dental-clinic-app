@@ -36,7 +36,10 @@ export function deriveChart(entries: Foldable[]): ChartState {
         break
       case 'surface':
         if (entry.surface) {
-          state.surfaces = { ...state.surfaces, [entry.surface]: entry.condition as 'decayed' | 'filled' }
+          state.surfaces = {
+            ...state.surfaces,
+            [entry.surface]: entry.condition as 'decayed' | 'filled',
+          }
         }
         break
       case 'plan':

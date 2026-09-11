@@ -46,7 +46,15 @@ describe('appointment status transitions', () => {
   })
 
   it('offers no transition that is not permitted', () => {
-    const all: AppointmentStatus[] = ['booked','confirmed','arrived','in_chair','completed','cancelled','no_show']
+    const all: AppointmentStatus[] = [
+      'booked',
+      'confirmed',
+      'arrived',
+      'in_chair',
+      'completed',
+      'cancelled',
+      'no_show',
+    ]
     for (const from of all) {
       for (const to of nextStatuses(from)) {
         expect(canTransition(from, to)).toBe(true)
@@ -82,7 +90,15 @@ describe('the queue', () => {
   // Every appointment must land in exactly one bucket on the day sheet, or
   // it vanishes from the screen entirely.
   it('puts every status in exactly one section of the day sheet', () => {
-    const all: AppointmentStatus[] = ['booked','confirmed','arrived','in_chair','completed','cancelled','no_show']
+    const all: AppointmentStatus[] = [
+      'booked',
+      'confirmed',
+      'arrived',
+      'in_chair',
+      'completed',
+      'cancelled',
+      'no_show',
+    ]
     for (const status of all) {
       const buckets = [isInQueue(status), isPending(status)].filter(Boolean).length
       expect(buckets).toBeLessThanOrEqual(1)
@@ -107,7 +123,6 @@ describe('waiting time', () => {
     expect(waitingMinutes('2026-03-01T10:05:00Z', now)).toBe(0)
   })
 })
-
 
 describe('how bad a wait is', () => {
   // Reception is asked "how long have they been waiting" more than anything

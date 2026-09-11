@@ -48,7 +48,9 @@ export function buildLedger(invoices: InvoiceWithDetail[]): LedgerRow[] {
     for (const item of invoice.invoice_items) {
       entries.push({
         date: item.created_at ?? invoice.created_at,
-        description: item.tooth_number ? `${item.description} (tooth ${item.tooth_number})` : item.description,
+        description: item.tooth_number
+          ? `${item.description} (tooth ${item.tooth_number})`
+          : item.description,
         fee: Number(item.amount),
         paid: null,
         key: `item-${item.id}`,
@@ -90,7 +92,5 @@ export function buildLedger(invoices: InvoiceWithDetail[]): LedgerRow[] {
 
 /** What the patient still owes across every non-void invoice. */
 export function outstandingBalance(invoices: InvoiceWithDetail[]): number {
-  return invoices
-    .filter((i) => i.status !== 'void')
-    .reduce((sum, i) => sum + invoiceBalance(i), 0)
+  return invoices.filter((i) => i.status !== 'void').reduce((sum, i) => sum + invoiceBalance(i), 0)
 }

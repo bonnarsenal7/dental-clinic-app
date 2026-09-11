@@ -11,15 +11,26 @@ function recall(id: string, dueOffsetDays: number, name = 'Maria Clara Santos') 
   const d = new Date()
   d.setDate(d.getDate() + dueOffsetDays)
   return {
-    id, patient_id: `pat-${id}`,
+    id,
+    patient_id: `pat-${id}`,
     due_on: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-    reason: 'Six-month check-up and cleaning', interval_months: 6, status: 'due' as const,
-    appointment_id: null, created_by: null, created_at: '2026-01-01T00:00:00Z', completed_at: null,
+    reason: 'Six-month check-up and cleaning',
+    interval_months: 6,
+    status: 'due' as const,
+    appointment_id: null,
+    created_by: null,
+    created_at: '2026-01-01T00:00:00Z',
+    completed_at: null,
     patients: { id: `pat-${id}`, name, cell_number: '0917 555 0142', phone_number: null },
   }
 }
 
-const renderPage = () => render(<MemoryRouter><RecallsPage /></MemoryRouter>)
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <RecallsPage />
+    </MemoryRouter>,
+  )
 
 describe('RecallsPage', () => {
   beforeEach(() => {

@@ -51,7 +51,9 @@ export default function AppointmentCard({
           ) : (
             <span className="text-sm text-slate-400">(patient record unavailable)</span>
           )}
-          <span className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[appointment.status]}`}>
+          <span
+            className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[appointment.status]}`}
+          >
             {STATUS_LABELS[appointment.status]}
           </span>
           {/* Reception is asked "how long have they been waiting" more than

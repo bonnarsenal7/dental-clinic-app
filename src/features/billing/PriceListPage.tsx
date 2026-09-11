@@ -73,10 +73,12 @@ export default function PriceListPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Procedure price list"
-        description={<>
-          The fees the invoice builder offers. Linking a procedure to a charted condition lets an
-          invoice be built straight from the dental chart.
-        </>}
+        description={
+          <>
+            The fees the invoice builder offers. Linking a procedure to a charted condition lets an invoice be
+            built straight from the dental chart.
+          </>
+        }
       />
 
       {error && <ErrorState message={error} />}
@@ -87,21 +89,29 @@ export default function PriceListPage() {
         className="bg-white border border-slate-200 rounded-xl p-6 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
       >
         <Field label="Procedure" error={errors.name?.message} className="sm:col-span-2">
-<TextInput {...register('name', { required: 'Name the procedure' })} placeholder="e.g. Composite filling" />
-</Field>
+          <TextInput
+            {...register('name', { required: 'Name the procedure' })}
+            placeholder="e.g. Composite filling"
+          />
+        </Field>
         <Field label="Code">
-<TextInput {...register('code')} />
-</Field>
+          <TextInput {...register('code')} />
+        </Field>
         <Field label="Fee (PHP)" error={errors.default_fee?.message}>
-<TextInput type="number" step="0.01" min="0" {...register('default_fee', { required: 'Enter a fee' })} />
-</Field>
+          <TextInput
+            type="number"
+            step="0.01"
+            min="0"
+            {...register('default_fee', { required: 'Enter a fee' })}
+          />
+        </Field>
         <Field label="Charted as">
-<NativeSelect {...register('chart_condition')}>
-<option value="">— not charted —</option>
+          <NativeSelect {...register('chart_condition')}>
+            <option value="">— not charted —</option>
             <option value="filled">Filled</option>
             <option value="crown">Crown</option>
-</NativeSelect>
-</Field>
+          </NativeSelect>
+        </Field>
         <button
           type="submit"
           disabled={isSubmitting}
@@ -124,12 +134,18 @@ export default function PriceListPage() {
           </thead>
           <tbody>
             {procedures === null && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Loading…</td></tr>
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  Loading…
+                </td>
+              </tr>
             )}
             {procedures?.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                No procedures yet — add the clinic's price list above.
-              </td></tr>
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  No procedures yet — add the clinic's price list above.
+                </td>
+              </tr>
             )}
             {procedures?.map((p) => (
               <tr key={p.id} className={`border-t border-slate-100 ${p.active ? '' : 'opacity-50'}`}>

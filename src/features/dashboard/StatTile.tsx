@@ -40,7 +40,9 @@ export default function StatTile({
   const className = `rounded-xl border px-4 py-3 ${toneClasses} ${to ? 'hover:border-slate-400 transition-colors' : ''}`
 
   return to ? (
-    <Link to={to} className={`${className} block`}>{body}</Link>
+    <Link to={to} className={`${className} block`}>
+      {body}
+    </Link>
   ) : (
     <div className={className}>{body}</div>
   )

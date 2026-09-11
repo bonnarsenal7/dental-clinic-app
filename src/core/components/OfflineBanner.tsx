@@ -21,8 +21,8 @@ export default function OfflineBanner() {
       <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2 text-sm">
         <span className="inline-block h-2 w-2 rounded-full bg-amber-600 shrink-0" />
         <span>
-          <strong className="font-semibold">You're offline.</strong> Anything on screen is still
-          here, but nothing will save until the connection is back. Don't close this tab.
+          <strong className="font-semibold">You're offline.</strong> Anything on screen is still here, but
+          nothing will save until the connection is back. Don't close this tab.
         </span>
       </div>
     </div>

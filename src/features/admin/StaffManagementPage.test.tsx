@@ -3,25 +3,62 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import StaffManagementPage from './StaffManagementPage'
 
-vi.mock('./api', () => ({ listStaff: vi.fn(), createStaff: vi.fn(), deactivateStaff: vi.fn() }))
+vi.mock('./api', () => ({
+  listStaff: vi.fn(),
+  createStaff: vi.fn(),
+  deactivateStaff: vi.fn(),
+}))
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ staff: { id: 'me', name: 'Louie Arsenal', email: 'a@x.com', role: 'admin', active: true, created_at: '2026-01-01' } }),
+  useAuth: () => ({
+    staff: {
+      id: 'me',
+      name: 'Louie Arsenal',
+      email: 'a@x.com',
+      role: 'admin',
+      active: true,
+      created_at: '2026-01-01',
+    },
+  }),
 }))
 
 const api = await import('./api')
 
 const STAFF = [
-  { id: 'me', name: 'Louie Arsenal', email: 'a@x.com', role: 'admin', active: true, created_at: '2026-01-01' },
-  { id: 'd1', name: 'Test Dentist', email: 'd@x.com', role: 'dentist', active: true, created_at: '2026-01-02' },
-  { id: 'r1', name: 'Former Receptionist', email: 'r@x.com', role: 'receptionist', active: false, created_at: '2026-01-03' },
+  {
+    id: 'me',
+    name: 'Louie Arsenal',
+    email: 'a@x.com',
+    role: 'admin',
+    active: true,
+    created_at: '2026-01-01',
+  },
+  {
+    id: 'd1',
+    name: 'Test Dentist',
+    email: 'd@x.com',
+    role: 'dentist',
+    active: true,
+    created_at: '2026-01-02',
+  },
+  {
+    id: 'r1',
+    name: 'Former Receptionist',
+    email: 'r@x.com',
+    role: 'receptionist',
+    active: false,
+    created_at: '2026-01-03',
+  },
 ]
 
 describe('StaffManagementPage', () => {
   beforeEach(() => {
     vi.mocked(api.listStaff).mockResolvedValue(STAFF as never)
-    vi.mocked(api.createStaff).mockResolvedValue({ staffId: 'n1', tempPassword: 'Tmp-9fA2xQ', note: 'ok' })
+    vi.mocked(api.createStaff).mockResolvedValue({
+      staffId: 'n1',
+      tempPassword: 'Tmp-9fA2xQ',
+      note: 'ok',
+    })
     vi.mocked(api.deactivateStaff).mockResolvedValue({ ok: true })
-
   })
 
   it('lists every account with its role and status', async () => {
@@ -102,7 +139,9 @@ describe('StaffManagementPage', () => {
   // A failure behind the dialog is a failure nobody reads.
   it('reports a failure inside the dialog and stays open', async () => {
     const user = userEvent.setup()
-    vi.mocked(api.deactivateStaff).mockRejectedValue(new Error('Only an active admin may deactivate accounts'))
+    vi.mocked(api.deactivateStaff).mockRejectedValue(
+      new Error('Only an active admin may deactivate accounts'),
+    )
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     await user.click(screen.getByRole('button', { name: /deactivate/i }))
@@ -124,7 +163,9 @@ describe('StaffManagementPage', () => {
 
     await waitFor(() => expect(api.createStaff).toHaveBeenCalled())
     expect(vi.mocked(api.createStaff).mock.calls[0][0]).toMatchObject({
-      name: 'New Receptionist', email: 'new@x.com', role: 'receptionist',
+      name: 'New Receptionist',
+      email: 'new@x.com',
+      role: 'receptionist',
     })
     expect(await screen.findByText(/Tmp-9fA2xQ/)).toBeInTheDocument()
     expect(screen.getByText(/share this with them directly/i)).toBeInTheDocument()

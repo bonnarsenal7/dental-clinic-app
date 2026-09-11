@@ -27,7 +27,12 @@ describe('Button', () => {
   })
 
   it('is reachable by its text, whatever the variant', () => {
-    render(<><Button variant="destructive">Deactivate</Button><Button variant="subtle">Cancel</Button></>)
+    render(
+      <>
+        <Button variant="destructive">Deactivate</Button>
+        <Button variant="subtle">Cancel</Button>
+      </>,
+    )
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
@@ -44,7 +49,11 @@ describe('Button', () => {
   it('cannot be clicked while disabled', async () => {
     const user = userEvent.setup()
     const onClick = vi.fn()
-    render(<Button disabled onClick={onClick}>Saving…</Button>)
+    render(
+      <Button disabled onClick={onClick}>
+        Saving…
+      </Button>,
+    )
     await user.click(screen.getByRole('button', { name: 'Saving…' }))
     expect(onClick).not.toHaveBeenCalled()
   })
@@ -55,15 +64,25 @@ describe('Field', () => {
   // pointing at the wrong element typechecks perfectly and is exactly what
   // made the patient chooser unreachable.
   it('names its control', () => {
-    render(<Field label="Cell number"><TextInput /></Field>)
+    render(
+      <Field label="Cell number">
+        <TextInput />
+      </Field>,
+    )
     expect(screen.getByLabelText('Cell number')).toHaveProperty('tagName', 'INPUT')
   })
 
   it('names a textarea and a select the same way', () => {
     render(
       <>
-        <Field label="Notes"><TextArea /></Field>
-        <Field label="Method"><NativeSelect><option value="cash">Cash</option></NativeSelect></Field>
+        <Field label="Notes">
+          <TextArea />
+        </Field>
+        <Field label="Method">
+          <NativeSelect>
+            <option value="cash">Cash</option>
+          </NativeSelect>
+        </Field>
       </>,
     )
     expect(screen.getByLabelText('Notes')).toHaveProperty('tagName', 'TEXTAREA')
@@ -71,19 +90,31 @@ describe('Field', () => {
   })
 
   it('shows an error as an alert beneath the control', () => {
-    render(<Field label="Amount" error="Enter an amount"><TextInput /></Field>)
+    render(
+      <Field label="Amount" error="Enter an amount">
+        <TextInput />
+      </Field>,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent('Enter an amount')
   })
 
   it('says nothing when there is no error', () => {
-    render(<Field label="Amount"><TextInput /></Field>)
+    render(
+      <Field label="Amount">
+        <TextInput />
+      </Field>,
+    )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
 
 describe('react-hook-form integration', () => {
   function Form({ onValid }: { onValid: (v: unknown) => void }) {
-    const { register, handleSubmit, formState: { errors } } = useForm<{ name: string; notes: string }>({
+    const {
+      register,
+      handleSubmit,
+      formState: { errors },
+    } = useForm<{ name: string; notes: string }>({
       defaultValues: { name: '', notes: '' },
     })
     return (

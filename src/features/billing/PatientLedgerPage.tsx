@@ -96,9 +96,11 @@ export default function PatientLedgerPage() {
             </thead>
             <tbody>
               {ledger.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                  Nothing billed yet.
-                </td></tr>
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                    Nothing billed yet.
+                  </td>
+                </tr>
               )}
               {ledger.map((row) => (
                 <tr key={row.key} className="border-t border-slate-100 hover:bg-slate-50">
@@ -140,7 +142,9 @@ export default function PatientLedgerPage() {
               <span className="text-slate-400"> · {new Date(invoice.created_at).toLocaleDateString()}</span>
             </span>
             <span className="flex items-center gap-3">
-              <span className={`text-xs uppercase tracking-wide border rounded-full px-2.5 py-0.5 ${STATUS_STYLES[invoice.status]}`}>
+              <span
+                className={`text-xs uppercase tracking-wide border rounded-full px-2.5 py-0.5 ${STATUS_STYLES[invoice.status]}`}
+              >
                 {invoice.status}
               </span>
               <span className="text-sm text-slate-700 tabular-nums">

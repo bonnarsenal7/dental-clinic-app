@@ -85,17 +85,41 @@ export default function PatientProfilePage() {
       </div>
 
       <section className="bg-white border border-slate-200 rounded-xl p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        <p><span className="text-slate-400">Address:</span> {patient.address ?? '—'}</p>
-        <p><span className="text-slate-400">Birthday:</span> {patient.birthday ?? '—'}</p>
-        <p><span className="text-slate-400">Age:</span> {patient.age ?? '—'}</p>
-        <p><span className="text-slate-400">Sex:</span> {patient.sex ?? '—'}</p>
-        <p><span className="text-slate-400">Height:</span> {patient.height ?? '—'}</p>
-        <p><span className="text-slate-400">Weight:</span> {patient.weight ?? '—'}</p>
-        <p><span className="text-slate-400">Occupation:</span> {patient.occupation ?? '—'}</p>
-        <p><span className="text-slate-400">Spouse:</span> {patient.spouse ?? '—'}</p>
-        <p><span className="text-slate-400">Phone:</span> {patient.phone_number ?? '—'}</p>
-        <p><span className="text-slate-400">Cell:</span> {patient.cell_number ?? '—'}</p>
-        {patient.remarks && <p className="sm:col-span-2"><span className="text-slate-400">Remarks:</span> {patient.remarks}</p>}
+        <p>
+          <span className="text-slate-400">Address:</span> {patient.address ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Birthday:</span> {patient.birthday ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Age:</span> {patient.age ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Sex:</span> {patient.sex ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Height:</span> {patient.height ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Weight:</span> {patient.weight ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Occupation:</span> {patient.occupation ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Spouse:</span> {patient.spouse ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Phone:</span> {patient.phone_number ?? '—'}
+        </p>
+        <p>
+          <span className="text-slate-400">Cell:</span> {patient.cell_number ?? '—'}
+        </p>
+        {patient.remarks && (
+          <p className="sm:col-span-2">
+            <span className="text-slate-400">Remarks:</span> {patient.remarks}
+          </p>
+        )}
       </section>
 
       <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3">
@@ -105,15 +129,24 @@ export default function PatientProfilePage() {
           {trueKeys(medical?.conditions, MEDICAL_CONDITIONS).join(', ') || 'None reported'}
         </p>
         {medical?.other_condition_details && (
-          <p className="text-sm text-slate-600"><span className="text-slate-400">Detail:</span> {medical.other_condition_details}</p>
+          <p className="text-sm text-slate-600">
+            <span className="text-slate-400">Detail:</span> {medical.other_condition_details}
+          </p>
         )}
         {medical?.allergic_to_food_or_drug && (
-          <p className="text-sm text-slate-600"><span className="text-slate-400">Allergies:</span> {medical.allergy_details ?? '(unspecified)'}</p>
+          <p className="text-sm text-slate-600">
+            <span className="text-slate-400">Allergies:</span> {medical.allergy_details ?? '(unspecified)'}
+          </p>
         )}
         {medical?.current_medications && (
-          <p className="text-sm text-slate-600"><span className="text-slate-400">Current medication:</span> {medical.medication_details ?? '(unspecified)'}</p>
+          <p className="text-sm text-slate-600">
+            <span className="text-slate-400">Current medication:</span>{' '}
+            {medical.medication_details ?? '(unspecified)'}
+          </p>
         )}
-        {medical?.allergic_to_anesthesia && <p className="text-sm text-amber-700">Allergic reaction to anesthesia noted.</p>}
+        {medical?.allergic_to_anesthesia && (
+          <p className="text-sm text-amber-700">Allergic reaction to anesthesia noted.</p>
+        )}
       </section>
 
       <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3">
@@ -127,7 +160,9 @@ export default function PatientProfilePage() {
           {trueKeys(dental?.oral_habits, ORAL_HABITS).join(', ') || 'None reported'}
         </p>
         {dental?.previous_dentist_name && (
-          <p className="text-sm text-slate-600"><span className="text-slate-400">Previous dentist:</span> {dental.previous_dentist_name}</p>
+          <p className="text-sm text-slate-600">
+            <span className="text-slate-400">Previous dentist:</span> {dental.previous_dentist_name}
+          </p>
         )}
       </section>
 
@@ -135,10 +170,7 @@ export default function PatientProfilePage() {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-700">Consent history</h2>
           {!showConsent && (
-            <button
-              onClick={() => setShowConsent(true)}
-              className="text-sm text-slate-600 hover:underline"
-            >
+            <button onClick={() => setShowConsent(true)} className="text-sm text-slate-600 hover:underline">
               + Re-confirm consent
             </button>
           )}

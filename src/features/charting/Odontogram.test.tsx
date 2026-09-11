@@ -7,12 +7,14 @@ import { deriveChart } from './chartState'
 
 const ALL_TEETH = ARCH_ROWS.flatMap((r) => [...r.left, ...r.right])
 
-function renderChart(opts: {
-  mode?: 'inspect' | 'tooth' | 'surface'
-  chart?: ReturnType<typeof deriveChart>
-  pendingTeeth?: Set<number>
-  selectedTooth?: number | null
-} = {}) {
+function renderChart(
+  opts: {
+    mode?: 'inspect' | 'tooth' | 'surface'
+    chart?: ReturnType<typeof deriveChart>
+    pendingTeeth?: Set<number>
+    selectedTooth?: number | null
+  } = {},
+) {
   const onPick = vi.fn()
   const { container } = render(
     <Odontogram
@@ -43,7 +45,7 @@ describe('Odontogram', () => {
     for (const n of ALL_TEETH) expect(labels).toContain(String(n))
   })
 
-  it('marks the patient\'s right and left', () => {
+  it("marks the patient's right and left", () => {
     const { container } = renderChart()
     const labels = [...container.querySelectorAll('text')].map((t) => t.textContent)
     expect(labels).toContain('R')
@@ -86,8 +88,7 @@ describe('Odontogram', () => {
     // viewBox is "-14 -6 <width> <height>"; the dashed midline sits at
     // width/2 so permanent and primary rows line up.
     const [, , width] = svg.getAttribute('viewBox')!.split(' ').map(Number)
-    const midline = [...container.querySelectorAll('line')]
-      .find((l) => l.getAttribute('stroke-dasharray'))
+    const midline = [...container.querySelectorAll('line')].find((l) => l.getAttribute('stroke-dasharray'))
     expect(Number(midline!.getAttribute('x1'))).toBeCloseTo((width - 28) / 2, 0)
   })
 

@@ -62,7 +62,11 @@ export async function listChartVisits(patientId: string): Promise<ChartVisit[]> 
 export async function createVisitToday(patientId: string, staffId: string): Promise<ChartVisit> {
   const { data, error } = await supabase
     .from('visits')
-    .insert({ patient_id: patientId, staff_id: staffId, visit_date: new Date().toISOString() })
+    .insert({
+      patient_id: patientId,
+      staff_id: staffId,
+      visit_date: new Date().toISOString(),
+    })
     .select('id, visit_date')
     .single()
   if (error) throw new Error(`Visit: ${error.message}`)

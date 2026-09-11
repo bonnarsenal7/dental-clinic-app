@@ -18,7 +18,11 @@ export function collectAlerts(medical: MedicalHistory | null): Alert[] {
   const alerts: Alert[] = []
 
   if (medical.allergic_to_anesthesia) {
-    alerts.push({ severity: 'critical', label: 'Allergic to anaesthesia', why: 'confirm agent before injecting' })
+    alerts.push({
+      severity: 'critical',
+      label: 'Allergic to anaesthesia',
+      why: 'confirm agent before injecting',
+    })
   }
   if (medical.allergic_to_food_or_drug) {
     alerts.push({
@@ -29,7 +33,11 @@ export function collectAlerts(medical: MedicalHistory | null): Alert[] {
 
   for (const [key, meta] of Object.entries(CONDITION_ALERTS)) {
     if (medical.conditions?.[key]) {
-      alerts.push({ severity: meta.severity, label: CONDITION_LABELS.get(key) ?? key, why: meta.why })
+      alerts.push({
+        severity: meta.severity,
+        label: CONDITION_LABELS.get(key) ?? key,
+        why: meta.why,
+      })
     }
   }
 
@@ -73,9 +81,12 @@ export default function MedicalAlerts({
 
   if (!medical) {
     return (
-      <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
-        <strong className="font-semibold">No medical history on file.</strong> Take one before treating
-        this patient.
+      <div
+        className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        role="alert"
+      >
+        <strong className="font-semibold">No medical history on file.</strong> Take one before treating this
+        patient.
       </div>
     )
   }
@@ -85,8 +96,8 @@ export default function MedicalAlerts({
   if (alerts.length === 0) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-        <strong className="font-semibold">No medical alerts.</strong> History reviewed — no allergies,
-        flagged conditions, or medications recorded.
+        <strong className="font-semibold">No medical alerts.</strong> History reviewed — no allergies, flagged
+        conditions, or medications recorded.
       </div>
     )
   }
@@ -101,7 +112,9 @@ export default function MedicalAlerts({
       }`}
       role="alert"
     >
-      <p className={`text-xs font-semibold uppercase tracking-wide ${critical.length > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${critical.length > 0 ? 'text-red-800' : 'text-amber-800'}`}
+      >
         {critical.length > 0 ? 'Medical alert' : 'Medical notes'}
       </p>
       <ul className="mt-1.5 flex flex-col gap-1">

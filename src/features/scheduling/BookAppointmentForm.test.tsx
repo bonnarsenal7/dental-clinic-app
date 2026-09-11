@@ -19,7 +19,10 @@ const PATIENTS = [
 describe('BookAppointmentForm', () => {
   beforeEach(() => {
     vi.mocked(patientsApi.searchPatients).mockResolvedValue(PATIENTS as never)
-    vi.mocked(patientsApi.getPatient).mockResolvedValue({ id: 'p-9', name: 'Lorna Villanueva' } as never)
+    vi.mocked(patientsApi.getPatient).mockResolvedValue({
+      id: 'p-9',
+      name: 'Lorna Villanueva',
+    } as never)
     vi.mocked(billingApi.listProcedures).mockResolvedValue([
       { id: 'proc-1', name: 'Oral prophylaxis (cleaning)', default_fee: 1200 },
     ] as never)
@@ -64,7 +67,9 @@ describe('BookAppointmentForm', () => {
     await user.click(screen.getByRole('button', { name: /book appointment/i }))
 
     await waitFor(() => expect(api.bookAppointment).toHaveBeenCalled())
-    expect(vi.mocked(api.bookAppointment).mock.calls[0][0]).toMatchObject({ patientId: 'p-1' })
+    expect(vi.mocked(api.bookAppointment).mock.calls[0][0]).toMatchObject({
+      patientId: 'p-1',
+    })
     expect(onBooked).toHaveBeenCalled()
   })
 
@@ -78,7 +83,9 @@ describe('BookAppointmentForm', () => {
   })
 
   it('hides the chooser when the patient is already known', async () => {
-    render(<BookAppointmentForm defaultDate="2026-09-12" staffId="s1" defaultPatientId="p-9" onBooked={vi.fn()} />)
+    render(
+      <BookAppointmentForm defaultDate="2026-09-12" staffId="s1" defaultPatientId="p-9" onBooked={vi.fn()} />,
+    )
     await screen.findByRole('button', { name: /book appointment/i })
     expect(screen.queryByLabelText(/^patient$/i)).not.toBeInTheDocument()
   })
@@ -86,17 +93,23 @@ describe('BookAppointmentForm', () => {
   // With the chooser hidden there was nothing on screen saying who the
   // booking was for.
   it('names the patient it is booking for', async () => {
-    render(<BookAppointmentForm defaultDate="2026-09-12" staffId="s1" defaultPatientId="p-9" onBooked={vi.fn()} />)
+    render(
+      <BookAppointmentForm defaultDate="2026-09-12" staffId="s1" defaultPatientId="p-9" onBooked={vi.fn()} />,
+    )
     expect(await screen.findByText(/lorna villanueva/i)).toBeInTheDocument()
   })
 
   it('books against the preselected patient', async () => {
     const user = userEvent.setup()
-    render(<BookAppointmentForm defaultDate="2026-09-12" staffId="s1" defaultPatientId="p-9" onBooked={vi.fn()} />)
+    render(
+      <BookAppointmentForm defaultDate="2026-09-12" staffId="s1" defaultPatientId="p-9" onBooked={vi.fn()} />,
+    )
     await screen.findByText(/lorna villanueva/i)
     await user.click(screen.getByRole('button', { name: /book appointment/i }))
     await waitFor(() => expect(api.bookAppointment).toHaveBeenCalled())
-    expect(vi.mocked(api.bookAppointment).mock.calls[0][0]).toMatchObject({ patientId: 'p-9' })
+    expect(vi.mocked(api.bookAppointment).mock.calls[0][0]).toMatchObject({
+      patientId: 'p-9',
+    })
   })
 
   it('says so when a search matches nobody', async () => {

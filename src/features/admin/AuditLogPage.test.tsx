@@ -18,7 +18,10 @@ function builder() {
     }
   }
   self.range = async () => ({ data: q.rows, error: null })
-  self.limit = async (n: number) => { q.limit = n; return { data: q.rows, error: null } }
+  self.limit = async (n: number) => {
+    q.limit = n
+    return { data: q.rows, error: null }
+  }
   self.then = undefined
   return self
 }
@@ -28,13 +31,23 @@ vi.mock('../../core/supabaseClient', () => ({
 }))
 
 const ENTRY = {
-  id: 'a1', staff_id: 'u1', action: 'update patients', operation: 'update',
-  table_name: 'patients', record_id: 'p1', patient_id: 'p1',
-  changed_fields: ['cell_number', 'remarks'], created_at: '2026-09-11T02:00:00Z',
+  id: 'a1',
+  staff_id: 'u1',
+  action: 'update patients',
+  operation: 'update',
+  table_name: 'patients',
+  record_id: 'p1',
+  patient_id: 'p1',
+  changed_fields: ['cell_number', 'remarks'],
+  created_at: '2026-09-11T02:00:00Z',
 }
 
 describe('AuditLogPage', () => {
-  beforeEach(() => { q.rows = [ENTRY]; q.filters = []; q.limit = 0 })
+  beforeEach(() => {
+    q.rows = [ENTRY]
+    q.filters = []
+    q.limit = 0
+  })
 
   it('shows what changed, not just that something did', async () => {
     render(<AuditLogPage />)
@@ -55,9 +68,13 @@ describe('AuditLogPage', () => {
     render(<AuditLogPage />)
     await screen.findByText('update')
     await user.selectOptions(screen.getByLabelText(/operation/i), 'delete')
-    await waitFor(() => expect(q.filters.some(([m, a]) => m === 'eq' && (a as unknown[])[1] === 'delete')).toBe(true))
+    await waitFor(() =>
+      expect(q.filters.some(([m, a]) => m === 'eq' && (a as unknown[])[1] === 'delete')).toBe(true),
+    )
     await user.type(screen.getByLabelText(/^table$/i), 'visit_notes')
-    await waitFor(() => expect(q.filters.some(([m, a]) => m === 'eq' && (a as unknown[])[1] === 'visit_notes')).toBe(true))
+    await waitFor(() =>
+      expect(q.filters.some(([m, a]) => m === 'eq' && (a as unknown[])[1] === 'visit_notes')).toBe(true),
+    )
   })
 
   // "To 5 March" must include everything that happened on the 5th.

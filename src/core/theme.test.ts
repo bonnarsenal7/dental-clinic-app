@@ -131,5 +131,5 @@ function hue(h: string) {
   if (max === min) return 0
   const d = max - min
   const deg = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
-  return ((deg * 60) % 360 + 360) % 360
+  return (((deg * 60) % 360) + 360) % 360
 }

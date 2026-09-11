@@ -9,13 +9,15 @@ function state(partial: Partial<ToothState> = {}): ToothState {
   return { condition: null, surfaces: {}, planned: false, ...partial }
 }
 
-function renderTooth(opts: {
-  toothNumber?: number
-  mode?: InteractionMode
-  state?: ToothState
-  pending?: boolean
-  selected?: boolean
-} = {}) {
+function renderTooth(
+  opts: {
+    toothNumber?: number
+    mode?: InteractionMode
+    state?: ToothState
+    pending?: boolean
+    selected?: boolean
+  } = {},
+) {
   const onPick = vi.fn()
   render(
     <svg>
@@ -95,7 +97,10 @@ describe('ToothGlyph interaction', () => {
   // fall back to the whole tooth rather than offering dead zones.
   it('falls back to the whole tooth when the tooth is missing', async () => {
     const user = userEvent.setup()
-    const onPick = renderTooth({ mode: 'surface', state: state({ condition: 'missing' }) })
+    const onPick = renderTooth({
+      mode: 'surface',
+      state: state({ condition: 'missing' }),
+    })
     expect(screen.queryByRole('button', { name: /occlusal — tooth 16/i })).not.toBeInTheDocument()
     await user.click(target(/^16 —/))
     expect(onPick).toHaveBeenCalledWith(16, null)

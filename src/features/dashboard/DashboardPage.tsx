@@ -68,7 +68,10 @@ export default function DashboardPage() {
           <h1 className="text-lg font-semibold text-slate-800">Good day, {staff?.name}</h1>
           <p className="text-slate-500 text-sm mt-1">
             {new Date(`${summary.today}T00:00:00`).toLocaleDateString([], {
-              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
             })}
           </p>
         </div>
@@ -91,7 +94,8 @@ export default function DashboardPage() {
           <p className="text-sm font-semibold text-red-900">
             Medical alerts for today
             <span className="ml-2 font-normal text-red-700">
-              {flagged.length + missingHistory.length} {flagged.length + missingHistory.length === 1 ? 'patient' : 'patients'}
+              {flagged.length + missingHistory.length}{' '}
+              {flagged.length + missingHistory.length === 1 ? 'patient' : 'patients'}
             </span>
           </p>
           <ul className="mt-2 flex flex-col gap-1.5">
@@ -101,13 +105,20 @@ export default function DashboardPage() {
                   {patient.name}
                 </Link>
                 <span className="text-red-700">
-                  {' '}— {alerts.filter((a) => a.severity === 'critical').map((a) => a.label).join('; ')}
+                  {' '}
+                  —{' '}
+                  {alerts
+                    .filter((a) => a.severity === 'critical')
+                    .map((a) => a.label)
+                    .join('; ')}
                 </span>
               </li>
             ))}
             {missingHistory.map((p) => (
               <li key={p.appointment_id} className="text-sm text-red-900">
-                <Link to={`/patients/${p.patient_id}`} className="font-semibold hover:underline">{p.name}</Link>
+                <Link to={`/patients/${p.patient_id}`} className="font-semibold hover:underline">
+                  {p.name}
+                </Link>
                 <span className="text-red-700"> — no medical history on file</span>
               </li>
             ))}
@@ -120,11 +131,20 @@ export default function DashboardPage() {
         <StatTile
           label="In the clinic"
           value={n(summary.in_clinic)}
-          hint={n(summary.longest_wait_minutes) > 0 ? `longest wait ${n(summary.longest_wait_minutes)} min` : 'nobody waiting'}
+          hint={
+            n(summary.longest_wait_minutes) > 0
+              ? `longest wait ${n(summary.longest_wait_minutes)} min`
+              : 'nobody waiting'
+          }
           to="/schedule"
           tone={n(summary.longest_wait_minutes) >= 20 ? 'attention' : 'neutral'}
         />
-        <StatTile label="Still to come" value={n(summary.still_to_come)} hint={`${n(summary.appointments_today)} booked today`} to="/schedule" />
+        <StatTile
+          label="Still to come"
+          value={n(summary.still_to_come)}
+          hint={`${n(summary.appointments_today)} booked today`}
+          to="/schedule"
+        />
         <StatTile label="Completed" value={n(summary.completed_today)} hint="treated today" to="/schedule" />
         <StatTile
           label="No-shows"
@@ -157,12 +177,18 @@ export default function DashboardPage() {
               to="/billing"
               tone={n(summary.outstanding_total) > 0 ? 'attention' : 'neutral'}
             />
-            <StatTile label="New patients" value={n(summary.new_patients_today)} hint="registered today" to="/patients" />
+            <StatTile
+              label="New patients"
+              value={n(summary.new_patients_today)}
+              hint="registered today"
+              to="/patients"
+            />
           </div>
           {/* What the drawer is reconciled against at close of business. */}
           <p className="text-xs text-slate-500">
             Cash {formatMoney(n(summary.collected_cash))} · Card {formatMoney(n(summary.collected_card))} ·
-            Transfer {formatMoney(n(summary.collected_transfer))} · Other {formatMoney(n(summary.collected_other))}
+            Transfer {formatMoney(n(summary.collected_transfer))} · Other{' '}
+            {formatMoney(n(summary.collected_other))}
           </p>
         </section>
       )}
@@ -177,7 +203,12 @@ export default function DashboardPage() {
             to="/recalls"
             tone={n(summary.recalls_overdue) > 0 ? 'attention' : 'neutral'}
           />
-          <StatTile label="Due within 30 days" value={n(summary.recalls_due_soon)} hint="worth booking now" to="/recalls" />
+          <StatTile
+            label="Due within 30 days"
+            value={n(summary.recalls_due_soon)}
+            hint="worth booking now"
+            to="/recalls"
+          />
         </div>
       </section>
 
@@ -185,15 +216,25 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-700">Today's list</h2>
         {todays.length === 0 && <p className="text-sm text-slate-400">Nothing booked today.</p>}
         {todays.map((p) => (
-          <div key={p.appointment_id} className="flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-2">
+          <div
+            key={p.appointment_id}
+            className="flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-2"
+          >
             <span className="text-sm text-slate-700">
               <span className="tabular-nums text-slate-500">
-                {new Date(p.scheduled_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                {new Date(p.scheduled_at).toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
               </span>{' '}
-              <Link to={`/patients/${p.patient_id}`} className="hover:underline">{p.name}</Link>
+              <Link to={`/patients/${p.patient_id}`} className="hover:underline">
+                {p.name}
+              </Link>
               {p.reason && <span className="text-slate-400"> · {p.reason}</span>}
             </span>
-            <span className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[p.status]}`}>
+            <span
+              className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[p.status]}`}
+            >
               {STATUS_LABELS[p.status]}
             </span>
           </div>

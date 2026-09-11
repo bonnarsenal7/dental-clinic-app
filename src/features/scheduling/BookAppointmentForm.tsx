@@ -69,7 +69,9 @@ export default function BookAppointmentForm({
   useEffect(() => {
     if (defaultPatientId) return
     const handle = setTimeout(() => {
-      searchPatients(query).then(setPatients).catch((e) => setError(toMessage(e)))
+      searchPatients(query)
+        .then(setPatients)
+        .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
   }, [query, defaultPatientId])
@@ -150,59 +152,74 @@ export default function BookAppointmentForm({
               easy to mistake for being inert. The label points at this
               control rather than at the search box above it. */}
           <Field label="Patient">
-<NativeSelect {...register('patient_id')}>
-<option value="">— choose a patient —</option>
+            <NativeSelect {...register('patient_id')}>
+              <option value="">— choose a patient —</option>
               {patients.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}{p.cell_number ? ` · ${p.cell_number}` : ''}
+                  {p.name}
+                  {p.cell_number ? ` · ${p.cell_number}` : ''}
                 </option>
               ))}
-</NativeSelect>
-</Field>
-          {patients.length === 0 && (
-            <p className="text-xs text-slate-400">No patients match that search.</p>
-          )}
+            </NativeSelect>
+          </Field>
+          {patients.length === 0 && <p className="text-xs text-slate-400">No patients match that search.</p>}
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label="Date" error={errors.date?.message}>
-<TextInput type="date" {...register('date', { required: 'Pick a date' })} />
-</Field>
+          <TextInput type="date" {...register('date', { required: 'Pick a date' })} />
+        </Field>
         <Field label="Time" error={errors.time?.message}>
-<TextInput type="time" {...register('time', { required: 'Pick a time' })} />
-</Field>
+          <TextInput type="time" {...register('time', { required: 'Pick a time' })} />
+        </Field>
         <Field label="Minutes" error={errors.duration_minutes?.message}>
-<TextInput type="number" min="5" max="480" step="5" {...register('duration_minutes', { required: 'How long?' })} />
-</Field>
+          <TextInput
+            type="number"
+            min="5"
+            max="480"
+            step="5"
+            {...register('duration_minutes', { required: 'How long?' })}
+          />
+        </Field>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Dentist">
-<NativeSelect {...register('dentist_id')}>
-<option value="">— unassigned —</option>
+          <NativeSelect {...register('dentist_id')}>
+            <option value="">— unassigned —</option>
             {dentists.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
             ))}
-</NativeSelect>
-</Field>
+          </NativeSelect>
+        </Field>
         <Field label="Procedure">
-<NativeSelect {...register('procedure_id')}>
-<option value="">— not specified —</option>
+          <NativeSelect {...register('procedure_id')}>
+            <option value="">— not specified —</option>
             {procedures.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
-</NativeSelect>
-</Field>
+          </NativeSelect>
+        </Field>
       </div>
 
       <Field label="Reason">
-<TextInput {...register('reason')} placeholder="e.g. Cleaning" />
-</Field>
+        <TextInput {...register('reason')} placeholder="e.g. Cleaning" />
+      </Field>
 
-      <Field label="Front-desk note" hint={<>Visible to reception. Clinical notes belong on the visit, where reception can't see them.</>}>
-<TextInput {...register('reception_notes')} placeholder="e.g. bring HMO card — not for clinical notes" />
-</Field>
+      <Field
+        label="Front-desk note"
+        hint={<>Visible to reception. Clinical notes belong on the visit, where reception can't see them.</>}
+      >
+        <TextInput
+          {...register('reception_notes')}
+          placeholder="e.g. bring HMO card — not for clinical notes"
+        />
+      </Field>
 
       <button
         type="submit"

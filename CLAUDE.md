@@ -32,6 +32,8 @@ Feature-first: each feature folder owns its own components, hooks, and Supabase 
 - `npm run dev` — local dev server
 - `npm run build` — type-checks (`tsc -b`) then builds
 - `npm run lint` — oxlint
+- `npm run format` / `npm run format:check` — Prettier. CI runs the check
+  first, so unformatted code fails before the tests do.
 
 ## Conventions
 - TypeScript strict mode — `"strict": true` in both `tsconfig.app.json` and
@@ -1226,3 +1228,24 @@ silently clips reads as a chart with teeth missing.
 The rest of the tablet pass. Spacing, reach and one-handed use cannot be
 judged from a desktop browser, and guessing at them would be inventing
 findings.
+
+## Formatting
+
+Prettier, config in `.prettierrc.json`. The settings were read off the
+existing code rather than chosen from defaults — no semicolons, single
+quotes, double quotes in JSX — so adopting it did not also impose a style
+change nobody asked for.
+
+`printWidth` is **110** because it produced the least churn: 74 files
+touched against 82 at 100 and 91 at 90. It also suits code carrying long
+Tailwind class strings, which cannot usefully be broken anyway.
+
+**SQL and Markdown are in `.prettierignore`.** The migrations use alignment
+to keep policy blocks scannable and the docs hard-wrap at ~76 characters;
+Prettier would reflow both into something harder to read in a diff. The
+editor settings disable format-on-save for those two languages to match.
+
+`.vscode/settings.json` is committed — the `.gitignore` was excluding it,
+which would have made the shared formatting rules a local preference rather
+than a shared one. Open the project and VS Code will suggest the three
+extensions it expects.

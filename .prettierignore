@@ -1,0 +1,13 @@
+dist
+coverage
+node_modules
+package-lock.json
+
+# Generated or vendored
+supabase/.temp
+
+# SQL and Markdown are hand-formatted here: the migrations use alignment to
+# make policy blocks scannable, and the docs use hard wraps at ~76 chars.
+# Prettier would reflow both into something harder to read in a diff.
+*.sql
+*.md

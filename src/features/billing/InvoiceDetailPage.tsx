@@ -39,7 +39,9 @@ export default function InvoiceDetailPage() {
     handleSubmit,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm<PaymentForm>({ defaultValues: { amount: '', method: 'cash', reference: '' } })
+  } = useForm<PaymentForm>({
+    defaultValues: { amount: '', method: 'cash', reference: '' },
+  })
 
   async function refresh(invoiceId: string) {
     const fresh = await getInvoice(invoiceId)
@@ -82,10 +84,7 @@ export default function InvoiceDetailPage() {
       // Totals and status are recalculated by database triggers, so the
       // refetch is what tells us the real state — not local arithmetic.
       const fresh = await refresh(invoice.id)
-      toastSaved(
-        `${formatMoney(amount)} recorded`,
-        `Balance now ${formatMoney(invoiceBalance(fresh))}.`,
-      )
+      toastSaved(`${formatMoney(amount)} recorded`, `Balance now ${formatMoney(invoiceBalance(fresh))}.`)
     } catch (e) {
       setError(toMessage(e))
     }
@@ -118,7 +117,9 @@ export default function InvoiceDetailPage() {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-lg font-semibold text-slate-800">Invoice {receiptNumber(invoice)}</h1>
-            <span className={`text-xs uppercase tracking-wide border rounded-full px-2.5 py-0.5 ${STATUS_STYLES[invoice.status]}`}>
+            <span
+              className={`text-xs uppercase tracking-wide border rounded-full px-2.5 py-0.5 ${STATUS_STYLES[invoice.status]}`}
+            >
               {invoice.status}
             </span>
           </div>
@@ -129,7 +130,14 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => downloadReceipt({ invoice, patientName, clinicName: clinic.clinic_name, operatingHours: clinic.operating_hours })}
+            onClick={() =>
+              downloadReceipt({
+                invoice,
+                patientName,
+                clinicName: clinic.clinic_name,
+                operatingHours: clinic.operating_hours,
+              })
+            }
             className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
           >
             Download receipt
@@ -192,9 +200,13 @@ export default function InvoiceDetailPage() {
 
         {invoice.payments.length === 0 && <p className="text-sm text-slate-400">Nothing paid yet.</p>}
         {invoice.payments.map((p) => (
-          <div key={p.id} className="flex items-center justify-between gap-3 text-sm border-t border-slate-100 pt-2">
+          <div
+            key={p.id}
+            className="flex items-center justify-between gap-3 text-sm border-t border-slate-100 pt-2"
+          >
             <span className="text-slate-600">
-              {new Date(p.paid_at).toLocaleDateString()} · <span className="capitalize">{p.method.replace('_', ' ')}</span>
+              {new Date(p.paid_at).toLocaleDateString()} ·{' '}
+              <span className="capitalize">{p.method.replace('_', ' ')}</span>
               {p.reference && <span className="text-slate-400"> · ref {p.reference}</span>}
             </span>
             <span className={Number(p.amount) < 0 ? 'text-amber-700' : 'text-slate-700'}>
@@ -204,21 +216,30 @@ export default function InvoiceDetailPage() {
         ))}
 
         {!isVoid && (
-          <form noValidate onSubmit={handleSubmit(onRecordPayment)} className="flex items-end gap-2 flex-wrap border-t border-slate-100 pt-4">
+          <form
+            noValidate
+            onSubmit={handleSubmit(onRecordPayment)}
+            className="flex items-end gap-2 flex-wrap border-t border-slate-100 pt-4"
+          >
             <Field label="Amount" error={errors.amount?.message}>
-<TextInput type="number" step="0.01" {...register('amount', { required: 'Enter an amount' })} className="w-32 text-right" />
-</Field>
+              <TextInput
+                type="number"
+                step="0.01"
+                {...register('amount', { required: 'Enter an amount' })}
+                className="w-32 text-right"
+              />
+            </Field>
             <Field label="Method">
-<NativeSelect {...register('method')}>
-<option value="cash">Cash</option>
+              <NativeSelect {...register('method')}>
+                <option value="cash">Cash</option>
                 <option value="card">Card</option>
                 <option value="bank_transfer">Bank transfer</option>
                 <option value="other">Other</option>
-</NativeSelect>
-</Field>
+              </NativeSelect>
+            </Field>
             <Field label="Reference">
-<TextInput {...register('reference')} placeholder="OR no. (optional)" />
-</Field>
+              <TextInput {...register('reference')} placeholder="OR no. (optional)" />
+            </Field>
             <button
               type="submit"
               disabled={isSubmitting}
@@ -230,8 +251,8 @@ export default function InvoiceDetailPage() {
         )}
 
         <p className="text-xs text-slate-400">
-          Payments can't be edited or deleted — a correction is another entry, and a refund is a
-          negative amount, so the ledger is never silently rewritten.
+          Payments can't be edited or deleted — a correction is another entry, and a refund is a negative
+          amount, so the ledger is never silently rewritten.
         </p>
       </section>
 

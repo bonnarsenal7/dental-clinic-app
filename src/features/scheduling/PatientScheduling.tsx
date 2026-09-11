@@ -27,7 +27,12 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
   const [error, setError] = useState<string | null>(null)
   const [booking, setBooking] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<RecallForm>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<RecallForm>({
     defaultValues: { reason: 'Six-month check-up and cleaning', interval_months: '6' },
   })
 
@@ -107,12 +112,20 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Upcoming</p>
           {upcoming.length === 0 && <p className="text-sm text-slate-400">Nothing booked.</p>}
           {upcoming.map((a) => (
-            <div key={a.id} className="flex items-center justify-between gap-2 text-sm border-t border-slate-100 pt-2">
+            <div
+              key={a.id}
+              className="flex items-center justify-between gap-2 text-sm border-t border-slate-100 pt-2"
+            >
               <span className="text-slate-700">
-                {new Date(a.scheduled_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                {new Date(a.scheduled_at).toLocaleString([], {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
                 {a.reason && <span className="text-slate-400"> · {a.reason}</span>}
               </span>
-              <span className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[a.status]}`}>
+              <span
+                className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[a.status]}`}
+              >
                 {STATUS_LABELS[a.status]}
               </span>
             </div>
@@ -122,12 +135,17 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
             <>
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-2">Recent</p>
               {past.map((a) => (
-                <div key={a.id} className="flex items-center justify-between gap-2 text-sm border-t border-slate-100 pt-2">
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-2 text-sm border-t border-slate-100 pt-2"
+                >
                   <span className="text-slate-500">
                     {new Date(a.scheduled_at).toLocaleDateString()}
                     {a.reason && <span className="text-slate-400"> · {a.reason}</span>}
                   </span>
-                  <span className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[a.status]}`}>
+                  <span
+                    className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[a.status]}`}
+                  >
                     {STATUS_LABELS[a.status]}
                   </span>
                 </div>
@@ -150,11 +168,11 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
             reliably remembers to. */}
         <form onSubmit={handleSubmit(onAddRecall)} className="flex items-end gap-2 flex-wrap mt-2">
           <Field label="Set a recall" className="flex-1 min-w-[180px]">
-<TextInput {...register('reason')} />
-</Field>
+            <TextInput {...register('reason')} />
+          </Field>
           <Field label="In months">
-<TextInput type="number" min="1" max="60" {...register('interval_months')} className="w-24" />
-</Field>
+            <TextInput type="number" min="1" max="60" {...register('interval_months')} className="w-24" />
+          </Field>
           <button
             type="submit"
             disabled={isSubmitting}

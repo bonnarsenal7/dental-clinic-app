@@ -9,7 +9,10 @@ import { AuthProvider, useAuth } from './AuthContext'
 // file — a plain const here is still in its temporal dead zone when the
 // factory runs.
 const { db, auth } = vi.hoisted(() => ({
-  db: { staffRow: null as Record<string, unknown> | null, error: null as { message: string } | null },
+  db: {
+    staffRow: null as Record<string, unknown> | null,
+    error: null as { message: string } | null,
+  },
   auth: {
     session: null as unknown,
     signOut: vi.fn(async () => ({ error: null })),
@@ -20,7 +23,9 @@ const { db, auth } = vi.hoisted(() => ({
 vi.mock('../../core/supabaseClient', () => ({
   supabase: {
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: db.staffRow, error: db.error }) }) }),
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: db.staffRow, error: db.error }) }),
+      }),
     }),
     auth: {
       getSession: async () => ({ data: { session: auth.session } }),
@@ -42,13 +47,26 @@ function Probe() {
   )
 }
 
-const renderAuth = () => render(<AuthProvider><Probe /></AuthProvider>)
+const renderAuth = () =>
+  render(
+    <AuthProvider>
+      <Probe />
+    </AuthProvider>,
+  )
 const SESSION = { user: { id: 'u1' } }
-const ACTIVE = { id: 'u1', name: 'Test Dentist', email: 'd@x.com', role: 'dentist', active: true, created_at: '2026-01-01' }
+const ACTIVE = {
+  id: 'u1',
+  name: 'Test Dentist',
+  email: 'd@x.com',
+  role: 'dentist',
+  active: true,
+  created_at: '2026-01-01',
+}
 
 describe('AuthContext', () => {
   beforeEach(() => {
-    db.staffRow = null; db.error = null
+    db.staffRow = null
+    db.error = null
     auth.session = null
     auth.signOut.mockClear()
   })
@@ -60,7 +78,8 @@ describe('AuthContext', () => {
   })
 
   it('loads the staff profile behind a session', async () => {
-    auth.session = SESSION; db.staffRow = ACTIVE
+    auth.session = SESSION
+    db.staffRow = ACTIVE
     renderAuth()
     await waitFor(() => expect(screen.getByTestId('staff')).toHaveTextContent('Test Dentist:dentist'))
     expect(screen.getByTestId('denied')).toHaveTextContent('none')
@@ -69,7 +88,8 @@ describe('AuthContext', () => {
   // Deactivation is enforced at the database too, but this is the
   // client-side backstop: a still-valid token must not get a working app.
   it('signs out a deactivated account and says why', async () => {
-    auth.session = SESSION; db.staffRow = { ...ACTIVE, active: false }
+    auth.session = SESSION
+    db.staffRow = { ...ACTIVE, active: false }
     renderAuth()
     await waitFor(() => expect(screen.getByTestId('denied')).toHaveTextContent(/deactivated/i))
     expect(screen.getByTestId('staff')).toHaveTextContent('none')
@@ -80,7 +100,8 @@ describe('AuthContext', () => {
   // §1.2), so a stranger can hold a valid auth session with no staff row.
   // They must land nowhere.
   it('signs out an auth user with no staff record', async () => {
-    auth.session = SESSION; db.staffRow = null
+    auth.session = SESSION
+    db.staffRow = null
     renderAuth()
     await waitFor(() => expect(screen.getByTestId('denied')).toHaveTextContent(/no staff record/i))
     expect(screen.getByTestId('staff')).toHaveTextContent('none')
@@ -90,7 +111,8 @@ describe('AuthContext', () => {
   // A failed lookup is not proof of anything, so it must not grant access —
   // but nor should it silently sign someone out mid-appointment.
   it('grants nothing when the profile lookup fails', async () => {
-    auth.session = SESSION; db.error = { message: 'network' }
+    auth.session = SESSION
+    db.error = { message: 'network' }
     renderAuth()
     await waitFor(() => expect(screen.getByTestId('denied')).toHaveTextContent(/could not load/i))
     expect(screen.getByTestId('staff')).toHaveTextContent('none')

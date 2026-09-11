@@ -1,11 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  CONDITION_BY_KEY,
-  SURFACE_ORDER,
-  surfaceLabel,
-  toothName,
-} from './chartVocabulary'
+import { CONDITION_BY_KEY, SURFACE_ORDER, surfaceLabel, toothName } from './chartVocabulary'
 import type { ToothConditionKey, ToothSurface } from './chartVocabulary'
 import { hasFindings } from './chartState'
 import { attachToothImage, getSignedToothImageUrl } from './api'
@@ -100,15 +95,11 @@ export default function ToothDetailPanel({
   return (
     <aside className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-5">
       <div>
-        <h2 className="text-sm font-semibold text-slate-700">
-          Tooth {tooth}
-        </h2>
+        <h2 className="text-sm font-semibold text-slate-700">Tooth {tooth}</h2>
         <p className="text-xs text-slate-400 mt-0.5">{toothName(tooth)}</p>
       </div>
 
-      {error && (
-        <ErrorState message={error} />
-      )}
+      {error && <ErrorState message={error} />}
 
       <div className="flex flex-col gap-1.5">
         <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Currently charted</p>
@@ -116,9 +107,7 @@ export default function ToothDetailPanel({
           <p className="text-sm text-slate-400">No findings recorded.</p>
         ) : (
           <ul className="text-sm text-slate-600 flex flex-col gap-1">
-            {state.condition && (
-              <li>{CONDITION_BY_KEY[state.condition].label}</li>
-            )}
+            {state.condition && <li>{CONDITION_BY_KEY[state.condition].label}</li>}
             {SURFACE_ORDER.filter((s) => state.surfaces[s]).map((s) => (
               <li key={s}>
                 {surfaceLabel(s, tooth)}: {CONDITION_BY_KEY[state.surfaces[s]!].label}
@@ -180,9 +169,7 @@ export default function ToothDetailPanel({
       )}
 
       <div className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-          History for this tooth
-        </p>
+        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">History for this tooth</p>
         {history.length === 0 && <p className="text-sm text-slate-400">Nothing charted yet.</p>}
 
         {/* Newest first — the reverse of the fold order used to build the

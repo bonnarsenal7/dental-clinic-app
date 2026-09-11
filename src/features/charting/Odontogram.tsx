@@ -34,10 +34,22 @@ const LOWER_PRIMARY_Y = 164
 const LOWER_PERMANENT_Y = 240
 
 const ROW_PLACEMENTS: RowPlacement[] = [
-  { row: ARCH_ROWS[0], toothY: UPPER_PERMANENT_Y, labelY: UPPER_PERMANENT_Y - LABEL_OFFSET },
+  {
+    row: ARCH_ROWS[0],
+    toothY: UPPER_PERMANENT_Y,
+    labelY: UPPER_PERMANENT_Y - LABEL_OFFSET,
+  },
   { row: ARCH_ROWS[1], toothY: UPPER_PRIMARY_Y, labelY: UPPER_PRIMARY_Y - LABEL_OFFSET },
-  { row: ARCH_ROWS[2], toothY: LOWER_PRIMARY_Y, labelY: LOWER_PRIMARY_Y + TOOTH_SIZE + LABEL_OFFSET },
-  { row: ARCH_ROWS[3], toothY: LOWER_PERMANENT_Y, labelY: LOWER_PERMANENT_Y + TOOTH_SIZE + LABEL_OFFSET },
+  {
+    row: ARCH_ROWS[2],
+    toothY: LOWER_PRIMARY_Y,
+    labelY: LOWER_PRIMARY_Y + TOOTH_SIZE + LABEL_OFFSET,
+  },
+  {
+    row: ARCH_ROWS[3],
+    toothY: LOWER_PERMANENT_Y,
+    labelY: LOWER_PERMANENT_Y + TOOTH_SIZE + LABEL_OFFSET,
+  },
 ]
 
 // The occlusal plane — the line the two arches bite against.
@@ -46,8 +58,7 @@ const CHART_HEIGHT = LOWER_PERMANENT_Y + TOOTH_SIZE + LABEL_OFFSET + 8
 
 function toothX(row: ArchRow, side: 'left' | 'right', index: number): number {
   const offset = (CHART_WIDTH - rowWidth(row.left.length)) / 2
-  const base =
-    side === 'left' ? offset : offset + halfWidth(row.left.length) + MIDLINE_GAP
+  const base = side === 'left' ? offset : offset + halfWidth(row.left.length) + MIDLINE_GAP
   return base + index * (TOOTH_SIZE + GAP)
 }
 
@@ -60,13 +71,7 @@ interface OdontogramProps {
   onPick: (toothNumber: number, surface: ToothSurface | null) => void
 }
 
-export default function Odontogram({
-  chart,
-  pendingTeeth,
-  selectedTooth,
-  mode,
-  onPick,
-}: OdontogramProps) {
+export default function Odontogram({ chart, pendingTeeth, selectedTooth, mode, onPick }: OdontogramProps) {
   return (
     // The chart has a fixed aspect ratio and can't usefully reflow, so on a
     // narrow tablet it scrolls sideways rather than shrinking past legible —
@@ -81,10 +86,24 @@ export default function Odontogram({
         aria-label="Dental chart, FDI tooth numbering"
       >
         {/* Read as if facing the patient: their right is on the left. */}
-        <text x={-8} y={OCCLUSAL_PLANE_Y - 6} textAnchor="middle" className="fill-slate-400" fontSize={11} fontWeight={600}>
+        <text
+          x={-8}
+          y={OCCLUSAL_PLANE_Y - 6}
+          textAnchor="middle"
+          className="fill-slate-400"
+          fontSize={11}
+          fontWeight={600}
+        >
           R
         </text>
-        <text x={CHART_WIDTH + 8} y={OCCLUSAL_PLANE_Y - 6} textAnchor="middle" className="fill-slate-400" fontSize={11} fontWeight={600}>
+        <text
+          x={CHART_WIDTH + 8}
+          y={OCCLUSAL_PLANE_Y - 6}
+          textAnchor="middle"
+          className="fill-slate-400"
+          fontSize={11}
+          fontWeight={600}
+        >
           L
         </text>
 
@@ -119,9 +138,7 @@ export default function Odontogram({
                       textAnchor="middle"
                       fontSize={11}
                       className={
-                        selectedTooth === toothNumber
-                          ? 'fill-slate-900 font-semibold'
-                          : 'fill-slate-400'
+                        selectedTooth === toothNumber ? 'fill-slate-900 font-semibold' : 'fill-slate-400'
                       }
                     >
                       {toothNumber}

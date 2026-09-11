@@ -77,7 +77,11 @@ describe('PatientForm', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     const values = onSubmit.mock.calls[0][0]
     expect(values.name).toBe('Maria Clara Santos')
-    expect(values.conditions).toMatchObject({ diabetes: true, asthma: true, angina: false })
+    expect(values.conditions).toMatchObject({
+      diabetes: true,
+      asthma: true,
+      angina: false,
+    })
   })
 
   // Asking for a physician's name before anyone says there is one is the
@@ -125,7 +129,7 @@ describe('PatientForm', () => {
     expect(screen.getByLabelText(/occupation/i)).toHaveValue('Nurse')
   })
 
-  it('uses the caller\'s submit label', () => {
+  it("uses the caller's submit label", () => {
     renderForm()
     expect(screen.getByRole('button', { name: /register patient/i })).toBeInTheDocument()
   })

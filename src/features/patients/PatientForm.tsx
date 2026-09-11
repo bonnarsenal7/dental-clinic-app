@@ -84,9 +84,9 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
           </Field>
           <Field label="Sex">
             <NativeSelect {...register('sex')}>
-            <option value="">—</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+              <option value="">—</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
             </NativeSelect>
           </Field>
           <Field label="Height">

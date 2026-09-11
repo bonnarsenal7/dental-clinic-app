@@ -59,7 +59,9 @@ function buildReceipt({ invoice, patientName, clinicName, operatingHours }: Rece
 
   doc.setTextColor(0).setFontSize(10)
   doc.text(`Patient: ${patientName}`, MARGIN, y)
-  doc.text(`Date: ${new Date(invoice.created_at).toLocaleDateString()}`, RIGHT, y, { align: 'right' })
+  doc.text(`Date: ${new Date(invoice.created_at).toLocaleDateString()}`, RIGHT, y, {
+    align: 'right',
+  })
   y += 26
 
   // Line items
@@ -119,11 +121,7 @@ function buildReceipt({ invoice, patientName, clinicName, operatingHours }: Rece
     for (const payment of invoice.payments) {
       const method = payment.method.replace('_', ' ')
       const ref = payment.reference ? ` · ref ${payment.reference}` : ''
-      doc.text(
-        `${new Date(payment.paid_at).toLocaleDateString()} — ${method}${ref}`,
-        MARGIN,
-        y,
-      )
+      doc.text(`${new Date(payment.paid_at).toLocaleDateString()} — ${method}${ref}`, MARGIN, y)
       doc.text(formatMoney(Number(payment.amount)), RIGHT, y, { align: 'right' })
       y += 13
     }

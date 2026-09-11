@@ -36,7 +36,14 @@ describe('MedicalAlerts', () => {
   })
 
   it('names the drug someone is allergic to', () => {
-    render(<MedicalAlerts medical={history({ allergic_to_food_or_drug: true, allergy_details: 'Penicillin' })} />)
+    render(
+      <MedicalAlerts
+        medical={history({
+          allergic_to_food_or_drug: true,
+          allergy_details: 'Penicillin',
+        })}
+      />,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent(/penicillin/i)
   })
 
@@ -54,14 +61,24 @@ describe('MedicalAlerts', () => {
 
   it('ranks critical conditions above merely notable ones', () => {
     const alerts = collectAlerts(
-      history({ conditions: { diabetes: true, epilepsy: true }, current_medications: true }),
+      history({
+        conditions: { diabetes: true, epilepsy: true },
+        current_medications: true,
+      }),
     )
     expect(alerts[0].severity).toBe('critical')
     expect(alerts.at(-1)?.severity).toBe('notable')
   })
 
   it('flags medications, since anticoagulants change the plan', () => {
-    render(<MedicalAlerts medical={history({ current_medications: true, medication_details: 'Clopidogrel' })} />)
+    render(
+      <MedicalAlerts
+        medical={history({
+          current_medications: true,
+          medication_details: 'Clopidogrel',
+        })}
+      />,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent(/clopidogrel/i)
     expect(screen.getByRole('alert')).toHaveTextContent(/anticoagulant/i)
   })

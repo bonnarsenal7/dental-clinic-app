@@ -35,7 +35,12 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
       // throws in the deployed build). Untrimmed is functionally fine --
       // just a little transparent padding around the signature.
       const dataUrl = padRef.current.toDataURL('image/png')
-      await saveConsent({ patientId, staffId, consentTextVersion: CONSENT_TEXT_VERSION, signatureDataUrl: dataUrl })
+      await saveConsent({
+        patientId,
+        staffId,
+        consentTextVersion: CONSENT_TEXT_VERSION,
+        signatureDataUrl: dataUrl,
+      })
       onSaved()
     } catch (e) {
       setError(toMessage(e))
@@ -54,9 +59,9 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
         {CONSENT_TEXT}
       </div>
       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-        Draft wording — not yet reviewed by anyone qualified in Philippine data privacy law, and the
-        bracketed fields (retention period, data protection officer, contact details) still need
-        filling in. See docs/COMPLIANCE.md. Version tag: {CONSENT_TEXT_VERSION}.
+        Draft wording — not yet reviewed by anyone qualified in Philippine data privacy law, and the bracketed
+        fields (retention period, data protection officer, contact details) still need filling in. See
+        docs/COMPLIANCE.md. Version tag: {CONSENT_TEXT_VERSION}.
       </p>
 
       {error && <ErrorState message={error} />}
@@ -65,7 +70,11 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
         <SignatureCanvas
           ref={padRef}
           penColor="black"
-          canvasProps={{ width: 460, height: 180, className: 'w-full h-[180px] touch-none' }}
+          canvasProps={{
+            width: 460,
+            height: 180,
+            className: 'w-full h-[180px] touch-none',
+          }}
         />
       </div>
 

@@ -38,8 +38,8 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-lg w-full flex flex-col gap-4">
           <h1 className="text-lg font-semibold text-slate-800">Something went wrong</h1>
           <p className="text-sm text-slate-600">
-            This screen stopped unexpectedly. Anything you had already saved is safe — but anything
-            you were part-way through typing has been lost and will need re-entering.
+            This screen stopped unexpectedly. Anything you had already saved is safe — but anything you were
+            part-way through typing has been lost and will need re-entering.
           </p>
           <p className="text-xs text-slate-400 font-mono break-words bg-slate-50 border border-slate-200 rounded p-2">
             {this.state.error.message}
@@ -60,8 +60,8 @@ export default class ErrorBoundary extends Component<Props, State> {
             </a>
           </div>
           <p className="text-xs text-slate-400">
-            The error has been reported automatically. If it keeps happening, note what you were
-            doing and tell whoever maintains the system.
+            The error has been reported automatically. If it keeps happening, note what you were doing and
+            tell whoever maintains the system.
           </p>
         </div>
       </div>

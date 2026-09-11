@@ -15,6 +15,9 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+# Shared formatting settings are the point of adding Prettier — an editor
+# config nobody else gets is just a local preference.
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo

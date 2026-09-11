@@ -15,33 +15,67 @@ const api = await import('./api')
 const patients = await import('../patients/api')
 const audit = await import('../../core/auditView')
 
-function invoice(id: string, items: [number, string][], payments: number[], status = 'partial'): InvoiceWithDetail {
+function invoice(
+  id: string,
+  items: [number, string][],
+  payments: number[],
+  status = 'partial',
+): InvoiceWithDetail {
   return {
-    id, patient_id: 'p1', visit_id: null, status: status as InvoiceWithDetail['status'],
-    total_amount: items.reduce((s, [a]) => s + a, 0), created_by: null,
+    id,
+    patient_id: 'p1',
+    visit_id: null,
+    status: status as InvoiceWithDetail['status'],
+    total_amount: items.reduce((s, [a]) => s + a, 0),
+    created_by: null,
     created_at: '2026-03-01T00:00:00Z',
     invoice_items: items.map(([amount, description], i) => ({
-      id: `${id}-i${i}`, invoice_id: id, description, amount,
-      procedure_id: null, tooth_record_id: null, tooth_number: null,
+      id: `${id}-i${i}`,
+      invoice_id: id,
+      description,
+      amount,
+      procedure_id: null,
+      tooth_record_id: null,
+      tooth_number: null,
       created_at: '2026-03-01T00:00:00Z',
     })),
     payments: payments.map((amount, i) => ({
-      id: `${id}-p${i}`, invoice_id: id, amount, method: 'cash' as const,
-      reference: null, received_by: null, paid_at: '2026-03-02T00:00:00Z',
+      id: `${id}-p${i}`,
+      invoice_id: id,
+      amount,
+      method: 'cash' as const,
+      reference: null,
+      received_by: null,
+      paid_at: '2026-03-02T00:00:00Z',
     })),
   }
 }
 
-const renderPage = () => render(
-  <MemoryRouter initialEntries={['/patients/p1/billing']}>
-    <Routes><Route path="/patients/:id/billing" element={<PatientLedgerPage />} /></Routes>
-  </MemoryRouter>,
-)
+const renderPage = () =>
+  render(
+    <MemoryRouter initialEntries={['/patients/p1/billing']}>
+      <Routes>
+        <Route path="/patients/:id/billing" element={<PatientLedgerPage />} />
+      </Routes>
+    </MemoryRouter>,
+  )
 
 describe('PatientLedgerPage', () => {
   beforeEach(() => {
-    vi.mocked(patients.getPatient).mockResolvedValue({ id: 'p1', name: 'Jose Miguel Reyes' } as never)
-    vi.mocked(api.listInvoices).mockResolvedValue([invoice('inv1', [[500, 'Consultation'], [700, 'Temporary filling']], [500])])
+    vi.mocked(patients.getPatient).mockResolvedValue({
+      id: 'p1',
+      name: 'Jose Miguel Reyes',
+    } as never)
+    vi.mocked(api.listInvoices).mockResolvedValue([
+      invoice(
+        'inv1',
+        [
+          [500, 'Consultation'],
+          [700, 'Temporary filling'],
+        ],
+        [500],
+      ),
+    ])
   })
 
   it('runs a balance down the ledger', async () => {
@@ -75,9 +109,10 @@ describe('PatientLedgerPage', () => {
 
   it('offers a new invoice and a way back to the profile', async () => {
     renderPage()
-    expect(await screen.findByRole('link', { name: /new invoice/i }))
-      .toHaveAttribute('href', '/patients/p1/invoices/new')
-    expect(screen.getByRole('link', { name: /patient profile/i }))
-      .toHaveAttribute('href', '/patients/p1')
+    expect(await screen.findByRole('link', { name: /new invoice/i })).toHaveAttribute(
+      'href',
+      '/patients/p1/invoices/new',
+    )
+    expect(screen.getByRole('link', { name: /patient profile/i })).toHaveAttribute('href', '/patients/p1')
   })
 })

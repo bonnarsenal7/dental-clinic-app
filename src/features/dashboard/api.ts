@@ -42,7 +42,10 @@ export async function listTodaysPatients(): Promise<TodaysPatient[]> {
     scheduled_at: string
     status: AppointmentStatus
     reason: string | null
-    patients: { name: string; medical_histories: MedicalHistory | MedicalHistory[] | null } | null
+    patients: {
+      name: string
+      medical_histories: MedicalHistory | MedicalHistory[] | null
+    } | null
   }
 
   return ((data ?? []) as unknown as Row[]).map((row) => {

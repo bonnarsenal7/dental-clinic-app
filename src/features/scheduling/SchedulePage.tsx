@@ -49,7 +49,9 @@ export default function SchedulePage() {
         .map((a) => a.visit_id as string)
       if (visitIds.length > 0) {
         const found = await Promise.all(
-          visitIds.map(async (visitId) => [visitId, (await findInvoiceForVisit(visitId))?.id ?? null] as const),
+          visitIds.map(
+            async (visitId) => [visitId, (await findInvoiceForVisit(visitId))?.id ?? null] as const,
+          ),
         )
         setInvoiceByVisit(Object.fromEntries(found))
       } else {
@@ -138,7 +140,13 @@ export default function SchedulePage() {
       )}
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-2 flex-wrap">
-        <button type="button" onClick={() => shiftDay(-1)} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">←</button>
+        <button
+          type="button"
+          onClick={() => shiftDay(-1)}
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+        >
+          ←
+        </button>
         <input
           type="date"
           aria-label="Show this day"
@@ -146,7 +154,13 @@ export default function SchedulePage() {
           onChange={(e) => setDay(e.target.value)}
           className="rounded-md border border-slate-300 px-3 py-2 text-sm"
         />
-        <button type="button" onClick={() => shiftDay(1)} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">→</button>
+        <button
+          type="button"
+          onClick={() => shiftDay(1)}
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+        >
+          →
+        </button>
         {!isToday && (
           <button
             type="button"
@@ -156,9 +170,7 @@ export default function SchedulePage() {
             Today
           </button>
         )}
-        <span className="text-sm text-slate-400 ml-auto">
-          {appointments?.length ?? 0} booked
-        </span>
+        <span className="text-sm text-slate-400 ml-auto">{appointments?.length ?? 0} booked</span>
       </section>
 
       {appointments === null && <LoadingState label="Loading the day…" />}
@@ -176,20 +188,27 @@ export default function SchedulePage() {
               </h2>
               {queue.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-xl">
-                  <EmptyState title="Nobody waiting" hint="Patients appear here once reception marks them arrived." />
+                  <EmptyState
+                    title="Nobody waiting"
+                    hint="Patients appear here once reception marks them arrived."
+                  />
                 </div>
               ) : (
                 queue.map((a) => (
-                  <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null} />
+                  <AppointmentCard
+                    key={a.id}
+                    appointment={a}
+                    onStatusChange={handleStatus}
+                    busy={busyId === a.id}
+                    invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null}
+                  />
                 ))
               )}
             </section>
           )}
 
           <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-slate-700">
-              {isToday ? 'Still to come' : 'Booked'}
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-700">{isToday ? 'Still to come' : 'Booked'}</h2>
             {upcoming.length === 0 ? (
               <div className="bg-white border border-slate-200 rounded-xl">
                 <EmptyState
@@ -199,7 +218,13 @@ export default function SchedulePage() {
               </div>
             ) : (
               upcoming.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null} />
+                <AppointmentCard
+                  key={a.id}
+                  appointment={a}
+                  onStatusChange={handleStatus}
+                  busy={busyId === a.id}
+                  invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null}
+                />
               ))
             )}
           </section>
@@ -208,7 +233,13 @@ export default function SchedulePage() {
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold text-slate-700">Finished & cancelled</h2>
               {done.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null} />
+                <AppointmentCard
+                  key={a.id}
+                  appointment={a}
+                  onStatusChange={handleStatus}
+                  busy={busyId === a.id}
+                  invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null}
+                />
               ))}
             </section>
           )}

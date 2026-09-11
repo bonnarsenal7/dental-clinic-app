@@ -144,14 +144,17 @@ export default function PatientChartPage() {
     setError(null)
     setSaving(true)
     try {
-      const saved = await saveToothMarks({ patientId, staffId: staff.id, visitId, marks: pending })
+      const saved = await saveToothMarks({
+        patientId,
+        staffId: staff.id,
+        visitId,
+        marks: pending,
+      })
       // Re-sorted by seq rather than trusting the insert's return order —
       // the fold reads the log in seq order, so the in-memory copy has to
       // match what a reload would give.
       setRecords((current) => [...current, ...saved].sort((a, b) => a.seq - b.seq))
-      toastSaved(
-        `${saved.length} ${saved.length === 1 ? 'mark' : 'marks'} saved to the chart`,
-      )
+      toastSaved(`${saved.length} ${saved.length === 1 ? 'mark' : 'marks'} saved to the chart`)
       setPending([])
     } catch (e) {
       setError(toMessage(e))
@@ -171,8 +174,8 @@ export default function PatientChartPage() {
         <div>
           <h1 className="text-lg font-semibold text-slate-800">Dental chart — {patient.name}</h1>
           <p className="text-slate-500 text-sm mt-1">
-            FDI numbering, as on the paper chart. Findings are kept as a history per tooth, so
-            re-charting a tooth adds an entry rather than overwriting the old one.
+            FDI numbering, as on the paper chart. Findings are kept as a history per tooth, so re-charting a
+            tooth adds an entry rather than overwriting the old one.
           </p>
         </div>
         <Link

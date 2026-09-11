@@ -40,7 +40,10 @@ export default function PatientEditPage() {
           physician_phone: toStr(medical?.physician_phone),
           hospitalized: medical?.hospitalized ?? false,
           hospitalized_reason: toStr(medical?.hospitalized_reason),
-          conditions: { ...EMPTY_PATIENT_FORM.conditions, ...(medical?.conditions ?? {}) },
+          conditions: {
+            ...EMPTY_PATIENT_FORM.conditions,
+            ...(medical?.conditions ?? {}),
+          },
           other_condition_details: toStr(medical?.other_condition_details),
           allergic_to_food_or_drug: medical?.allergic_to_food_or_drug ?? false,
           allergy_details: toStr(medical?.allergy_details),
@@ -53,7 +56,10 @@ export default function PatientEditPage() {
           previous_dentist_name: toStr(dental?.previous_dentist_name),
           previous_dentist_address: toStr(dental?.previous_dentist_address),
           symptoms: { ...EMPTY_PATIENT_FORM.symptoms, ...(dental?.symptoms ?? {}) },
-          oral_habits: { ...EMPTY_PATIENT_FORM.oral_habits, ...(dental?.oral_habits ?? {}) },
+          oral_habits: {
+            ...EMPTY_PATIENT_FORM.oral_habits,
+            ...(dental?.oral_habits ?? {}),
+          },
           oral_habits_other_details: toStr(dental?.oral_habits_other_details),
         })
       })

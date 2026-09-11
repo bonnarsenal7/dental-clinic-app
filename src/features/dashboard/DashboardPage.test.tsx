@@ -17,27 +17,56 @@ const api = await import('./api')
 function summary(partial: Partial<DailySummary> = {}): DailySummary {
   return {
     today: '2026-09-11',
-    appointments_today: 7, in_clinic: 2, still_to_come: 4, completed_today: 1,
-    no_shows_today: 0, cancelled_today: 0, longest_wait_minutes: 12,
-    collected_today: 3000, collected_cash: 3000, collected_card: 0,
-    collected_transfer: 0, collected_other: 0, produced_today: 3000,
-    outstanding_total: 1900, patients_owing: 2,
-    recalls_overdue: 3, recalls_due_soon: 1, new_patients_today: 0,
+    appointments_today: 7,
+    in_clinic: 2,
+    still_to_come: 4,
+    completed_today: 1,
+    no_shows_today: 0,
+    cancelled_today: 0,
+    longest_wait_minutes: 12,
+    collected_today: 3000,
+    collected_cash: 3000,
+    collected_card: 0,
+    collected_transfer: 0,
+    collected_other: 0,
+    produced_today: 3000,
+    outstanding_total: 1900,
+    patients_owing: 2,
+    recalls_overdue: 3,
+    recalls_due_soon: 1,
+    new_patients_today: 0,
     ...partial,
   }
 }
 
 function medical(partial: Partial<MedicalHistory>): MedicalHistory {
   return {
-    id: 'mh', patient_id: 'p1', under_physician_care: false, physician_name: null,
-    physician_phone: null, hospitalized: false, hospitalized_reason: null, conditions: {},
-    other_condition_details: null, allergic_to_food_or_drug: false, allergy_details: null,
-    current_medications: false, medication_details: null, allergic_to_anesthesia: false,
-    smokes: false, updated_at: '2026-01-01T00:00:00Z', ...partial,
+    id: 'mh',
+    patient_id: 'p1',
+    under_physician_care: false,
+    physician_name: null,
+    physician_phone: null,
+    hospitalized: false,
+    hospitalized_reason: null,
+    conditions: {},
+    other_condition_details: null,
+    allergic_to_food_or_drug: false,
+    allergy_details: null,
+    current_medications: false,
+    medication_details: null,
+    allergic_to_anesthesia: false,
+    smokes: false,
+    updated_at: '2026-01-01T00:00:00Z',
+    ...partial,
   }
 }
 
-const renderPage = () => render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <DashboardPage />
+    </MemoryRouter>,
+  )
 
 describe('DashboardPage', () => {
   beforeEach(() => {
@@ -65,7 +94,10 @@ describe('DashboardPage', () => {
   // dashboard doing arithmetic on them would render "NaN" or "30001900".
   it('copes with numerics arriving as strings', async () => {
     vi.mocked(api.getDailySummary).mockResolvedValue(
-      summary({ collected_today: '3000.00' as unknown as number, in_clinic: '2' as unknown as number }),
+      summary({
+        collected_today: '3000.00' as unknown as number,
+        in_clinic: '2' as unknown as number,
+      }),
     )
     renderPage()
     expect(await screen.findAllByText(/₱3,000\.00/)).not.toHaveLength(0)
@@ -77,11 +109,15 @@ describe('DashboardPage', () => {
   // A dentist opening this at the start of a shift needs to know who cannot
   // be treated as planned before they read how many are booked. An alert
   // under four stat tiles is an alert someone scrolls past.
-  it('puts the medical alerts above the day\'s numbers', async () => {
+  it("puts the medical alerts above the day's numbers", async () => {
     vi.mocked(api.listTodaysPatients).mockResolvedValue([
       {
-        appointment_id: 'a1', patient_id: 'p1', name: 'Ricardo Bautista',
-        scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: null,
+        appointment_id: 'a1',
+        patient_id: 'p1',
+        name: 'Ricardo Bautista',
+        scheduled_at: '2026-09-11T07:30:00Z',
+        status: 'booked',
+        reason: null,
         medical: medical({ allergic_to_anesthesia: true }),
       },
     ])
@@ -95,8 +131,24 @@ describe('DashboardPage', () => {
 
   it('counts how many patients need attention', async () => {
     vi.mocked(api.listTodaysPatients).mockResolvedValue([
-      { appointment_id: 'a1', patient_id: 'p1', name: 'A', scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: null, medical: medical({ allergic_to_anesthesia: true }) },
-      { appointment_id: 'a2', patient_id: 'p2', name: 'B', scheduled_at: '2026-09-11T08:30:00Z', status: 'booked', reason: null, medical: null },
+      {
+        appointment_id: 'a1',
+        patient_id: 'p1',
+        name: 'A',
+        scheduled_at: '2026-09-11T07:30:00Z',
+        status: 'booked',
+        reason: null,
+        medical: medical({ allergic_to_anesthesia: true }),
+      },
+      {
+        appointment_id: 'a2',
+        patient_id: 'p2',
+        name: 'B',
+        scheduled_at: '2026-09-11T08:30:00Z',
+        status: 'booked',
+        reason: null,
+        medical: null,
+      },
     ])
     renderPage()
     expect(await screen.findByRole('alert')).toHaveTextContent(/2 patients/i)
@@ -105,8 +157,12 @@ describe('DashboardPage', () => {
   it('flags a critical allergy for a patient due in today', async () => {
     vi.mocked(api.listTodaysPatients).mockResolvedValue([
       {
-        appointment_id: 'a1', patient_id: 'p1', name: 'Ricardo Bautista',
-        scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: 'Extraction',
+        appointment_id: 'a1',
+        patient_id: 'p1',
+        name: 'Ricardo Bautista',
+        scheduled_at: '2026-09-11T07:30:00Z',
+        status: 'booked',
+        reason: 'Extraction',
         medical: medical({ allergic_to_anesthesia: true }),
       },
     ])
@@ -118,7 +174,15 @@ describe('DashboardPage', () => {
 
   it('flags a patient booked in with no medical history at all', async () => {
     vi.mocked(api.listTodaysPatients).mockResolvedValue([
-      { appointment_id: 'a2', patient_id: 'p2', name: 'Walk In', scheduled_at: '2026-09-11T09:00:00Z', status: 'booked', reason: null, medical: null },
+      {
+        appointment_id: 'a2',
+        patient_id: 'p2',
+        name: 'Walk In',
+        scheduled_at: '2026-09-11T09:00:00Z',
+        status: 'booked',
+        reason: null,
+        medical: null,
+      },
     ])
     renderPage()
     expect(await screen.findByRole('alert')).toHaveTextContent(/no medical history on file/i)
@@ -128,8 +192,24 @@ describe('DashboardPage', () => {
   // that makes the real warnings easier to skip past.
   it('ignores cancelled and no-show patients when flagging', async () => {
     vi.mocked(api.listTodaysPatients).mockResolvedValue([
-      { appointment_id: 'a3', patient_id: 'p3', name: 'Cancelled Person', scheduled_at: '2026-09-11T09:00:00Z', status: 'cancelled', reason: null, medical: medical({ allergic_to_anesthesia: true }) },
-      { appointment_id: 'a4', patient_id: 'p4', name: 'Absent Person', scheduled_at: '2026-09-11T10:00:00Z', status: 'no_show', reason: null, medical: null },
+      {
+        appointment_id: 'a3',
+        patient_id: 'p3',
+        name: 'Cancelled Person',
+        scheduled_at: '2026-09-11T09:00:00Z',
+        status: 'cancelled',
+        reason: null,
+        medical: medical({ allergic_to_anesthesia: true }),
+      },
+      {
+        appointment_id: 'a4',
+        patient_id: 'p4',
+        name: 'Absent Person',
+        scheduled_at: '2026-09-11T10:00:00Z',
+        status: 'no_show',
+        reason: null,
+        medical: null,
+      },
     ])
     renderPage()
     await screen.findByText(/in the clinic/i)
@@ -148,7 +228,15 @@ describe('DashboardPage', () => {
     it('keeps the clinical alert panel to dentist and admin', async () => {
       role.current = 'receptionist'
       vi.mocked(api.listTodaysPatients).mockResolvedValue([
-        { appointment_id: 'a1', patient_id: 'p1', name: 'Ricardo Bautista', scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: null, medical: medical({ allergic_to_anesthesia: true }) },
+        {
+          appointment_id: 'a1',
+          patient_id: 'p1',
+          name: 'Ricardo Bautista',
+          scheduled_at: '2026-09-11T07:30:00Z',
+          status: 'booked',
+          reason: null,
+          medical: medical({ allergic_to_anesthesia: true }),
+        },
       ])
       renderPage()
       await screen.findByText(/in the clinic/i)
@@ -165,7 +253,15 @@ describe('DashboardPage', () => {
     it('shows the dentist the clinical alerts', async () => {
       role.current = 'dentist'
       vi.mocked(api.listTodaysPatients).mockResolvedValue([
-        { appointment_id: 'a1', patient_id: 'p1', name: 'Ricardo Bautista', scheduled_at: '2026-09-11T07:30:00Z', status: 'booked', reason: null, medical: medical({ allergic_to_anesthesia: true }) },
+        {
+          appointment_id: 'a1',
+          patient_id: 'p1',
+          name: 'Ricardo Bautista',
+          scheduled_at: '2026-09-11T07:30:00Z',
+          status: 'booked',
+          reason: null,
+          medical: medical({ allergic_to_anesthesia: true }),
+        },
       ])
       renderPage()
       expect(await screen.findByRole('alert')).toHaveTextContent(/ricardo bautista/i)

@@ -5,12 +5,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import InvoiceDetailPage from './InvoiceDetailPage'
 import type { InvoiceWithDetail } from './types'
 
-vi.mock('./api', () => ({ getInvoice: vi.fn(), recordPayment: vi.fn(), voidInvoice: vi.fn() }))
-vi.mock('./receiptPdf', () => ({ downloadReceipt: vi.fn(), receiptNumber: () => 'ABCD1234' }))
+vi.mock('./api', () => ({
+  getInvoice: vi.fn(),
+  recordPayment: vi.fn(),
+  voidInvoice: vi.fn(),
+}))
+vi.mock('./receiptPdf', () => ({
+  downloadReceipt: vi.fn(),
+  receiptNumber: () => 'ABCD1234',
+}))
 vi.mock('../patients/api', () => ({ getPatient: vi.fn() }))
 vi.mock('../../core/components/ui/toast', () => ({ toastSaved: vi.fn() }))
 vi.mock('../../core/supabaseClient', () => ({
-  supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { clinic_name: 'ToothCo Dental Clinic', operating_hours: '' } }) }) }) }) },
+  supabase: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: { clinic_name: 'ToothCo Dental Clinic', operating_hours: '' },
+          }),
+        }),
+      }),
+    }),
+  },
 }))
 
 const role = { current: 'receptionist' as 'receptionist' | 'admin' }
@@ -25,30 +42,67 @@ const toast = await import('../../core/components/ui/toast')
 
 function invoice(partial: Partial<InvoiceWithDetail> = {}): InvoiceWithDetail {
   return {
-    id: 'inv-1', patient_id: 'pat-1', visit_id: 'visit-1', status: 'partial',
-    total_amount: 3000, created_by: null, created_at: '2026-09-11T01:00:00Z',
+    id: 'inv-1',
+    patient_id: 'pat-1',
+    visit_id: 'visit-1',
+    status: 'partial',
+    total_amount: 3000,
+    created_by: null,
+    created_at: '2026-09-11T01:00:00Z',
     invoice_items: [
-      { id: 'it-1', invoice_id: 'inv-1', description: 'Composite filling', amount: 1800, procedure_id: null, tooth_record_id: null, tooth_number: 16, created_at: '2026-09-11T01:00:00Z' },
-      { id: 'it-2', invoice_id: 'inv-1', description: 'Oral prophylaxis', amount: 1200, procedure_id: null, tooth_record_id: null, tooth_number: null, created_at: '2026-09-11T01:00:00Z' },
+      {
+        id: 'it-1',
+        invoice_id: 'inv-1',
+        description: 'Composite filling',
+        amount: 1800,
+        procedure_id: null,
+        tooth_record_id: null,
+        tooth_number: 16,
+        created_at: '2026-09-11T01:00:00Z',
+      },
+      {
+        id: 'it-2',
+        invoice_id: 'inv-1',
+        description: 'Oral prophylaxis',
+        amount: 1200,
+        procedure_id: null,
+        tooth_record_id: null,
+        tooth_number: null,
+        created_at: '2026-09-11T01:00:00Z',
+      },
     ],
     payments: [
-      { id: 'pm-1', invoice_id: 'inv-1', amount: 1000, method: 'cash', reference: 'OR-1', received_by: null, paid_at: '2026-09-11T02:00:00Z' },
+      {
+        id: 'pm-1',
+        invoice_id: 'inv-1',
+        amount: 1000,
+        method: 'cash',
+        reference: 'OR-1',
+        received_by: null,
+        paid_at: '2026-09-11T02:00:00Z',
+      },
     ],
     ...partial,
   }
 }
 
-const renderPage = () => render(
-  <MemoryRouter initialEntries={['/invoices/inv-1']}>
-    <Routes><Route path="/invoices/:id" element={<InvoiceDetailPage />} /></Routes>
-  </MemoryRouter>,
-)
+const renderPage = () =>
+  render(
+    <MemoryRouter initialEntries={['/invoices/inv-1']}>
+      <Routes>
+        <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+      </Routes>
+    </MemoryRouter>,
+  )
 
 describe('InvoiceDetailPage', () => {
   beforeEach(() => {
     role.current = 'receptionist'
     vi.mocked(api.getInvoice).mockResolvedValue(invoice())
-    vi.mocked(patients.getPatient).mockResolvedValue({ id: 'pat-1', name: 'Maria Clara Santos' } as never)
+    vi.mocked(patients.getPatient).mockResolvedValue({
+      id: 'pat-1',
+      name: 'Maria Clara Santos',
+    } as never)
     vi.mocked(api.recordPayment).mockResolvedValue(undefined)
     vi.mocked(api.voidInvoice).mockResolvedValue(undefined)
   })
@@ -68,7 +122,10 @@ describe('InvoiceDetailPage', () => {
     await user.type(screen.getByLabelText(/amount/i), '500')
     await user.click(screen.getByRole('button', { name: /record payment/i }))
     await waitFor(() => expect(api.recordPayment).toHaveBeenCalled())
-    expect(vi.mocked(api.recordPayment).mock.calls[0][0]).toMatchObject({ amount: 500, method: 'cash' })
+    expect(vi.mocked(api.recordPayment).mock.calls[0][0]).toMatchObject({
+      amount: 500,
+      method: 'cash',
+    })
     // Totals are trigger-derived, so the screen must re-read them.
     expect(api.getInvoice).toHaveBeenCalledTimes(2)
   })
@@ -155,9 +212,21 @@ describe('InvoiceDetailPage', () => {
   })
 
   it('shows a refund as a negative payment', async () => {
-    vi.mocked(api.getInvoice).mockResolvedValue(invoice({
-      payments: [{ id: 'pm-2', invoice_id: 'inv-1', amount: -250, method: 'cash', reference: null, received_by: null, paid_at: '2026-09-11T03:00:00Z' }],
-    }))
+    vi.mocked(api.getInvoice).mockResolvedValue(
+      invoice({
+        payments: [
+          {
+            id: 'pm-2',
+            invoice_id: 'inv-1',
+            amount: -250,
+            method: 'cash',
+            reference: null,
+            received_by: null,
+            paid_at: '2026-09-11T03:00:00Z',
+          },
+        ],
+      }),
+    )
     renderPage()
     expect(await screen.findAllByText(/-₱250\.00/)).not.toHaveLength(0)
   })

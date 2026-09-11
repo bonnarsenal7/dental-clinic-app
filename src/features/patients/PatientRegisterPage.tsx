@@ -77,8 +77,8 @@ export default function PatientRegisterPage() {
         <div>
           <h1 className="text-lg font-semibold text-slate-800">Review before signing</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Show this to the patient (or parent/guardian) so they can confirm everything below is correct before
-            signing consent. Nothing is saved yet.
+            Show this to the patient (or parent/guardian) so they can confirm everything below is correct
+            before signing consent. Nothing is saved yet.
           </p>
         </div>
         {error && <ErrorState message={error} />}

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* =========================================================================
    Design tokens — Phase A of the interface upgrade.
@@ -30,16 +30,16 @@
 
      The name still tells the truth: these are the neutral scale. Later
      phases can rename them to `surface` / `ink` as components are extracted. */
-  --color-slate-50:  #FBFAF7;
-  --color-slate-100: #F6F5F1;
-  --color-slate-200: #EAE7E0;
-  --color-slate-300: #D8D3CA;
-  --color-slate-400: #A8A191;
-  --color-slate-500: #7A7263;
+  --color-slate-50: #fbfaf7;
+  --color-slate-100: #f6f5f1;
+  --color-slate-200: #eae7e0;
+  --color-slate-300: #d8d3ca;
+  --color-slate-400: #a8a191;
+  --color-slate-500: #7a7263;
   --color-slate-600: #595448;
   --color-slate-700: #454035;
-  --color-slate-800: #2D2820;
-  --color-slate-900: #1A1712;
+  --color-slate-800: #2d2820;
+  --color-slate-900: #1a1712;
   --color-slate-950: #070705;
 
   /* --- Gold: the clinic's colour -------------------------------------------
@@ -53,14 +53,14 @@
 
      Contrast against white text: 900 11.5:1 · 800 7.7:1 · 700 5.3:1.
      600 and lighter need ink text, not white. */
-  --color-gold-50:  #FBF6E9;
-  --color-gold-100: #F6ECD2;
-  --color-gold-300: #E3C87E;
-  --color-gold-500: #C29A3D;
-  --color-gold-600: #A57C26;
-  --color-gold-700: #8A661F;
-  --color-gold-800: #6B4E18;
-  --color-gold-900: #4A3611;
+  --color-gold-50: #fbf6e9;
+  --color-gold-100: #f6ecd2;
+  --color-gold-300: #e3c87e;
+  --color-gold-500: #c29a3d;
+  --color-gold-600: #a57c26;
+  --color-gold-700: #8a661f;
+  --color-gold-800: #6b4e18;
+  --color-gold-900: #4a3611;
 
   /* --- The chart ------------------------------------------------------------
      Named so the fencing rule is enforceable by name rather than by memory:
@@ -71,21 +71,21 @@
      src/features/charting/chartVocabulary.ts, which needs real values for
      SVG fills. A test pins the two together so they cannot drift; a later
      phase collapses them into one source. */
-  --color-chart-decayed: #DC2626;
-  --color-chart-filled:  #2563EB;
-  --color-chart-crown:   #D97706;
+  --color-chart-decayed: #dc2626;
+  --color-chart-filled: #2563eb;
+  --color-chart-crown: #d97706;
   --color-chart-planned: #059669;
-  --color-chart-missing: #64748B;
+  --color-chart-missing: #64748b;
 
   /* --- Record state ---------------------------------------------------------
      Red, green, neutral. Deliberately no amber: amber now belongs to the
      chart (crown) and the brand, so a third meaning would make all three
      ambiguous. Anything that is merely informational — a part-paid invoice,
      a short wait — takes a neutral, not a warning colour. */
-  --color-state-attention: #B91C1C;
-  --color-state-attention-tint: #FAE9E9;
+  --color-state-attention: #b91c1c;
+  --color-state-attention-tint: #fae9e9;
   --color-state-settled: #166534;
-  --color-state-settled-tint: #E6F0E9;
+  --color-state-settled-tint: #e6f0e9;
 
   /* --- Radius ---------------------------------------------------------------
      The app uses rounded-md on controls and rounded-xl on panels. Naming the
@@ -107,16 +107,16 @@
  * className strings also means screens added later inherit it. */
 @media (pointer: coarse) {
   button,
-  [role="button"],
+  [role='button'],
   select,
   textarea,
-  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  input:not([type='checkbox']):not([type='radio']):not([type='file']) {
     min-height: 44px;
   }
 
   /* Links styled as buttons are <a>, so the button selector misses them.
      Every one in this app carries a rounded-md utility. */
-  a[class*="rounded-md"] {
+  a[class*='rounded-md'] {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
@@ -125,15 +125,15 @@
   /* Stretching a checkbox with min-height would distort it; grow it
      instead. The history forms are long checklists, so these get tapped
      more than anything else in the app. */
-  input[type="checkbox"],
-  input[type="radio"] {
+  input[type='checkbox'],
+  input[type='radio'] {
     width: 20px;
     height: 20px;
   }
 
   /* The file input's own button is drawn by the browser and ignores the
      rules above. */
-  input[type="file"]::file-selector-button {
+  input[type='file']::file-selector-button {
     min-height: 40px;
   }
 }
@@ -155,9 +155,17 @@
     linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)),
     radial-gradient(farthest-side at 0 50%, rgba(24, 26, 25, 0.14), transparent),
     radial-gradient(farthest-side at 100% 50%, rgba(24, 26, 25, 0.14), transparent);
-  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-position:
+    0 0,
+    100% 0,
+    0 0,
+    100% 0;
   background-repeat: no-repeat;
-  background-size: 3rem 100%, 3rem 100%, 0.9rem 100%, 0.9rem 100%;
+  background-size:
+    3rem 100%,
+    3rem 100%,
+    0.9rem 100%,
+    0.9rem 100%;
   background-attachment: local, local, scroll, scroll;
 }
 
@@ -195,9 +203,9 @@ canvas {
   header,
   nav,
   [data-sonner-toaster],
-  input[type="file"],
+  input[type='file'],
   button,
-  a[class*="rounded-md"] {
+  a[class*='rounded-md'] {
     display: none !important;
   }
 
@@ -220,7 +228,7 @@ canvas {
     print-color-adjust: exact !important;
     -webkit-print-color-adjust: exact !important;
   }
-  svg [fill]:not([fill="none"]) {
+  svg [fill]:not([fill='none']) {
     background: revert !important;
   }
 

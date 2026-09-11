@@ -30,14 +30,7 @@ interface ToothGlyphProps {
   onPick: (toothNumber: number, surface: ToothSurface | null) => void
 }
 
-export default function ToothGlyph({
-  toothNumber,
-  state,
-  pending,
-  selected,
-  mode,
-  onPick,
-}: ToothGlyphProps) {
+export default function ToothGlyph({ toothNumber, state, pending, selected, mode, onPick }: ToothGlyphProps) {
   const surfaces = surfacesForTooth(toothNumber)
   const missing = state.condition === 'missing'
   const crowned = state.condition === 'crown'
@@ -150,7 +143,17 @@ export default function ToothGlyph({
         />
       )}
 
-      {pending && <circle cx={S - 3} cy={3} r={4.5} fill="#f59e0b" stroke="#ffffff" strokeWidth={1.5} pointerEvents="none" />}
+      {pending && (
+        <circle
+          cx={S - 3}
+          cy={3}
+          r={4.5}
+          fill="#f59e0b"
+          stroke="#ffffff"
+          strokeWidth={1.5}
+          pointerEvents="none"
+        />
+      )}
 
       {/* Whole-tooth modes (and plain selection) take the click across the
           entire square — a 44px target rather than a 13px sliver. */}

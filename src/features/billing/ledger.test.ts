@@ -55,7 +55,9 @@ describe('invoice arithmetic', () => {
   // Postgres numeric arrives over PostgREST as a string often enough that
   // naive addition would concatenate. Number() coercion is load-bearing.
   it('coerces numeric strings rather than concatenating them', () => {
-    const inv = invoice({ items: [['2000' as unknown as number], ['500' as unknown as number]] })
+    const inv = invoice({
+      items: [['2000' as unknown as number], ['500' as unknown as number]],
+    })
     expect(invoiceTotal(inv)).toBe(2500)
   })
 
@@ -79,10 +81,7 @@ describe('outstandingBalance', () => {
   // A voided invoice was never owed; counting it would overstate the debt.
   it('excludes voided invoices', () => {
     expect(
-      outstandingBalance([
-        invoice({ items: [[5000]], status: 'void' }),
-        invoice({ items: [[1000]] }),
-      ]),
+      outstandingBalance([invoice({ items: [[5000]], status: 'void' }), invoice({ items: [[1000]] })]),
     ).toBe(1000)
   })
 })
@@ -108,7 +107,10 @@ describe('buildLedger', () => {
   // the payment first would show a negative balance that never existed.
   it('orders a charge before a payment made at the same instant', () => {
     const rows = buildLedger([
-      invoice({ items: [[1000, '2026-02-01T10:00:00Z']], payments: [[1000, '2026-02-01T10:00:00Z']] }),
+      invoice({
+        items: [[1000, '2026-02-01T10:00:00Z']],
+        payments: [[1000, '2026-02-01T10:00:00Z']],
+      }),
     ])
     expect(rows.map((r) => r.balance)).toEqual([1000, 0])
     expect(rows[0].fee).toBe(1000)

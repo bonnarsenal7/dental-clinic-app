@@ -141,7 +141,10 @@ export default function AuditLogPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <PageHeader title="Audit log" description="Every write to a patient, clinical, or billing record. Writes are recorded by the database itself and can't be skipped by an app; views are reported by the app and carry a weaker guarantee." />
+        <PageHeader
+          title="Audit log"
+          description="Every write to a patient, clinical, or billing record. Writes are recorded by the database itself and can't be skipped by an app; views are reported by the app and carry a weaker guarantee."
+        />
         <button
           type="button"
           onClick={() => void handleExport()}
@@ -157,7 +160,11 @@ export default function AuditLogPage() {
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Operation
-          <select value={operation} onChange={(e) => setOperation(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <select
+            value={operation}
+            onChange={(e) => setOperation(e.target.value)}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          >
             <option value="">All</option>
             <option value="insert">Insert</option>
             <option value="update">Update</option>
@@ -176,11 +183,21 @@ export default function AuditLogPage() {
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           From
-          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           To
-          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
         </label>
       </section>
 
@@ -199,12 +216,18 @@ export default function AuditLogPage() {
             </thead>
             <tbody>
               {entries === null && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading…</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                    Loading…
+                  </td>
+                </tr>
               )}
               {entries?.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  No entries match these filters.
-                </td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                    No entries match these filters.
+                  </td>
+                </tr>
               )}
               {entries?.map((entry) => {
                 const staff = entry.staff_id ? staffById.get(entry.staff_id) : undefined
@@ -226,13 +249,15 @@ export default function AuditLogPage() {
                       )}
                     </td>
                     <td className="px-4 py-2">
-                      <span className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${OPERATION_STYLES[entry.operation]}`}>
+                      <span
+                        className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${OPERATION_STYLES[entry.operation]}`}
+                      >
                         {entry.operation}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-slate-600">{entry.table_name}</td>
                     <td className="px-4 py-2 text-slate-600">
-                      {entry.patient_id ? patientNames.get(entry.patient_id) ?? '(deleted)' : '—'}
+                      {entry.patient_id ? (patientNames.get(entry.patient_id) ?? '(deleted)') : '—'}
                     </td>
                     <td className="px-4 py-2 text-slate-400 text-xs">
                       {entry.changed_fields?.join(', ') ?? '—'}

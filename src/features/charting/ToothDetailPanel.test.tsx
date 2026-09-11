@@ -10,23 +10,46 @@ const api = await import('./api')
 
 function record(partial: Partial<ToothRecord> = {}): ToothRecord {
   return {
-    id: 'tr-1', seq: 1, patient_id: 'p1', visit_id: 'v1', tooth_number: 16,
-    surface: 'occlusal', condition: 'decayed', image_path: null, image_name: null,
-    created_by: null, created_at: '2026-03-01T00:00:00Z', ...partial,
+    id: 'tr-1',
+    seq: 1,
+    patient_id: 'p1',
+    visit_id: 'v1',
+    tooth_number: 16,
+    surface: 'occlusal',
+    condition: 'decayed',
+    image_path: null,
+    image_name: null,
+    created_by: null,
+    created_at: '2026-03-01T00:00:00Z',
+    ...partial,
   }
 }
 
 const VISITS = new Map<string, ChartVisit>([
-  ['v1', { id: 'v1', visit_date: '2026-03-01T00:00:00Z', visit_notes: { notes: 'Deep occlusal caries, restoration planned.' } }],
+  [
+    'v1',
+    {
+      id: 'v1',
+      visit_date: '2026-03-01T00:00:00Z',
+      visit_notes: { notes: 'Deep occlusal caries, restoration planned.' },
+    },
+  ],
 ])
 
-function renderPanel(opts: {
-  tooth?: number | null
-  state?: Partial<ToothState>
-  history?: ToothRecord[]
-  pending?: { key: string; tooth_number: number; surface: 'occlusal' | null; condition: 'decayed' }[]
-  selectedCondition?: 'decayed' | 'missing' | null
-} = {}) {
+function renderPanel(
+  opts: {
+    tooth?: number | null
+    state?: Partial<ToothState>
+    history?: ToothRecord[]
+    pending?: {
+      key: string
+      tooth_number: number
+      surface: 'occlusal' | null
+      condition: 'decayed'
+    }[]
+    selectedCondition?: 'decayed' | 'missing' | null
+  } = {},
+) {
   const onMark = vi.fn()
   const onRemovePending = vi.fn()
   const onRecordUpdated = vi.fn()
@@ -52,7 +75,9 @@ function renderPanel(opts: {
 describe('ToothDetailPanel', () => {
   beforeEach(() => {
     vi.mocked(api.getSignedToothImageUrl).mockResolvedValue('https://signed.example/xray.png')
-    vi.mocked(api.attachToothImage).mockResolvedValue(record({ image_path: 'tooth/p1/16/x.png', image_name: 'x.png' }))
+    vi.mocked(api.attachToothImage).mockResolvedValue(
+      record({ image_path: 'tooth/p1/16/x.png', image_name: 'x.png' }),
+    )
     vi.stubGlobal('open', vi.fn())
   })
 
@@ -68,7 +93,9 @@ describe('ToothDetailPanel', () => {
   })
 
   it('reads out the current findings by surface', () => {
-    renderPanel({ state: { surfaces: { occlusal: 'decayed', mesial: 'filled' }, planned: true } })
+    renderPanel({
+      state: { surfaces: { occlusal: 'decayed', mesial: 'filled' }, planned: true },
+    })
     expect(screen.getByText(/occlusal: decayed/i)).toBeInTheDocument()
     expect(screen.getByText(/mesial: filled/i)).toBeInTheDocument()
     expect(screen.getByText(/planned treatment/i)).toBeInTheDocument()
@@ -116,8 +143,18 @@ describe('ToothDetailPanel', () => {
   it('reads history newest first', () => {
     renderPanel({
       history: [
-        record({ id: 'a', seq: 1, condition: 'decayed', created_at: '2026-01-01T00:00:00Z' }),
-        record({ id: 'b', seq: 2, condition: 'filled', created_at: '2026-06-01T00:00:00Z' }),
+        record({
+          id: 'a',
+          seq: 1,
+          condition: 'decayed',
+          created_at: '2026-01-01T00:00:00Z',
+        }),
+        record({
+          id: 'b',
+          seq: 2,
+          condition: 'filled',
+          created_at: '2026-06-01T00:00:00Z',
+        }),
       ],
     })
     const entries = screen.getAllByText(/decayed — occlusal|filled — occlusal/i)
@@ -133,7 +170,10 @@ describe('ToothDetailPanel', () => {
     )
     await user.click(screen.getByRole('button', { name: /attach image/i }))
     await waitFor(() => expect(api.attachToothImage).toHaveBeenCalled())
-    expect(vi.mocked(api.attachToothImage).mock.calls[0][0]).toMatchObject({ recordId: 'tr-1', toothNumber: 16 })
+    expect(vi.mocked(api.attachToothImage).mock.calls[0][0]).toMatchObject({
+      recordId: 'tr-1',
+      toothNumber: 16,
+    })
     expect(onRecordUpdated).toHaveBeenCalled()
   })
 
@@ -148,14 +188,18 @@ describe('ToothDetailPanel', () => {
   // Replacing an image would orphan the old object, which only an admin
   // could clear up — so a record that already has one only offers viewing.
   it('offers viewing, not replacing, once an image is attached', () => {
-    renderPanel({ history: [record({ image_path: 'tooth/p1/16/x.png', image_name: 'xray.png' })] })
+    renderPanel({
+      history: [record({ image_path: 'tooth/p1/16/x.png', image_name: 'xray.png' })],
+    })
     expect(screen.getByRole('button', { name: /view image/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /attach image/i })).not.toBeInTheDocument()
   })
 
   it('opens a tooth image through a signed url', async () => {
     const user = userEvent.setup()
-    renderPanel({ history: [record({ image_path: 'tooth/p1/16/x.png', image_name: 'xray.png' })] })
+    renderPanel({
+      history: [record({ image_path: 'tooth/p1/16/x.png', image_name: 'xray.png' })],
+    })
     await user.click(screen.getByRole('button', { name: /view image/i }))
     await waitFor(() => expect(api.getSignedToothImageUrl).toHaveBeenCalledWith('tooth/p1/16/x.png'))
   })

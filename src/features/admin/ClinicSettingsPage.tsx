@@ -55,14 +55,9 @@ export default function ClinicSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-lg">
-      <PageHeader
-        title="Clinic settings"
-        description="Shown in the app's header for every staff member."
-      />
+      <PageHeader title="Clinic settings" description="Shown in the app's header for every staff member." />
 
-      {error && (
-        <ErrorState message={error} />
-      )}
+      {error && <ErrorState message={error} />}
       {saved && (
         <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
           Saved.

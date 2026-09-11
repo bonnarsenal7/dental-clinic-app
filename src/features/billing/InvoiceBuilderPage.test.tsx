@@ -21,8 +21,13 @@ const scheduling = await import('../scheduling/api')
 const patients = await import('../patients/api')
 
 const PROCEDURE = {
-  id: 'proc-1', name: 'Oral prophylaxis (cleaning)', code: 'PROPHY',
-  default_fee: 1200, chart_condition: null, active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'proc-1',
+  name: 'Oral prophylaxis (cleaning)',
+  code: 'PROPHY',
+  default_fee: 1200,
+  chart_condition: null,
+  active: true,
+  created_at: '2026-01-01T00:00:00Z',
 }
 
 function renderBuilder(search: string) {
@@ -37,14 +42,22 @@ function renderBuilder(search: string) {
 
 describe('arriving from a completed appointment', () => {
   beforeEach(() => {
-    vi.mocked(patients.getPatient).mockResolvedValue({ id: 'pat-1', name: 'Maria Clara Santos' } as never)
+    vi.mocked(patients.getPatient).mockResolvedValue({
+      id: 'pat-1',
+      name: 'Maria Clara Santos',
+    } as never)
     vi.mocked(api.listProcedures).mockResolvedValue([PROCEDURE] as never)
-    vi.mocked(api.listPatientVisits).mockResolvedValue([{ id: 'visit-1', visit_date: '2026-09-11T01:30:00Z' }])
+    vi.mocked(api.listPatientVisits).mockResolvedValue([
+      { id: 'visit-1', visit_date: '2026-09-11T01:30:00Z' },
+    ])
     vi.mocked(api.listBillableCharting).mockResolvedValue([])
     vi.mocked(api.findInvoiceForVisit).mockResolvedValue(null)
     vi.mocked(scheduling.getAppointment).mockResolvedValue({
-      id: 'appt-1', patient_id: 'pat-1', visit_id: 'visit-1',
-      procedure_id: 'proc-1', reason: 'Oral prophylaxis',
+      id: 'appt-1',
+      patient_id: 'pat-1',
+      visit_id: 'visit-1',
+      procedure_id: 'proc-1',
+      reason: 'Oral prophylaxis',
     } as never)
   })
 
@@ -52,9 +65,7 @@ describe('arriving from a completed appointment', () => {
   // so neither should have to be retyped at checkout.
   it('prefills the line and the fee from the booked procedure', async () => {
     renderBuilder('?appointment=appt-1&visit=visit-1')
-    await waitFor(() =>
-      expect(screen.getByDisplayValue('Oral prophylaxis (cleaning)')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByDisplayValue('Oral prophylaxis (cleaning)')).toBeInTheDocument())
     expect(screen.getByDisplayValue('1200')).toBeInTheDocument()
   })
 
@@ -69,8 +80,11 @@ describe('arriving from a completed appointment', () => {
 
   it('falls back to the appointment reason when no procedure was chosen', async () => {
     vi.mocked(scheduling.getAppointment).mockResolvedValue({
-      id: 'appt-1', patient_id: 'pat-1', visit_id: 'visit-1',
-      procedure_id: null, reason: 'Emergency toothache',
+      id: 'appt-1',
+      patient_id: 'pat-1',
+      visit_id: 'visit-1',
+      procedure_id: null,
+      reason: 'Emergency toothache',
     } as never)
     renderBuilder('?appointment=appt-1&visit=visit-1')
     expect(await screen.findByDisplayValue('Emergency toothache')).toBeInTheDocument()
@@ -81,7 +95,10 @@ describe('arriving from a completed appointment', () => {
     renderBuilder('?appointment=appt-1&visit=visit-1')
     const warning = await screen.findByRole('alert')
     expect(warning).toHaveTextContent(/already been invoiced/i)
-    expect(screen.getByRole('link', { name: /open that invoice/i })).toHaveAttribute('href', '/invoices/inv-9')
+    expect(screen.getByRole('link', { name: /open that invoice/i })).toHaveAttribute(
+      'href',
+      '/invoices/inv-9',
+    )
   })
 
   it('adds nothing when opened without an appointment', async () => {

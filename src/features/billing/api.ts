@@ -1,11 +1,5 @@
 import { supabase } from '../../core/supabaseClient'
-import type {
-  BillableCharting,
-  Invoice,
-  InvoiceWithDetail,
-  PaymentMethod,
-  Procedure,
-} from './types'
+import type { BillableCharting, Invoice, InvoiceWithDetail, PaymentMethod, Procedure } from './types'
 
 // --- Price list ----------------------------------------------------------
 
@@ -169,7 +163,10 @@ export async function listBillableCharting(visitId: string): Promise<BillableCha
   const { data: billed, error: billedError } = await supabase
     .from('invoice_items')
     .select('tooth_record_id')
-    .in('tooth_record_id', records.map((r) => r.id))
+    .in(
+      'tooth_record_id',
+      records.map((r) => r.id),
+    )
   if (billedError) throw new Error(billedError.message)
 
   const billedIds = new Set((billed ?? []).map((b) => b.tooth_record_id as string))
@@ -186,9 +183,7 @@ export async function listBillableCharting(visitId: string): Promise<BillableCha
 }
 
 /** Visits for the invoice builder's "which visit is this for" selector. */
-export async function listPatientVisits(
-  patientId: string,
-): Promise<{ id: string; visit_date: string }[]> {
+export async function listPatientVisits(patientId: string): Promise<{ id: string; visit_date: string }[]> {
   const { data, error } = await supabase
     .from('visits')
     .select('id, visit_date')

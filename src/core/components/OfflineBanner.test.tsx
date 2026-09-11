@@ -46,7 +46,10 @@ describe('OfflineBanner', () => {
   it('reacts to the browser going offline on its own', () => {
     render(<OfflineBanner />)
     act(() => {
-      Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+      Object.defineProperty(window.navigator, 'onLine', {
+        value: false,
+        configurable: true,
+      })
       window.dispatchEvent(new Event('offline'))
     })
     expect(screen.getByRole('status')).toBeInTheDocument()

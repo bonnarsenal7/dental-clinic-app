@@ -13,7 +13,11 @@ describe('LoginPage', () => {
   // name is hardcoded and free to drift from the one the rest of the app
   // shows. That drift is what this pins.
   it('shows the clinic name', () => {
-    render(<MemoryRouter><LoginPage /></MemoryRouter>)
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    )
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(CLINIC_NAME)
   })
 

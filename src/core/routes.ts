@@ -71,8 +71,11 @@ export function warmRoutesFor(
     }
   }
 
-  const idle = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
-    .requestIdleCallback
+  const idle = (
+    window as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+    }
+  ).requestIdleCallback
   if (idle) idle(run, { timeout: 3000 })
   else window.setTimeout(run, 1500)
 }

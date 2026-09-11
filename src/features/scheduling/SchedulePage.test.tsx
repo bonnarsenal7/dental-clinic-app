@@ -9,7 +9,10 @@ vi.mock('./api', () => ({
   listDentists: vi.fn(),
   bookAppointment: vi.fn(),
 }))
-vi.mock('../billing/api', () => ({ findInvoiceForVisit: vi.fn(), listProcedures: vi.fn() }))
+vi.mock('../billing/api', () => ({
+  findInvoiceForVisit: vi.fn(),
+  listProcedures: vi.fn(),
+}))
 vi.mock('../patients/api', () => ({ searchPatients: vi.fn(), getPatient: vi.fn() }))
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ staff: { id: 's1', name: 'Reception', role: 'receptionist' } }),
@@ -22,7 +25,9 @@ const patients = await import('../patients/api')
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Routes><Route path="/schedule" element={<SchedulePage />} /></Routes>
+      <Routes>
+        <Route path="/schedule" element={<SchedulePage />} />
+      </Routes>
     </MemoryRouter>,
   )
 }
@@ -34,7 +39,10 @@ describe('SchedulePage', () => {
     vi.mocked(billing.listProcedures).mockResolvedValue([] as never)
     vi.mocked(billing.findInvoiceForVisit).mockResolvedValue(null)
     vi.mocked(patients.searchPatients).mockResolvedValue([] as never)
-    vi.mocked(patients.getPatient).mockResolvedValue({ id: 'p-9', name: 'Lorna Villanueva' } as never)
+    vi.mocked(patients.getPatient).mockResolvedValue({
+      id: 'p-9',
+      name: 'Lorna Villanueva',
+    } as never)
   })
 
   it('opens closed, with no booking form', async () => {

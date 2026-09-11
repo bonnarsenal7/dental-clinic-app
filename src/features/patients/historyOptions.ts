@@ -33,8 +33,14 @@ export const DENTAL_SYMPTOMS: { key: string; label: string }[] = [
   { key: 'sensitive_to_cold', label: 'Sensitive to cold' },
   { key: 'sensitive_to_sweet', label: 'Sensitive to sweet' },
   { key: 'sensitive_to_pressure_or_biting', label: 'Sensitive to pressure or biting' },
-  { key: 'prolonged_bleeding_after_extraction', label: 'Prolonged bleeding after extraction' },
-  { key: 'has_dentures_braces_or_retainers', label: 'Has dentures, braces, or retainers' },
+  {
+    key: 'prolonged_bleeding_after_extraction',
+    label: 'Prolonged bleeding after extraction',
+  },
+  {
+    key: 'has_dentures_braces_or_retainers',
+    label: 'Has dentures, braces, or retainers',
+  },
   { key: 'lockjaw', label: 'Lockjaw' },
   { key: 'food_stuck_between_teeth', label: 'Food stuck between teeth' },
   { key: 'bad_taste_or_odor', label: 'Bad taste or odor' },
@@ -132,13 +138,25 @@ re-confirmed at any future visit.`
 export type AlertSeverity = 'critical' | 'notable'
 
 export const CONDITION_ALERTS: Record<string, { severity: AlertSeverity; why: string }> = {
-  excessive_bleeding: { severity: 'critical', why: 'bleeding risk — check before any extraction' },
-  angina: { severity: 'critical', why: 'cardiac risk — limit epinephrine, keep appointments short' },
+  excessive_bleeding: {
+    severity: 'critical',
+    why: 'bleeding risk — check before any extraction',
+  },
+  angina: {
+    severity: 'critical',
+    why: 'cardiac risk — limit epinephrine, keep appointments short',
+  },
   stroke: { severity: 'critical', why: 'cardiac/anticoagulant risk' },
   epilepsy: { severity: 'critical', why: 'seizure risk in the chair' },
-  rheumatic_fever_arthritis: { severity: 'critical', why: 'may need antibiotic prophylaxis' },
+  rheumatic_fever_arthritis: {
+    severity: 'critical',
+    why: 'may need antibiotic prophylaxis',
+  },
 
-  high_blood_pressure: { severity: 'notable', why: 'check BP before extraction; limit epinephrine' },
+  high_blood_pressure: {
+    severity: 'notable',
+    why: 'check BP before extraction; limit epinephrine',
+  },
   diabetes: { severity: 'notable', why: 'delayed healing, infection risk' },
   asthma: { severity: 'notable', why: 'have inhaler to hand' },
   hepatitis_a_or_b: { severity: 'notable', why: 'infection control' },
@@ -147,6 +165,12 @@ export const CONDITION_ALERTS: Record<string, { severity: AlertSeverity; why: st
   emphysema: { severity: 'notable', why: 'avoid reclining fully' },
   kidney_problems: { severity: 'notable', why: 'affects drug choice and dosing' },
   anemia: { severity: 'notable', why: 'affects healing' },
-  malignancy_tumor: { severity: 'notable', why: 'radiotherapy/chemo history affects healing' },
-  thyroid_problem: { severity: 'notable', why: 'epinephrine sensitivity if uncontrolled' },
+  malignancy_tumor: {
+    severity: 'notable',
+    why: 'radiotherapy/chemo history affects healing',
+  },
+  thyroid_problem: {
+    severity: 'notable',
+    why: 'epinephrine sensitivity if uncontrolled',
+  },
 }
