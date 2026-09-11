@@ -21,6 +21,21 @@ export async function createStaff(input: { name: string; email: string; role: St
   return data
 }
 
+/** Restores an account that was deactivated.
+ *
+ *  Goes through the Edge Function rather than updating `staff.active`
+ *  directly, because deactivation also bans the login in GoTrue — and only
+ *  the service role can lift that. Flipping the flag from the browser would
+ *  produce an account that reads as active in the Staff screen and still
+ *  cannot sign in. */
+export async function reactivateStaff(staffId: string) {
+  const { data, error } = await supabase.functions.invoke<{ ok: true }>('manage-staff', {
+    body: { action: 'reactivate', staffId },
+  })
+  if (error) throw new Error(error.message)
+  return data
+}
+
 export async function deactivateStaff(staffId: string) {
   const { data, error } = await supabase.functions.invoke<{ ok: true }>('manage-staff', {
     body: { action: 'deactivate', staffId },

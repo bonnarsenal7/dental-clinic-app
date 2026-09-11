@@ -148,5 +148,34 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
-  return json({ error: 'Unknown action. Use "create" or "deactivate".' }, 400)
+  if (action === 'reactivate') {
+    const { staffId } = payload as { staffId?: string }
+    if (!staffId) {
+      return json({ error: 'staffId is required' }, 400)
+    }
+
+    // Deactivation does two things, so restoring has to undo both. Clearing
+    // staff.active alone would leave the account able to reach data via RLS
+    // while GoTrue still refused the login — an account that looks restored
+    // in the Staff screen and cannot sign in.
+    const { error: updateError } = await adminClient.from('staff').update({ active: true }).eq('id', staffId)
+    if (updateError) {
+      return json({ error: updateError.message }, 400)
+    }
+
+    // 'none' lifts the ban. Order matters: if this fails after the flag is
+    // set, the account is visibly active but cannot log in — so the flag is
+    // put back rather than left inconsistent.
+    const { error: unbanError } = await adminClient.auth.admin.updateUserById(staffId, {
+      ban_duration: 'none',
+    })
+    if (unbanError) {
+      await adminClient.from('staff').update({ active: false }).eq('id', staffId)
+      return json({ error: `Could not lift the login ban: ${unbanError.message}` }, 400)
+    }
+
+    return json({ ok: true })
+  }
+
+  return json({ error: 'Unknown action. Use "create", "deactivate" or "reactivate".' }, 400)
 })

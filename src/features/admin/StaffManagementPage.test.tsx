@@ -7,6 +7,7 @@ vi.mock('./api', () => ({
   listStaff: vi.fn(),
   createStaff: vi.fn(),
   deactivateStaff: vi.fn(),
+  reactivateStaff: vi.fn(),
 }))
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({
@@ -59,6 +60,7 @@ describe('StaffManagementPage', () => {
       note: 'ok',
     })
     vi.mocked(api.deactivateStaff).mockResolvedValue({ ok: true })
+    vi.mocked(api.reactivateStaff).mockResolvedValue({ ok: true })
   })
 
   it('lists every account with its role and status', async () => {
@@ -79,11 +81,59 @@ describe('StaffManagementPage', () => {
     expect(screen.getAllByRole('button', { name: /deactivate/i })).toHaveLength(1)
   })
 
-  it('offers nothing to deactivate on an already-inactive account', async () => {
+  it('offers restore, not deactivate, on an already-inactive account', async () => {
     render(<StaffManagementPage />)
     await screen.findByText('Former Receptionist')
-    const row = screen.getByText('Former Receptionist').closest('tr')!
-    expect(row.querySelector('button')).toBeNull()
+    const row = within(screen.getByText('Former Receptionist').closest('tr')!)
+    expect(row.getByRole('button', { name: /restore access/i })).toBeInTheDocument()
+    expect(row.queryByRole('button', { name: /deactivate/i })).not.toBeInTheDocument()
+  })
+
+  // Deactivation sets staff.active = false AND bans the login in GoTrue, so
+  // restoring has to undo both. Going through the Edge Function is the only
+  // way to lift the ban — flipping the flag from the browser would produce
+  // an account that reads as active here and still cannot sign in.
+  it('restores through the edge function, not a direct flag change', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Former Receptionist')
+    await user.click(screen.getByRole('button', { name: /restore access/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(/restore access for former receptionist/i)
+    expect(dialog).toHaveTextContent(/log in again immediately/i)
+    await user.click(within(dialog).getByRole('button', { name: /^restore access$/i }))
+    await waitFor(() => expect(api.reactivateStaff).toHaveBeenCalledWith('r1'))
+  })
+
+  it('does not restore if the confirmation is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Former Receptionist')
+    await user.click(screen.getByRole('button', { name: /restore access/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.reactivateStaff).not.toHaveBeenCalled()
+  })
+
+  // The person restoring needs to know the password did not come back with
+  // the account, or they will tell the staff member to just log in.
+  it('says the password is unchanged', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Former Receptionist')
+    await user.click(screen.getByRole('button', { name: /restore access/i }))
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/password is unchanged/i)
+  })
+
+  it('refreshes so the account shows as active again', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Former Receptionist')
+    await user.click(screen.getByRole('button', { name: /restore access/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^restore access$/i }))
+    await waitFor(() => expect(api.listStaff).toHaveBeenCalledTimes(2))
   })
 
   // Deactivation signs someone out and blocks future logins, so it asks —

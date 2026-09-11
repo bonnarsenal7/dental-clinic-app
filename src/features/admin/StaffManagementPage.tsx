@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../auth/AuthContext'
 import type { StaffProfile, StaffRole } from '../auth/types'
-import { createStaff, deactivateStaff, listStaff } from './api'
+import { createStaff, deactivateStaff, listStaff, reactivateStaff } from './api'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import ConfirmDialog from '../../core/components/ui/ConfirmDialog'
@@ -24,6 +24,7 @@ export default function StaffManagementPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   // The account the confirmation is currently asking about, or null.
   const [pendingDeactivation, setPendingDeactivation] = useState<StaffProfile | null>(null)
+  const [pendingReactivation, setPendingReactivation] = useState<StaffProfile | null>(null)
 
   const {
     register,
@@ -59,12 +60,22 @@ export default function StaffManagementPage() {
     }
   }
 
-  // Throws rather than catching: ConfirmDialog shows the failure inside
+  // These throw rather than catching: ConfirmDialog shows the failure inside
   // itself, where the person who pressed the button is still looking.
   async function onDeactivate(id: string) {
     setBusyId(id)
     try {
       await deactivateStaff(id)
+      await refresh()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function onReactivate(id: string) {
+    setBusyId(id)
+    try {
+      await reactivateStaff(id)
       await refresh()
     } finally {
       setBusyId(null)
@@ -158,12 +169,39 @@ export default function StaffManagementPage() {
                       {busyId === s.id ? 'Deactivating…' : 'Deactivate'}
                     </button>
                   )}
+                  {/* The list deliberately keeps deactivated accounts, which
+                      implies you can do something about them. Until now you
+                      could not: undoing a deactivation meant a database edit
+                      plus lifting the GoTrue ban by hand. */}
+                  {!s.active && (
+                    <button
+                      onClick={() => setPendingReactivation(s)}
+                      disabled={busyId === s.id}
+                      className="text-xs text-slate-600 hover:underline disabled:opacity-50"
+                    >
+                      {busyId === s.id ? 'Restoring…' : 'Restore access'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={pendingReactivation !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingReactivation(null)
+        }}
+        title={`Restore access for ${pendingReactivation?.name ?? 'this account'}?`}
+        description="They will be able to log in again immediately, with the role shown. Their password is unchanged — if they no longer have it, they can reset it from the login screen."
+        confirmLabel="Restore access"
+        tone="default"
+        onConfirm={async () => {
+          if (pendingReactivation) await onReactivate(pendingReactivation.id)
+        }}
+      />
 
       <ConfirmDialog
         open={pendingDeactivation !== null}

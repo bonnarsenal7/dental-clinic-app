@@ -194,6 +194,20 @@ all, which enforces true zero-access rather than "hidden in the UI."
   password voluntarily (`/change-password`, inside the authenticated
   shell, linked from the nav bar).
 
+### Deactivation is two things, so restoring undoes two things
+`manage-staff` supports `create`, `deactivate` and `reactivate`. Deactivate
+sets `staff.active = false` **and** bans the login in GoTrue; restoring has
+to undo both, and only the service role can lift the ban.
+
+**Never restore an account by flipping `staff.active` from the browser or
+the SQL editor alone.** That produces an account that reads as active in the
+Staff screen and still cannot sign in — the worst version, because it looks
+fixed. `reactivate` puts the flag back if the unban fails, rather than
+leaving the two halves inconsistent.
+
+Restoring does not restore a password. The dialog says so, because otherwise
+whoever restores the account will tell the staff member to just log in.
+
 ### Staff account management
 Creating and deactivating accounts needs the Supabase **service-role**
 key, which must never reach the browser. Both actions go through the
@@ -260,8 +274,9 @@ supabase link --project-ref xzpheuvthmsucvhytdjh
 supabase db push
 supabase functions deploy manage-staff
 ```
-(`functions deploy` hasn't been exercised from a session yet — only
-`migration list` and `db push` are confirmed.)
+All three are confirmed from a session: `migration list`, `db push` and
+`functions deploy`. The deploy prints a "Docker is not running" warning and
+succeeds anyway — the current CLI bundles Edge Functions without it.
 
 **Node is installed** (Homebrew, v26), so `npm run build` — which is the
 type-check — and `npm run lint` both run in-session. They were briefly
