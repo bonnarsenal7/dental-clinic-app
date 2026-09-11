@@ -1424,6 +1424,12 @@ existing code rather than chosen from defaults — no semicolons, single
 quotes, double quotes in JSX — so adopting it did not also impose a style
 change nobody asked for.
 
+**Check with `npm run format:check`, not `prettier --check src`.** CI runs
+`prettier --check .`, which covers `supabase/functions/` and the config
+files as well. Checking only `src` passes locally and fails CI the moment
+an Edge Function is edited — which is exactly how the `reset_password`
+commit broke the build.
+
 `printWidth` is **110** because it produced the least churn: 74 files
 touched against 82 at 100 and 91 at 90. It also suits code carrying long
 Tailwind class strings, which cannot usefully be broken anyway.

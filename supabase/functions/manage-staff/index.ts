@@ -229,8 +229,5 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
-  return json(
-    { error: 'Unknown action. Use "create", "deactivate", "reactivate" or "reset_password".' },
-    400,
-  )
+  return json({ error: 'Unknown action. Use "create", "deactivate", "reactivate" or "reset_password".' }, 400)
 })
