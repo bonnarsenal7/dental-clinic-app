@@ -2,8 +2,10 @@ import { useRef, useState } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
 import { CONSENT_TEXT, CONSENT_TEXT_VERSION } from './historyOptions'
 import { saveConsent } from './api'
+import { SIGNER_RELATIONSHIPS, type SignerRelationship } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
+import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
 
 interface ConsentCaptureProps {
   patientId: string
@@ -17,6 +19,8 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
   const padRef = useRef<SignatureCanvas>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [signedByName, setSignedByName] = useState('')
+  const [relationship, setRelationship] = useState<SignerRelationship>('self')
 
   function handleClear() {
     padRef.current?.clear()
@@ -24,6 +28,12 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
 
   async function handleSave() {
     setError(null)
+    // A signature with no printed name is the problem this form had: on
+    // paper the name is legible beside the mark, on a tablet it often is not.
+    if (!signedByName.trim()) {
+      setError('Enter the name of the person signing.')
+      return
+    }
     if (!padRef.current || padRef.current.isEmpty()) {
       setError('Please sign before saving.')
       return
@@ -40,6 +50,8 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
         staffId,
         consentTextVersion: CONSENT_TEXT_VERSION,
         signatureDataUrl: dataUrl,
+        signedByName: signedByName.trim(),
+        signerRelationship: relationship,
       })
       onSaved()
     } catch (e) {
@@ -65,6 +77,35 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
       </p>
 
       {error && <ErrorState message={error} />}
+
+      {/* Who is signing, and on what authority. The screen has always
+          invited a parent or guardian to sign, but the record could not tell
+          their signature from the patient's own — and the wording above is
+          in the patient's voice. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+        <Field label="Signing as">
+          <NativeSelect
+            value={relationship}
+            onChange={(e) => setRelationship(e.target.value as SignerRelationship)}
+          >
+            {SIGNER_RELATIONSHIPS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field
+          label="Name of person signing"
+          hint={relationship === 'self' ? undefined : 'The adult consenting, not the patient.'}
+        >
+          <TextInput
+            value={signedByName}
+            onChange={(e) => setSignedByName(e.target.value)}
+            placeholder="Printed name"
+          />
+        </Field>
+      </div>
 
       <div className="border border-slate-300 rounded-md bg-slate-50 w-full max-w-md">
         <SignatureCanvas

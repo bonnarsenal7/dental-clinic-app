@@ -346,6 +346,27 @@ each is already tied 1:1 to a `consents` row). Bucket access follows the
 same front-desk tier as `patients` (receptionist/dentist/admin read/write,
 admin-only delete).
 
+### A consent records who signed, not just that someone did
+`0010_consent_signer.sql` adds `signed_by_name` and `signer_relationship`
+(`self` / `parent` / `guardian` / `representative`, enforced by a check
+constraint that the UI's dropdown mirrors).
+
+The screen had always invited "the patient (or parent/guardian)" to sign
+while `consents` stored only `patient_id` and the image — so a guardian's
+signature was indistinguishable from the patient's own, on a document
+written in the patient's voice ("I consent"). For a clinic that treats
+children that is a gap in the record, not a cosmetic one.
+
+**Both columns are nullable, and must stay that way.** Ten consents predate
+this and nothing knows who signed them. Backfilling `self` would invent a
+fact about a document somebody already put their name to. A null means
+"not recorded" and the profile says exactly that rather than leaving a
+blank that reads as the patient.
+
+A second constraint requires both columns or neither: a name with no stated
+authority is a half-record that looks complete in a list and answers nothing
+when it matters.
+
 ### Consent text
 The wording in `historyOptions.ts` (`CONSENT_TEXT`) is a placeholder,
 clearly flagged in the UI as draft pending Phase 5's legal review under

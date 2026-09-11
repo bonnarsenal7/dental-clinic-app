@@ -8,6 +8,7 @@ import PatientScheduling from '../scheduling/PatientScheduling'
 import VisitTimeline from './VisitTimeline'
 import FileAttachments from './FileAttachments'
 import { MEDICAL_CONDITIONS, DENTAL_SYMPTOMS, ORAL_HABITS } from './historyOptions'
+import { SIGNER_RELATIONSHIPS } from './types'
 import type { Consent, DentalHistory, MedicalHistory, Patient } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
@@ -179,6 +180,20 @@ export default function PatientProfilePage() {
         {consents.map((c) => (
           <p key={c.id} className="text-sm text-slate-600">
             Signed {new Date(c.signed_at).toLocaleString()} — version {c.consent_text_version}
+            {/* A null signer means the consent predates 0010 recording it.
+                That has to read as "not recorded" rather than silently
+                looking like the patient signed. */}
+            {c.signed_by_name ? (
+              <span className="text-slate-500">
+                {' '}
+                · by {c.signed_by_name}
+                {c.signer_relationship && c.signer_relationship !== 'self'
+                  ? ` (${SIGNER_RELATIONSHIPS.find((r) => r.value === c.signer_relationship)?.label ?? c.signer_relationship})`
+                  : ''}
+              </span>
+            ) : (
+              <span className="text-slate-400"> · signer not recorded</span>
+            )}
           </p>
         ))}
         {showConsent && staff && (

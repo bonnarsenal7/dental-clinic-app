@@ -62,6 +62,7 @@ describe('ConsentCapture', () => {
     const user = userEvent.setup()
     const onSaved = vi.fn()
     render(<ConsentCapture patientId="p1" staffId="s1" onSaved={onSaved} />)
+    await user.type(screen.getByLabelText(/name of person signing/i), 'Maria Clara Santos')
     await user.click(screen.getByRole('button', { name: /save|consent/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/please sign before saving/i)
     expect(api.saveConsent).not.toHaveBeenCalled()
@@ -73,6 +74,7 @@ describe('ConsentCapture', () => {
     const onSaved = vi.fn()
     pad.empty = false
     render(<ConsentCapture patientId="p1" staffId="s1" onSaved={onSaved} />)
+    await user.type(screen.getByLabelText(/name of person signing/i), 'Maria Clara Santos')
     await user.click(screen.getByRole('button', { name: /save|consent/i }))
     await waitFor(() => expect(api.saveConsent).toHaveBeenCalled())
     expect(vi.mocked(api.saveConsent).mock.calls[0][0]).toMatchObject({
@@ -92,6 +94,7 @@ describe('ConsentCapture', () => {
     pad.empty = false
     vi.mocked(api.saveConsent).mockRejectedValue(new TypeError('Failed to fetch'))
     render(<ConsentCapture patientId="p1" staffId="s1" onSaved={onSaved} />)
+    await user.type(screen.getByLabelText(/name of person signing/i), 'Maria Clara Santos')
     await user.click(screen.getByRole('button', { name: /save|consent/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/you're offline/i)
     expect(onSaved).not.toHaveBeenCalled()
@@ -107,5 +110,67 @@ describe('ConsentCapture', () => {
       />,
     )
     expect(screen.getByRole('button', { name: /save re-confirmed consent/i })).toBeInTheDocument()
+  })
+
+  // --- Who signed --------------------------------------------------------
+
+  // The screen has always invited "the patient (or parent/guardian)" to
+  // sign, while the consent text is written in the patient's voice. Without
+  // recording the signer, a guardian's mark was indistinguishable from the
+  // patient's own.
+  it('records the name and authority of whoever signed', async () => {
+    const user = userEvent.setup()
+    render(<ConsentCapture patientId="p-1" staffId="s-1" onSaved={vi.fn()} />)
+    await user.selectOptions(screen.getByLabelText(/signing as/i), 'guardian')
+    await user.type(screen.getByLabelText(/name of person signing/i), 'Rosa Santos Cruz')
+    pad.empty = false
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(api.saveConsent).toHaveBeenCalled())
+    expect(vi.mocked(api.saveConsent).mock.calls[0][0]).toMatchObject({
+      signedByName: 'Rosa Santos Cruz',
+      signerRelationship: 'guardian',
+    })
+  })
+
+  it('defaults to the patient signing for themselves', async () => {
+    const user = userEvent.setup()
+    render(<ConsentCapture patientId="p-1" staffId="s-1" onSaved={vi.fn()} />)
+    await user.type(screen.getByLabelText(/name of person signing/i), 'Maria Clara Santos')
+    pad.empty = false
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(api.saveConsent).toHaveBeenCalled())
+    expect(vi.mocked(api.saveConsent).mock.calls[0][0]).toMatchObject({ signerRelationship: 'self' })
+  })
+
+  // A mark on a tablet is rarely legible. The printed name is what makes
+  // the record answer "who agreed to this".
+  it('will not save a signature with no printed name', async () => {
+    const user = userEvent.setup()
+    render(<ConsentCapture patientId="p-1" staffId="s-1" onSaved={vi.fn()} />)
+    pad.empty = false
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    expect(await screen.findByText(/enter the name of the person signing/i)).toBeInTheDocument()
+    expect(api.saveConsent).not.toHaveBeenCalled()
+  })
+
+  it('trims the name rather than storing the padding', async () => {
+    const user = userEvent.setup()
+    render(<ConsentCapture patientId="p-1" staffId="s-1" onSaved={vi.fn()} />)
+    await user.type(screen.getByLabelText(/name of person signing/i), '  Maria Clara Santos  ')
+    pad.empty = false
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(api.saveConsent).toHaveBeenCalled())
+    expect(vi.mocked(api.saveConsent).mock.calls[0][0]).toMatchObject({
+      signedByName: 'Maria Clara Santos',
+    })
+  })
+
+  it('offers only the authorities the database accepts', () => {
+    render(<ConsentCapture patientId="p-1" staffId="s-1" onSaved={vi.fn()} />)
+    const values = Array.from((screen.getByLabelText(/signing as/i) as HTMLSelectElement).options).map(
+      (o) => o.value,
+    )
+    // Matches consents_signer_relationship_check in 0010.
+    expect(values).toEqual(['self', 'parent', 'guardian', 'representative'])
   })
 })

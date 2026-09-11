@@ -6,6 +6,7 @@ import type {
   Patient,
   PatientFile,
   PatientRegistrationInput,
+  SignerRelationship,
   VisitWithNote,
 } from './types'
 
@@ -191,6 +192,8 @@ export async function saveConsent(params: {
   staffId: string
   consentTextVersion: string
   signatureDataUrl: string
+  signedByName: string
+  signerRelationship: SignerRelationship
 }) {
   const blob = await (await fetch(params.signatureDataUrl)).blob()
   const path = `signatures/${params.patientId}/${Date.now()}.png`
@@ -204,6 +207,8 @@ export async function saveConsent(params: {
     staff_id: params.staffId,
     consent_text_version: params.consentTextVersion,
     signature_image_url: path,
+    signed_by_name: params.signedByName,
+    signer_relationship: params.signerRelationship,
   })
   if (insertError) throw new Error(`Consent: ${insertError.message}`)
 }

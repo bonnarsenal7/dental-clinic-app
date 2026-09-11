@@ -152,6 +152,8 @@ describe('patients api', () => {
       staffId: 's-1',
       consentTextVersion: 'v2-draft',
       signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedByName: 'Maria Clara Santos',
+      signerRelationship: 'self',
     })
     expect(db().methods('consents')).toContain('insert')
     expect(db().query('consents')!.payload).toMatchObject({
@@ -171,10 +173,32 @@ describe('patients api', () => {
       staffId: 's-1',
       consentTextVersion: 'v2-draft',
       signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedByName: 'Maria Clara Santos',
+      signerRelationship: 'self',
     })
     const path = (db().query('consents')!.payload as Record<string, string>).signature_image_url
     expect(path).toMatch(/^signatures\/p-1\//)
     expect(path).not.toMatch(/^https?:/)
+  })
+
+  // The screen invites "the patient (or parent/guardian)" to sign. Without
+  // these columns a guardian's signature was indistinguishable from the
+  // patient's own, on a document written in the patient's voice.
+  it('records who signed and on what authority', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(new Blob(['x']))) as unknown as typeof fetch
+    db().queue('consents', { data: null })
+    await api.saveConsent({
+      patientId: 'p-1',
+      staffId: 's-1',
+      consentTextVersion: 'v2-draft',
+      signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedByName: 'Rosa Santos Cruz',
+      signerRelationship: 'parent',
+    })
+    expect(db().query('consents')!.payload).toMatchObject({
+      signed_by_name: 'Rosa Santos Cruz',
+      signer_relationship: 'parent',
+    })
   })
 
   it('does not record a consent whose signature failed to upload', async () => {
@@ -186,6 +210,8 @@ describe('patients api', () => {
         staffId: 's-1',
         consentTextVersion: 'v2-draft',
         signatureDataUrl: 'data:image/png;base64,AAAA',
+        signedByName: 'Maria Clara Santos',
+        signerRelationship: 'self',
       }),
     ).rejects.toThrow(/signature upload:/i)
     expect(db().query('consents')).toBeUndefined()

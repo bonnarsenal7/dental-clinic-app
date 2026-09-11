@@ -48,6 +48,17 @@ export interface DentalHistory {
   updated_at: string
 }
 
+/** How a signer is entitled to consent. Widening this means a migration —
+ *  the same list is a check constraint on the column (0010). */
+export type SignerRelationship = 'self' | 'parent' | 'guardian' | 'representative'
+
+export const SIGNER_RELATIONSHIPS: { value: SignerRelationship; label: string }[] = [
+  { value: 'self', label: 'The patient' },
+  { value: 'parent', label: 'Parent' },
+  { value: 'guardian', label: 'Legal guardian' },
+  { value: 'representative', label: 'Authorised representative' },
+]
+
 export interface Consent {
   id: string
   patient_id: string
@@ -56,6 +67,10 @@ export interface Consent {
   signature_image_url: string
   signed_at: string
   created_at: string
+  /** Null on consents signed before 0010 recorded this — which means
+   *  "not recorded", never "the patient signed". */
+  signed_by_name: string | null
+  signer_relationship: SignerRelationship | null
 }
 
 export interface Visit {
