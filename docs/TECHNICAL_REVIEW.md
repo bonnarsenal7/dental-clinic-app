@@ -290,12 +290,34 @@ Two limits, recorded rather than smoothed over:
   password leaked must deactivate and restore instead — that path does ban
   and unban in GoTrue, which does cut sessions off. The confirmation dialog
   says so.
-- **The Edge Function branch was not exercised against production.** Its
-  guard was: an anon-key call returns the function's own `Not authenticated`,
-  so the new bundle is live and the admin check holds. Exercising the reset
-  itself would have meant changing a real staff member's password. The
-  client half is unit-tested; the server branch is reviewed, not run. Worth
-  one manual pass on the Staff screen during the pilot.
+- **An existing session survives the reset** (above). That limit stands.
+
+The Edge Function branch **has now been exercised against the live project**
+— `scripts/test-manage-staff.py`, 10/10 on 2026-09-12. It creates two
+disposable accounts, drives the deployed function through the same call the
+Staff screen makes, and deletes them:
+
+```
+PASS  an admin gets a new temporary password back
+PASS  the new password actually signs in
+PASS  the old password stops working
+PASS  a deactivated account is refused           (400, points at Restore access)
+PASS  a receptionist cannot reset an admin       (403 Admin role required)
+PASS  an unknown staff id gives a clear 404
+PASS  a missing staffId is rejected
+```
+
+"the new password actually signs in" and "the old password stops working"
+are the pair that matter — a reset returning a string nobody can log in with
+would pass every shallower check.
+
+Cleanup verified: 5 auth users, 5 staff rows, 0 orphaned, 0 `zz-test-*`
+leftovers. The six `audit_log` rows the test wrote are permanent by design
+and are evidence the audit trigger fires.
+
+**Still not driven through a browser.** The React half is unit-tested and
+the function half is now covered live, but nobody has clicked the button.
+Keep that on the pilot checklist.
 
 ### F-6 No clinic day has been run through the system — OPEN
 
