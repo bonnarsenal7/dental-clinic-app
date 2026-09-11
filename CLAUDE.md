@@ -773,6 +773,25 @@ on the session time zone) and generated columns require immutability.
 `api.ts` translates the constraint name into something a receptionist can
 act on.
 
+### Forms set `noValidate` and let react-hook-form validate
+Every form with `required` rules carries `noValidate`, and renders the
+message with `<FieldError>` from `core/components/states.tsx`.
+
+Without it the browser validates first, which means: messages differ per
+browser and can't be styled, native bubbles sit awkwardly on a tablet, and
+**the form's own guards become unreachable** — native validation stops the
+submit handler ever running, so code like "Enter a payment amount" never
+fires. Both layers now have a job: the field rule catches empty, the
+handler catches what a `required` rule can't (a zero payment, a
+non-numeric amount).
+
+It also makes the forms testable. happy-dom computes `500 % 0.01 !== 0` in
+floating point and reports `stepMismatch` on any `step="0.01"` money field,
+so a native-validating form silently never submits under test — the
+symptom is a test that times out with nothing rendered. Real browsers
+compare with decimal scaling per spec and accept it, so this was a test-only
+failure hiding behind a production-shaped smell.
+
 ### Don't use a `size` listbox for a chooser
 The patient picker was `<select size={4}>`. On a tablet — which is where
 this app is used — a multi-row select renders as an inline list instead of
@@ -870,3 +889,13 @@ that makes the real warnings easier to skip past.
 Numeric columns are coerced with `Number()` everywhere: PostgREST returns
 Postgres `numeric` as a string often enough that naive arithmetic would
 render `NaN` or concatenate two totals.
+
+## Test environment gotchas
+
+- **`testTimeout` (20s) must stay above testing-library's `asyncUtilTimeout`
+  (5s).** If they are equal, a failing `findBy*` is cut off by the test
+  timeout and reports "Test timed out" instead of "Unable to find an
+  element" with the rendered DOM — which turns every failure into a guess.
+- **happy-dom mis-validates `step="0.01"`.** See the `noValidate` note
+  above; it is a floating-point bug in its `stepMismatch` check, not a
+  defect in the app.

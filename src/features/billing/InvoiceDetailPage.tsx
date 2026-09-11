@@ -9,7 +9,7 @@ import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger
 import { downloadReceipt, receiptNumber } from './receiptPdf'
 import type { InvoiceWithDetail, PaymentMethod } from './types'
 import { toMessage } from '../../core/errors'
-import { ErrorState, LoadingState } from '../../core/components/states'
+import { ErrorState, FieldError, LoadingState } from '../../core/components/states'
 
 interface PaymentForm {
   amount: string
@@ -36,7 +36,7 @@ export default function InvoiceDetailPage() {
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<PaymentForm>({ defaultValues: { amount: '', method: 'cash', reference: '' } })
 
   async function refresh(invoiceId: string) {
@@ -198,15 +198,16 @@ export default function InvoiceDetailPage() {
         ))}
 
         {!isVoid && (
-          <form onSubmit={handleSubmit(onRecordPayment)} className="flex items-end gap-2 flex-wrap border-t border-slate-100 pt-4">
+          <form noValidate onSubmit={handleSubmit(onRecordPayment)} className="flex items-end gap-2 flex-wrap border-t border-slate-100 pt-4">
             <label className="flex flex-col gap-1 text-sm text-slate-700">
               Amount
               <input
                 type="number"
                 step="0.01"
-                {...register('amount', { required: true })}
+                {...register('amount', { required: 'Enter an amount' })}
                 className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm text-right"
               />
+              <FieldError message={errors.amount?.message} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-slate-700">
               Method

@@ -51,3 +51,21 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
     </div>
   )
 }
+
+/** A validation message for one field.
+ *
+ *  Forms in this app set `noValidate` and let react-hook-form do the
+ *  validating, so messages are styled and worded consistently instead of
+ *  arriving as browser-native bubbles — which differ per browser, can't be
+ *  styled, and sit awkwardly on a tablet. It also keeps each form's own
+ *  guards reachable: native validation fires first and would otherwise stop
+ *  the submit handler ever running.
+ */
+export function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <span className="text-xs text-red-600" role="alert">
+      {message}
+    </span>
+  )
+}

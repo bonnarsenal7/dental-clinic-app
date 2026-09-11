@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toMessage } from '../../core/errors'
-import { ErrorState } from '../../core/components/states'
+import { ErrorState, FieldError } from '../../core/components/states'
 import { getPatient, searchPatients } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { listProcedures } from '../billing/api'
@@ -42,7 +42,7 @@ export default function BookAppointmentForm({
     handleSubmit,
     setValue,
     watch,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<BookingForm>({
     defaultValues: {
       patient_id: defaultPatientId ?? '',
@@ -119,6 +119,7 @@ export default function BookAppointmentForm({
 
   return (
     <form
+      noValidate
       onSubmit={handleSubmit(onSubmit)}
       className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4"
     >
@@ -171,15 +172,18 @@ export default function BookAppointmentForm({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Date
-          <input type="date" {...register('date', { required: true })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <input type="date" {...register('date', { required: 'Pick a date' })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <FieldError message={errors.date?.message} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Time
-          <input type="time" {...register('time', { required: true })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <input type="time" {...register('time', { required: 'Pick a time' })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <FieldError message={errors.time?.message} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Minutes
-          <input type="number" min="5" max="480" step="5" {...register('duration_minutes', { required: true })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <input type="number" min="5" max="480" step="5" {...register('duration_minutes', { required: 'How long?' })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          <FieldError message={errors.duration_minutes?.message} />
         </label>
       </div>
 

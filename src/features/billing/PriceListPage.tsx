@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createProcedure, listProcedures, updateProcedure } from './api'
+import { FieldError } from '../../core/components/states'
 import { formatMoney } from './ledger'
 import type { Procedure } from './types'
 import { toMessage } from '../../core/errors'
@@ -23,7 +24,7 @@ export default function PriceListPage() {
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<ProcedureForm>({ defaultValues: EMPTY })
 
   async function refresh() {
@@ -79,16 +80,18 @@ export default function PriceListPage() {
       {error && <ErrorState message={error} />}
 
       <form
+        noValidate
         onSubmit={handleSubmit(onAdd)}
         className="bg-white border border-slate-200 rounded-xl p-6 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
       >
         <label className="flex flex-col gap-1 text-sm text-slate-700 sm:col-span-2">
           Procedure
           <input
-            {...register('name', { required: true })}
+            {...register('name', { required: 'Name the procedure' })}
             placeholder="e.g. Composite filling"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
+          <FieldError message={errors.name?.message} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Code
@@ -100,9 +103,10 @@ export default function PriceListPage() {
             type="number"
             step="0.01"
             min="0"
-            {...register('default_fee', { required: true })}
+            {...register('default_fee', { required: 'Enter a fee' })}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
+          <FieldError message={errors.default_fee?.message} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Charted as
