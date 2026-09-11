@@ -775,8 +775,18 @@ nothing about how anything looks.
 - `docs/TECHNICAL_REVIEW.md` — the 2026-09-12 engineering review: 14 findings
   with the commands that establish each one, and a remediation tracker.
   **Three blockers are open** — consent wording, backups, and credential
-  practice. Public signup (F-1) was closed on 2026-09-12. Read this before
-  planning work.
+  practice. Closed on 2026-09-12: public signup (F-1) and the production
+  password-reset redirect (F-14). Read this before planning work.
+
+  Two standing practices came out of those two fixes. **Always run
+  `supabase config diff` before `supabase config push`** — a non-interactive
+  run auto-proceeds through the confirmation prompt, and the diff is what
+  separates the properties `config.toml` declares from the ~11 where the
+  CLI's defaults differ from real remote settings (pushing those would
+  disable email confirmation and drop the mail rate limit to 1s). And
+  **verify a live setting from the live project, not from the file** —
+  `config.toml` had `enable_signup = false` for days while production was
+  still open.
   The narrative version, with reasoning, is published at
   https://claude.ai/code/artifact/c8d9e26a-556c-4e52-910f-b93c53b609ff —
   that document is point-in-time; the markdown file is what gets ticked off.

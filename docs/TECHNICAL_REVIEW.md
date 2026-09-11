@@ -24,7 +24,7 @@ and both should be re-run rather than believed.
 | Severity | Count | Open | Closed |
 | -------- | ----- | ---- | ------ |
 | Blocker  | 4     | 3    | 1      |
-| High     | 3     | 3    | 0      |
+| High     | 3     | 2    | 1      |
 | Medium   | 3     | 3    | 0      |
 | Low      | 4     | 4    | 0      |
 
@@ -36,8 +36,10 @@ Changes since the 2026-09-12 review:
 - **F-1 closed** 2026-09-12 — public signup disabled on the live project and
   verified from the auth endpoint; no orphaned accounts were created while
   it was open.
-- **F-14 added** 2026-09-12 — found while diffing the auth config for F-1:
-  production password reset almost certainly emails a `localhost` link.
+- **F-14 added and closed** 2026-09-12 — found while diffing the auth config
+  for F-1: production password reset emailed a `localhost` link. `site_url`
+  and the redirect allowlist now point at the deployed app, verified by
+  generating a recovery link rather than by reading config.
 
 ---
 
@@ -73,10 +75,18 @@ npm test -- --coverage --coverage.reporter=text \
   --coverage.exclude='src/test/**' \
   --coverage.exclude='src/**/types.ts'
 
-# F-14 — do the auth URLs point at production?
-supabase config diff 2>&1 | tail -1 \
-  | python3 -c "import json,sys; [print('.'.join(c['path']), '->', repr(c['remote'])) for c in json.load(sys.stdin)['changes'] if 'site_url' in '.'.join(c['path']) or 'redirect' in '.'.join(c['path'])]"
-# got on 2026-09-12: site_url -> 'http://localhost:3000', additional_redirect_urls -> []
+# F-14 — does a recovery link actually point at production?
+#         generate_link returns the link instead of emailing it, so this
+#         verifies the real behaviour without mailing a staff member.
+#         Never print the key or the full link: the link carries a token.
+SRK=$(supabase projects api-keys --project-ref xzpheuvthmsucvhytdjh \
+  | python3 -c "import json,sys; print(next(k['api_key'] for k in json.load(sys.stdin)['keys'] if k['id']=='service_role'))")
+curl -s "$VITE_SUPABASE_URL/auth/v1/admin/generate_link" \
+  -H "apikey: $SRK" -H "Authorization: Bearer $SRK" -H "Content-Type: application/json" \
+  -d '{"type":"recovery","email":"<an admin address>","redirect_to":"https://dental-clinic-app-lilac.vercel.app/reset-password"}' \
+  | python3 -c "import json,sys,urllib.parse as u; print(u.parse_qs(u.urlparse(json.load(sys.stdin)['action_link']).query)['redirect_to'][0])"
+# want: https://dental-clinic-app-lilac.vercel.app/reset-password
+# Repeat with an unlisted origin; it must fall back, not echo what you asked for.
 
 # Any auth user without a staff row? (needs SUPABASE_DB_URL from
 # .env.backup.local; read-only)
@@ -214,41 +224,64 @@ reasoning is sound — 260 tab stops would be worse. The work is still undone.
 - [ ] Interim, if the above is not scheduled: drop `role="button"` so
       screen readers stop advertising unreachable controls
 
-### F-14 Password reset almost certainly sends a `localhost` link — OPEN
+### F-14 Password reset sent a `localhost` link — CLOSED 2026-09-12
 
-Found while diffing the auth config for F-1. The live project has:
+Found while diffing the auth config for F-1. The live project had:
 
 ```
-auth.site_url:                 http://localhost:3000
+auth.site_url:                 http://localhost:3000   (CLI default)
 auth.additional_redirect_urls: []
 ```
 
 `ForgotPasswordPage.tsx:20` sends
 `redirectTo: ${window.location.origin}/reset-password`. Supabase honours a
 `redirectTo` only when it matches `site_url` or appears in the allowlist.
-From the deployed origin it matches neither, so it falls back to
-`site_url` — and the staff member receives a reset link pointing at
+From the deployed origin it matched neither, so it fell back to
+`site_url` — and the staff member received a reset link pointing at
 `http://localhost:3000/reset-password`.
 
 **There is no second recovery path.** `manage-staff` implements only
 `create`, `deactivate` and `reactivate` — no admin-initiated password
 reset. And `StaffManagementPage.tsx:198` tells an admin restoring an
 account that the user "can reset it from the login screen", which is
-precisely the flow in question. A staff member who forgets their password
-mid-clinic-day would need someone in the Supabase dashboard.
+precisely the flow in question. A staff member who forgot their password
+mid-clinic-day would have needed someone in the Supabase dashboard.
 
 Severity is High rather than blocking because it locks people out rather
 than exposing anything.
 
-**Not yet verified by sending a real reset email** — this is read off the
-configuration, not observed. Confirm before and after fixing.
+- [x] Declared `site_url` and `additional_redirect_urls` in `config.toml`,
+      diffed (2 declared changes, 11 undeclared left alone), pushed
+- [x] Verified end to end **without sending mail to anyone**: the admin API's
+      `generate_link` returns the link instead of emailing it, so the
+      `redirect_to` it produces can be inspected directly
 
-- [ ] Set `auth.site_url` to the production URL; add any preview origins to
-      `additional_redirect_urls`. Declare both in `config.toml` so they stop
-      being undeclared drift, then `supabase config diff` and push
-- [ ] Send a real reset email from production and confirm the link resolves
+```
+asked for https://dental-clinic-app-lilac.vercel.app/reset-password
+  -> https://dental-clinic-app-lilac.vercel.app/reset-password   (honoured)
+
+asked for https://attacker.example.com/steal
+  -> https://dental-clinic-app-lilac.vercel.app                  (refused)
+```
+
+The second probe is the one worth keeping. It shows the allowlist actually
+refuses an unlisted origin rather than trusting `redirect_to`, and that the
+fallback is now the production app instead of localhost. A recovery token
+travels in that URL, so an over-broad allowlist would be a way to hand
+somebody a working session — which is why the entries are exact paths and
+not `…vercel.app/**`.
+
+Vercel **preview** deployments are deliberately not allowlisted: reset from
+a preview build will fall back to production. Add the origin if that ever
+matters.
+
+Still open, and deliberately not done here — it is a feature, not the fix:
+
 - [ ] Consider a `reset` action on `manage-staff`, so an admin can recover a
-      locked-out staff member without the dashboard
+      locked-out staff member without going to the Supabase dashboard.
+      `StaffManagementPage.tsx:198` tells admins the user "can reset it from
+      the login screen", which now works — but only if the staff member can
+      still receive mail at the address on file.
 
 ### F-6 No clinic day has been run through the system — OPEN
 

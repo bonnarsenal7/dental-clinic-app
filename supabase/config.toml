@@ -14,3 +14,21 @@ project_id = "xzpheuvthmsucvhytdjh"
 # denies them), but it's a needless abuse surface and contradicts the
 # design. See docs/COMPLIANCE.md §1.2.
 enable_signup = false
+
+# Where the deployed app actually lives. Supabase honours a `redirectTo`
+# only when it matches site_url or one of the URLs below — anything else is
+# silently replaced with site_url rather than refused. Left at the CLI's
+# default of http://localhost:3000, that meant every password-reset email
+# sent from production carried a link to localhost, and there is no other
+# recovery path: manage-staff has no reset action. See TECHNICAL_REVIEW F-14.
+site_url = "https://dental-clinic-app-lilac.vercel.app"
+
+# Exact targets, deliberately not wildcards. The app emits exactly one
+# redirect — ForgotPasswordPage sends `${origin}/reset-password` and nothing
+# else does — and the recovery token travels in the URL, so a broad
+# allowlist would be a way to hand somebody else a working session. Add a
+# Vercel preview origin here only if reset needs to work from one.
+additional_redirect_urls = [
+  "https://dental-clinic-app-lilac.vercel.app/reset-password",
+  "http://localhost:5173/reset-password",
+]
