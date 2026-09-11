@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { logPatientView } from '../../core/auditView'
-import { getPatient } from '../patients/api'
-import type { Patient } from '../patients/types'
+import { getMedicalHistory, getPatient } from '../patients/api'
+import MedicalAlerts from '../patients/MedicalAlerts'
+import type { MedicalHistory, Patient } from '../patients/types'
 import { CONDITION_BY_KEY } from './chartVocabulary'
 import type { ToothConditionKey, ToothSurface } from './chartVocabulary'
 import { deriveChart, toothStateOf } from './chartState'
@@ -21,6 +22,7 @@ export default function PatientChartPage() {
   const { staff } = useAuth()
 
   const [patient, setPatient] = useState<Patient | null>(null)
+  const [medical, setMedical] = useState<MedicalHistory | null>(null)
   const [records, setRecords] = useState<ToothRecord[]>([])
   const [visits, setVisits] = useState<ChartVisit[]>([])
   const [visitId, setVisitId] = useState<string>('')
@@ -40,11 +42,17 @@ export default function PatientChartPage() {
   useEffect(() => {
     if (!patientId) return
     setLoading(true)
-    Promise.all([getPatient(patientId), listToothRecords(patientId), listChartVisits(patientId)])
-      .then(([p, r, v]) => {
+    Promise.all([
+      getPatient(patientId),
+      listToothRecords(patientId),
+      listChartVisits(patientId),
+      getMedicalHistory(patientId),
+    ])
+      .then(([p, r, v, m]) => {
         setPatient(p)
         setRecords(r)
         setVisits(v)
+        setMedical(m)
         // Default to today's visit when there is one, so the common case —
         // charting the patient who is in the chair — needs no setup.
         const today = new Date().toDateString()
@@ -172,6 +180,11 @@ export default function PatientChartPage() {
       </div>
 
       {error && <ErrorState message={error} />}
+
+      {/* Above the chart, not inside a panel further down: the point is that
+          nobody can start marking teeth without having passed the allergy
+          they are about to inject around. */}
+      <MedicalAlerts medical={medical} />
 
       <section className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 flex-wrap">
         <label className="text-sm text-slate-600" htmlFor="chart-visit">

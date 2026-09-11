@@ -377,6 +377,28 @@ on the upper arch. Which edge of a tooth's square is which surface flips by
 quadrant and arch (`surfacesForTooth()`), because the chart is drawn as if
 facing the patient: their right is on the viewer's left.
 
+### Medical alerts on the chart
+`src/features/patients/MedicalAlerts.tsx` renders above the odontogram, so
+nobody starts marking teeth without having passed the allergy they are
+about to inject around. The chart screen previously showed no medical
+information at all — the profile warned about an anaesthesia allergy, the
+screen the dentist actually works on chairside did not.
+
+`CONDITION_ALERTS` in `historyOptions.ts` decides what is worth surfacing
+and how urgently. Not every ticked intake box changes what a dentist does,
+so most don't appear; the ones that do carry a `why` ("angina — cardiac
+risk, limit epinephrine"), because a condition name alone doesn't tell a
+hurried clinician what to do differently.
+
+**Both empty cases say something.** A clear history renders "no medical
+alerts — history reviewed", and a missing one renders a warning. A blank
+space would be ambiguous between "nothing to worry about" and "it never
+loaded", and a clinician shouldn't have to guess which.
+
+If you add this to another clinical screen, add a test that it's *on* that
+screen. Deleting the banner from the chart page passed all 56 tests in the
+suite — the component was covered, its wiring wasn't.
+
 ### Chairside interaction
 - The legend **is** the tool picker; `Inspect` is the default, so tapping a
   tooth opens its history without marking anything.

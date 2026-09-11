@@ -118,3 +118,35 @@ and to the handling of my information as set out in this notice.
 
 This consent applies to the visit on the date signed below and may be
 re-confirmed at any future visit.`
+
+// --- Chairside medical alerts --------------------------------------------
+//
+// Not every ticked box on the intake form changes what a dentist does next.
+// These are the ones that do, split by how urgently they need to be seen
+// before treatment starts. `why` states the dental relevance, because a
+// condition name alone ("angina") doesn't tell a hurried clinician what to
+// do differently ("cardiac risk — limit epinephrine").
+//
+// Keys match medical_histories.conditions (0001_schema.sql).
+
+export type AlertSeverity = 'critical' | 'notable'
+
+export const CONDITION_ALERTS: Record<string, { severity: AlertSeverity; why: string }> = {
+  excessive_bleeding: { severity: 'critical', why: 'bleeding risk — check before any extraction' },
+  angina: { severity: 'critical', why: 'cardiac risk — limit epinephrine, keep appointments short' },
+  stroke: { severity: 'critical', why: 'cardiac/anticoagulant risk' },
+  epilepsy: { severity: 'critical', why: 'seizure risk in the chair' },
+  rheumatic_fever_arthritis: { severity: 'critical', why: 'may need antibiotic prophylaxis' },
+
+  high_blood_pressure: { severity: 'notable', why: 'check BP before extraction; limit epinephrine' },
+  diabetes: { severity: 'notable', why: 'delayed healing, infection risk' },
+  asthma: { severity: 'notable', why: 'have inhaler to hand' },
+  hepatitis_a_or_b: { severity: 'notable', why: 'infection control' },
+  hiv_positive: { severity: 'notable', why: 'infection control, healing' },
+  tb: { severity: 'notable', why: 'infection control' },
+  emphysema: { severity: 'notable', why: 'avoid reclining fully' },
+  kidney_problems: { severity: 'notable', why: 'affects drug choice and dosing' },
+  anemia: { severity: 'notable', why: 'affects healing' },
+  malignancy_tumor: { severity: 'notable', why: 'radiotherapy/chemo history affects healing' },
+  thyroid_problem: { severity: 'notable', why: 'epinephrine sensitivity if uncontrolled' },
+}
