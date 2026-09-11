@@ -790,3 +790,51 @@ the only moment anyone reliably remembers to.
 Day bounds and booking times are built from local date/time fields. Using
 `toISOString().slice(0,10)` would push the clinic's evening appointments
 onto the following day.
+
+## Daily dashboard
+
+`/` is now the clinic's day rather than a welcome message.
+`src/features/dashboard/` — `api.ts`, `DashboardPage.tsx`, `StatTile.tsx`,
+`types.ts`. (The old `core/components/DashboardPage.tsx` is gone; a screen
+that runs queries is a feature, not shared furniture.)
+
+### Aggregation happens in SQL
+`0009_dashboard.sql` defines the `daily_dashboard` view, which returns one
+row of today's numbers. **Don't move this arithmetic into the browser** —
+it would mean downloading the whole ledger over clinic Wi-Fi to render one
+figure, and it would put the money maths a long way from the money.
+
+**The view is `security_invoker = true`, and that is load-bearing.** A
+normal view runs as its owner, which would hand a receptionist totals
+computed over rows their own policies forbid — quietly punching through the
+RLS boundary the whole project rests on. Every new view here needs the same
+flag. Every table it reads is front-desk readable, so all three roles get
+the same correct numbers.
+
+### Today is Asia/Manila, not UTC
+The database is UTC and the clinic is not. A bare
+`scheduled_at::date = current_date` would roll the day over at 8am local.
+Every date comparison in the view goes through
+`at time zone 'Asia/Manila'`. This becomes a per-branch setting if the
+clinic ever opens elsewhere.
+
+### Role split
+- **Money** (collected, billed, outstanding, cash breakdown) — receptionist
+  and admin. Not the dentist.
+- **Clinical alerts for today's patients** — dentist and admin. Not
+  reception, whose job is flow rather than clinical judgement.
+- Queue, schedule counts, and recalls — everyone.
+
+This is a presentation split, not a security boundary: RLS already governs
+what each role can fetch. It is still tested, and mutation-tested — making
+`seesMoney` always true fails "does not show takings to the dentist".
+
+### The alerts panel repeats the chart's warning on purpose
+The chart warns the dentist who is already treating someone. The dashboard
+warns them while the day can still be rearranged. Cancelled and no-show
+patients are excluded — warning about someone who isn't coming is noise
+that makes the real warnings easier to skip past.
+
+Numeric columns are coerced with `Number()` everywhere: PostgREST returns
+Postgres `numeric` as a string often enough that naive arithmetic would
+render `NaN` or concatenate two totals.
