@@ -609,3 +609,52 @@ silent. `sendDefaultPii` is off and fetch breadcrumb bodies are dropped —
 this is a health records system and must not ship patient data to a
 third-party tracker. `beforeSend` drops network errors, which would
 otherwise bury real crashes under flaky-Wi-Fi noise.
+
+## Testing (added with Phase 6)
+
+`npm test` (vitest, happy-dom) — also `npm run test:watch`. CI runs lint →
+test → build, so a failing test blocks a push.
+
+Test files live beside what they test (`errors.test.ts` next to
+`errors.ts`) and are inside `tsconfig.app.json`'s `include`, so `npm run
+build` type-checks them too. Vite doesn't bundle them: nothing reachable
+from `main.tsx` imports them.
+
+### What's covered, and why these
+The suite is deliberately not broad. It covers the places where being
+wrong is expensive and where reading the code doesn't tell you the answer:
+
+- **`core/errors.test.ts`** — the real disconnect strings Chrome, Firefox,
+  Safari, undici and Chrome's net stack produce. If a browser changes its
+  wording, the offline banner silently stops appearing; this fails instead.
+  Also pins that constraint violations and RLS refusals keep their own
+  wording rather than being replaced with "you're offline".
+- **`charting/chartState.test.ts`** — the append-only fold. Includes an
+  explicit order-sensitivity case, since order deciding meaning is the
+  whole premise, and the rule that `planned` overlays rather than erases.
+- **`billing/ledger.test.ts`** — money. Running balance, refunds as
+  negative payments, void invoices excluded, and numeric-string coercion
+  (PostgREST returns `numeric` as a string often enough that naive addition
+  would concatenate).
+- **`components/OfflineBanner.test.tsx`** — including the case
+  `navigator.onLine` gets wrong: an observed failure must beat the flag.
+- **`patients/VisitTimeline.test.tsx`** — **Phase 6's exit criterion as a
+  test.** A rejected write must leave the typed note on screen.
+
+### Both guarantees are mutation-tested
+Rather than trusting green, the two that matter were verified by breaking
+the source and confirming the tests caught it:
+
+- moving `reset()` before the `await` in `VisitTimeline` — the exact
+  data-loss bug — failed *"keeps the typed note on screen"*
+- removing Safari's `'load failed'` signature failed *"treats a Safari
+  disconnect as offline"*
+
+Worth repeating for any new test asserting something important: a test that
+passes for the wrong reason is worse than no test.
+
+### Not covered
+No browser-level verification — layout, portrait/landscape, real touch
+targets, and the signature pad are unverified by automation and still need
+a human on a tablet. happy-dom has no layout engine, so these tests say
+nothing about how anything looks.
