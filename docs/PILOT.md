@@ -141,6 +141,46 @@ crash reports itself.
 
 ---
 
+## 3b. Backend dry run — done 2026-09-11
+
+The **data and permissions half** of §3 was executed against the live
+project. Nothing below substitutes for a person doing §3 in a browser: none
+of it says whether a screen is readable, tappable on a tablet, or sensibly
+ordered. It does mean a human running the scripted day is checking the
+interface rather than discovering that the data underneath is wrong.
+
+| Step | Check | Result |
+|---|---|---|
+| 1 | search `dela` | Angelica Dela Cruz |
+| 2 | search `0927` | Ricardo Bautista |
+| 4 | Kristine Joy Aquino consent | 0 on file — unsigned path available |
+| 5 | **clinical boundary** | receptionist: 13 patients, **0** visit_notes, **0** tooth_records, 0 audit_log; dentist sees clinical; admin sees all |
+| 6 | Maria Santos tooth 16 folds | seq 35 decayed → seq 36 filled, reads as *filled* |
+| 11 | billable charting per visit | 6 unbilled `filled`/`crown` records found across 4 patients |
+| 14 | ledger running balance | **failed first — see FR-1** — now 500 → 1200 → 700 |
+| 16 | audit log for today | populated; all seed writes attributed to `system` |
+| 18 | end-of-day backup | `20260911T044733Z`, 605 KB |
+
+Two things worth knowing from the run:
+
+- **Seed writes show as `system`, not a person.** `psql` connects as
+  `postgres`, where `auth.uid()` is null. That is correct and desirable —
+  writes made outside the app are visibly not attributable to a staff
+  member — but it means the audit log does not demonstrate per-user
+  attribution until staff use the app. Check that during §3 step 16.
+- **The receptionist account had to be activated inside a transaction and
+  rolled back** to test step 5 at all, because §1.1 is still open.
+
+### What still needs a human
+Every judgement in §3: whether the intake form matches the paper sheet
+field for field, whether the tooth surfaces are tappable with a fingertip,
+whether the receipt prints legibly, whether the ledger matches the paper
+one — and **step 15, the Wi-Fi drop**, which is the exit criterion. The
+automated suite covers that a rejected write preserves typed input, but not
+what the receptionist sees while it happens.
+
+---
+
 ## 4. Friction log
 
 One row per observation. Keep the trivial ones — a field in the wrong order
@@ -148,7 +188,8 @@ costs a receptionist seconds forty times a day.
 
 | # | Date | Who (role) | Screen | What happened / what was expected | Severity | Status |
 |---|---|---|---|---|---|---|
-| 1 | | | | | blocker / annoying / cosmetic | open |
+| FR-1 | 2026-09-11 | backend dry run | Ledger | A patient's ledger showed a payment dated Nov 2025 settling charges dated Sep 2026, so the running balance went **negative** before recovering. Cause: `scripts/seed-pilot-patients.sql` never set `invoice_items.created_at`, which defaulted to `now()` while the invoice and payment carried historic dates. Fixture data only — not an app defect. | annoying | **fixed** — seed now sets `created_at` from the invoice |
+| 2 | | | | | blocker / annoying / cosmetic | open |
 
 **Severity means:**
 - **blocker** — data lost, wrong data shown, a role saw something it must

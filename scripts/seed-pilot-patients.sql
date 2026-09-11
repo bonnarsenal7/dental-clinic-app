@@ -167,8 +167,13 @@ from actors, (values
   ('5eed2005-0000-4000-8000-000000000005','5eed0008-0000-4000-8000-000000000008','5eed1008-0000-4000-8000-000000000008')
 ) as v(id, pid, vid);
 
-insert into invoice_items (invoice_id, description, amount, procedure_id, tooth_number)
-select v.inv::uuid, v.descr, v.amount, (select id from procedures where lower(name) = lower(v.proc)), v.tooth
+-- created_at is set from the invoice rather than left to default now().
+-- Without this the line items carry today's date while their invoice and
+-- payment carry historic ones, and the ledger renders a payment settling a
+-- charge that hasn't happened yet — a negative running balance.
+insert into invoice_items (invoice_id, description, amount, procedure_id, tooth_number, created_at)
+select v.inv::uuid, v.descr, v.amount, (select id from procedures where lower(name) = lower(v.proc)), v.tooth,
+       (select created_at from invoices where id = v.inv::uuid)
 from (values
   ('5eed2001-0000-4000-8000-000000000001','Composite filling (light cure)', 1800.00,'Composite filling (light cure)', 16),
   ('5eed2001-0000-4000-8000-000000000001','Oral prophylaxis (cleaning)',    1200.00,'Oral prophylaxis (cleaning)',   null),
