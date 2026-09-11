@@ -670,3 +670,39 @@ No browser-level verification — layout, portrait/landscape, real touch
 targets, and the signature pad are unverified by automation and still need
 a human on a tablet. happy-dom has no layout engine, so these tests say
 nothing about how anything looks.
+
+## Phase 7 — Staff testing & pilot (prepared; the pilot itself is the clinic's to run)
+
+**`docs/PILOT.md` is the deliverable.** It carries the scripted clinic day,
+the friction log, the shadow-run log, the pre-go-live checklist and the
+sign-off sheet. Most of this phase is work only the clinic can do —
+shadow-running, collecting friction, signing off — so what's in the repo is
+the dataset and the script, not a completed phase.
+
+### Two kinds of seed data, and the difference matters
+- `scripts/seed-price-list.sql` — **real configuration.** 21 procedures at
+  plausible Philippine rates. Survives the purge. The clinic must review
+  every fee at `/billing/prices`; these are a starting point so the invoice
+  builder can be exercised, not prices anyone agreed to.
+- `scripts/seed-pilot-patients.sql` — **fixtures. Not real people.** 10
+  patients with histories, visits, notes, charts, invoices and payments.
+  Every id begins `5eed` and every `remarks` opens with
+  `[PILOT DATA — not a real patient]`.
+
+`scripts/purge-pilot-patients.sql` removes the fixtures before go-live. It
+deletes by **id prefix, not by the remarks marker** — an id can't be
+accidentally edited by a staff member, whereas remarks is a free-text field
+on the patient form. Both seeds are re-runnable.
+
+`audit_log` deliberately survives the purge (`patient_id` is not a foreign
+key), so the record that fixture rows existed and were deleted remains.
+
+### Blocking the pilot
+**There is no active receptionist account** — both are `active = false`, and
+`current_staff_role()` returns null for an inactive member, so a
+receptionist sees nothing at all. The role boundary is half of what the
+pilot exists to test. An admin must fix this at `/admin/staff`.
+
+Phase 5's blockers also apply: take a backup at the end of each pilot day,
+close public signup first, and don't capture *real* patients' consent
+against the unreviewed draft wording — use paper until §1.3 is signed off.
