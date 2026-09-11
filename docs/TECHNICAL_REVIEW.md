@@ -21,15 +21,23 @@ and both should be re-run rather than believed.
 
 ## Status
 
-| Severity | Count | Open |
-| -------- | ----- | ---- |
-| Blocker  | 4     | 4    |
-| High     | 2     | 2    |
-| Medium   | 3     | 3    |
-| Low      | 4     | 4    |
+| Severity | Count | Open | Closed |
+| -------- | ----- | ---- | ------ |
+| Blocker  | 4     | 3    | 1      |
+| High     | 3     | 3    | 0      |
+| Medium   | 3     | 3    | 0      |
+| Low      | 4     | 4    | 0      |
 
 **Verdict: not ready for real patient data.** The gaps are operational and
-compliance, not structural. Items 1–4 gate go-live.
+compliance, not structural.
+
+Changes since the 2026-09-12 review:
+
+- **F-1 closed** 2026-09-12 — public signup disabled on the live project and
+  verified from the auth endpoint; no orphaned accounts were created while
+  it was open.
+- **F-14 added** 2026-09-12 — found while diffing the auth config for F-1:
+  production password reset almost certainly emails a `localhost` link.
 
 ---
 
@@ -65,6 +73,18 @@ npm test -- --coverage --coverage.reporter=text \
   --coverage.exclude='src/test/**' \
   --coverage.exclude='src/**/types.ts'
 
+# F-14 — do the auth URLs point at production?
+supabase config diff 2>&1 | tail -1 \
+  | python3 -c "import json,sys; [print('.'.join(c['path']), '->', repr(c['remote'])) for c in json.load(sys.stdin)['changes'] if 'site_url' in '.'.join(c['path']) or 'redirect' in '.'.join(c['path'])]"
+# got on 2026-09-12: site_url -> 'http://localhost:3000', additional_redirect_urls -> []
+
+# Any auth user without a staff row? (needs SUPABASE_DB_URL from
+# .env.backup.local; read-only)
+psql "$SUPABASE_DB_URL" -At -c \
+  "select count(*) from auth.users u
+     left join public.staff s on s.id = u.id where s.id is null;"
+# got on 2026-09-12: 0
+
 # F-8 — the N+1
 grep -n "findInvoiceForVisit" src/features/scheduling/SchedulePage.tsx
 
@@ -76,10 +96,10 @@ supabase migration list
 
 ## Blockers — must close before any real patient record
 
-### F-1 Public signup is enabled on the live project — OPEN
+### F-1 Public signup is enabled on the live project — CLOSED 2026-09-12
 
 `supabase/config.toml` sets `enable_signup = false` and explains why. It
-was never pushed. The live auth settings endpoint returns
+was never pushed. The live auth settings endpoint returned
 `"disable_signup": false`.
 
 RLS contains the damage: a self-registered user has no `staff` row, so
@@ -91,11 +111,27 @@ admin must tell apart from real staff.
 The process lesson is the larger one: a control that exists in the repo and
 not in production is not a control.
 
-- [ ] `supabase config push`
-- [ ] Re-run the F-1 verification command; confirm `disable_signup: True`
-- [ ] Audit `auth.users` for accounts with no matching `staff` row
+- [x] `supabase config diff` reviewed first — 1 declared change
+      (`auth.enable_signup`), 13 undeclared remote properties left alone
+- [x] `supabase config push` — `1 property pushed`
+- [x] Re-ran the F-1 verification command: `disable_signup: True`, and
+      `supabase config diff` now reports zero *declared* drift
+- [x] Audited `auth.users`: 5 users, 5 staff rows, **0 orphaned** — nobody
+      self-registered while it was open
 
-Supersedes `COMPLIANCE.md` §1.2, which records this as ready to push.
+**Diff before push mattered and should be the standing practice.** The CLI
+warns that a non-interactive run auto-proceeds through its confirmation
+prompt. The 13 undeclared properties were places the CLI's *defaults*
+differ from real remote settings — pushing them would have disabled email
+confirmation, cut the mail rate limit from `1m0s` to `1s`, and turned off
+TOTP and Twilio. `config push` left them alone, as the comment in
+`config.toml` predicts, but never rely on that without diffing.
+
+Incidental confirmation from the account audit: the two deactivated
+receptionists are `active = false` **and** login-banned in GoTrue, so the
+two-layer deactivation works in production, not only under test.
+
+Supersedes `COMPLIANCE.md` §1.2, which should now be marked resolved.
 
 ### F-2 Consent wording has never had legal review — OPEN
 
@@ -177,6 +213,42 @@ reasoning is sound — 260 tab stops would be worse. The work is still undone.
 - [ ] Enter/Space applies the selected condition
 - [ ] Interim, if the above is not scheduled: drop `role="button"` so
       screen readers stop advertising unreachable controls
+
+### F-14 Password reset almost certainly sends a `localhost` link — OPEN
+
+Found while diffing the auth config for F-1. The live project has:
+
+```
+auth.site_url:                 http://localhost:3000
+auth.additional_redirect_urls: []
+```
+
+`ForgotPasswordPage.tsx:20` sends
+`redirectTo: ${window.location.origin}/reset-password`. Supabase honours a
+`redirectTo` only when it matches `site_url` or appears in the allowlist.
+From the deployed origin it matches neither, so it falls back to
+`site_url` — and the staff member receives a reset link pointing at
+`http://localhost:3000/reset-password`.
+
+**There is no second recovery path.** `manage-staff` implements only
+`create`, `deactivate` and `reactivate` — no admin-initiated password
+reset. And `StaffManagementPage.tsx:198` tells an admin restoring an
+account that the user "can reset it from the login screen", which is
+precisely the flow in question. A staff member who forgets their password
+mid-clinic-day would need someone in the Supabase dashboard.
+
+Severity is High rather than blocking because it locks people out rather
+than exposing anything.
+
+**Not yet verified by sending a real reset email** — this is read off the
+configuration, not observed. Confirm before and after fixing.
+
+- [ ] Set `auth.site_url` to the production URL; add any preview origins to
+      `additional_redirect_urls`. Declare both in `config.toml` so they stop
+      being undeclared drift, then `supabase config diff` and push
+- [ ] Send a real reset email from production and confirm the link resolves
+- [ ] Consider a `reset` action on `manage-staff`, so an admin can recover a
+      locked-out staff member without the dashboard
 
 ### F-6 No clinic day has been run through the system — OPEN
 

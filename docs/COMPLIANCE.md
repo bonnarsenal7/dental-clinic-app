@@ -3,12 +3,17 @@
 Phase 5 of the build roadmap. This is the written checklist its exit
 criteria calls for.
 
-**Status: NOT READY for real patient data.** Three items below are blocking,
-and one of them (backups) means data loss today would be permanent. The
-audit logging and RLS work is done and verified; the operational and legal
-work is not.
+**Status: NOT READY for real patient data.** Two of the three items below
+are still blocking, and one of them (backups) means data loss today would
+be permanent. The audit logging and RLS work is done and verified; the
+operational and legal work is not.
 
-Last reviewed: 2026-09-11, against migrations 0001–0006.
+§1.2 (public signup) was **resolved on 2026-09-12**. §1.1 and §1.3 remain
+open.
+
+Last reviewed: 2026-09-11, against migrations 0001–0006. Signup verified
+again 2026-09-12. See `TECHNICAL_REVIEW.md` for the wider review, including
+findings this checklist does not cover.
 
 ---
 
@@ -37,10 +42,18 @@ manual — nobody has run it on a schedule.
 
 Do not put real patient records in this system until one of those is true.
 
-### 1.2 Public signup is enabled — BLOCKING
+### 1.2 Public signup is enabled — RESOLVED 2026-09-12
 
-`GET /auth/v1/settings` reports `disable_signup: false`, so anyone on the
-internet can create an auth user against this project.
+`supabase config push` was run on 2026-09-12 (route 2 below).
+`GET /auth/v1/settings` now reports `disable_signup: True`, and
+`supabase config diff` reports zero *declared* drift. An audit of
+`auth.users` found 5 users against 5 `staff` rows — **0 orphaned**, so
+nobody self-registered during the window it was open.
+
+The original finding is kept below for the record.
+
+`GET /auth/v1/settings` reported `disable_signup: false`, so anyone on the
+internet could create an auth user against this project.
 
 **Impact is limited but real.** A self-signed-up user gets no `staff` row,
 so `current_staff_role()` returns null and every RLS policy denies them —

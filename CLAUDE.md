@@ -772,10 +772,11 @@ nothing about how anything looks.
   database guarantees, and where the flow currently stalls. Start here when
   picking the project up.
 - `docs/PILOT.md` — the scripted clinic day, friction log and sign-off sheet.
-- `docs/TECHNICAL_REVIEW.md` — the 2026-09-12 engineering review: 13 findings
+- `docs/TECHNICAL_REVIEW.md` — the 2026-09-12 engineering review: 14 findings
   with the commands that establish each one, and a remediation tracker.
-  **Four blockers are open**, including public signup still being enabled on
-  the live project. Read this before planning work.
+  **Three blockers are open** — consent wording, backups, and credential
+  practice. Public signup (F-1) was closed on 2026-09-12. Read this before
+  planning work.
   The narrative version, with reasoning, is published at
   https://claude.ai/code/artifact/c8d9e26a-556c-4e52-910f-b93c53b609ff —
   that document is point-in-time; the markdown file is what gets ticked off.
