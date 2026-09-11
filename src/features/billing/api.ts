@@ -89,6 +89,26 @@ export async function createInvoice(params: {
   return invoice as Invoice
 }
 
+/** The invoice already raised for a visit, if there is one.
+ *
+ *  Completing an appointment offers to bill it, and that offer can be taken
+ *  twice — by the dentist at the chair and by reception at checkout. The
+ *  charted-procedure lines are protected from double-billing by a unique
+ *  index, but a manually typed line is not, so the builder warns instead of
+ *  quietly raising a second invoice for the same treatment. */
+export async function findInvoiceForVisit(visitId: string): Promise<Invoice | null> {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('visit_id', visitId)
+    .neq('status', 'void')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Invoice | null) ?? null
+}
+
 export async function voidInvoice(id: string) {
   const { error } = await supabase.from('invoices').update({ status: 'void' }).eq('id', id)
   if (error) throw new Error(error.message)

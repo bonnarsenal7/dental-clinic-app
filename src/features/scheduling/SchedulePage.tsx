@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
 import { listAppointmentsForDay, setAppointmentStatus } from './api'
+import { findInvoiceForVisit } from '../billing/api'
 import { isInQueue, isPending } from './appointmentStatus'
 import AppointmentCard from './AppointmentCard'
 import BookAppointmentForm from './BookAppointmentForm'
@@ -21,6 +22,9 @@ export default function SchedulePage() {
   const [appointments, setAppointments] = useState<AppointmentWithPatient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  // visit_id → invoice id, so a completed appointment shows "View invoice"
+  // rather than inviting a second one. Empty until looked up.
+  const [invoiceByVisit, setInvoiceByVisit] = useState<Record<string, string | null>>({})
   const [booking, setBooking] = useState(false)
   // Re-renders the waiting-time figures without refetching: a number that
   // silently goes stale is worse than no number.
@@ -29,7 +33,22 @@ export default function SchedulePage() {
   const refresh = useCallback(async () => {
     setError(null)
     try {
-      setAppointments(await listAppointmentsForDay(new Date(`${day}T12:00:00`)))
+      const list = await listAppointmentsForDay(new Date(`${day}T12:00:00`))
+      setAppointments(list)
+
+      // Only the completed ones can have been billed, so don't ask about
+      // the rest.
+      const visitIds = list
+        .filter((a) => a.status === 'completed' && a.visit_id)
+        .map((a) => a.visit_id as string)
+      if (visitIds.length > 0) {
+        const found = await Promise.all(
+          visitIds.map(async (visitId) => [visitId, (await findInvoiceForVisit(visitId))?.id ?? null] as const),
+        )
+        setInvoiceByVisit(Object.fromEntries(found))
+      } else {
+        setInvoiceByVisit({})
+      }
     } catch (e) {
       setError(toMessage(e))
     }
@@ -155,7 +174,7 @@ export default function SchedulePage() {
                 </div>
               ) : (
                 queue.map((a) => (
-                  <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} />
+                  <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null} />
                 ))
               )}
             </section>
@@ -174,7 +193,7 @@ export default function SchedulePage() {
               </div>
             ) : (
               upcoming.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} />
+                <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null} />
               ))
             )}
           </section>
@@ -183,7 +202,7 @@ export default function SchedulePage() {
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold text-slate-700">Finished & cancelled</h2>
               {done.map((a) => (
-                <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} />
+                <AppointmentCard key={a.id} appointment={a} onStatusChange={handleStatus} busy={busyId === a.id} invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null} />
               ))}
             </section>
           )}

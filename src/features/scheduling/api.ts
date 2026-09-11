@@ -28,6 +28,12 @@ export async function listAppointmentsForDay(day: Date): Promise<AppointmentWith
   return data as unknown as AppointmentWithPatient[]
 }
 
+export async function getAppointment(id: string): Promise<Appointment> {
+  const { data, error } = await supabase.from('appointments').select('*').eq('id', id).single()
+  if (error) throw new Error(error.message)
+  return data as Appointment
+}
+
 export async function listPatientAppointments(patientId: string): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')

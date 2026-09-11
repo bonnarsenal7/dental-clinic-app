@@ -773,6 +773,26 @@ on the session time zone) and generated columns require immutability.
 `api.ts` translates the constraint name into something a receptionist can
 act on.
 
+### Completing an appointment leads into billing
+Finishing treatment is when someone gets billed, so the action lives on the
+appointment rather than making reception go and find the patient again. A
+`completed` card offers **Create invoice**, linking to
+`/patients/:id/invoices/new?appointment=<id>&visit=<id>`.
+
+The builder uses both parameters: `appointment` to prefill the first line,
+`visit` to pull charted procedures. The prefill takes the description from
+the booked procedure (or the appointment's `reason` if none was chosen) and
+**the fee from the price list** — the appointment already names the
+procedure and `procedures.default_fee` already knows its price, so neither
+is retyped at checkout. The amount stays editable, because the booked
+procedure is not always what was done.
+
+If the visit already has a non-void invoice the card shows **View invoice**
+instead, and the builder warns. Both matter because the offer can be taken
+twice — by the dentist at the chair and by reception at checkout. The
+unique index on `tooth_record_id` stops a charted procedure being billed
+twice, but a manually typed line has no such protection.
+
 ### reception_notes is not clinical
 `appointments.reception_notes` is administrative — "bring HMO card", "allow
 extra time" — and **reception can read it**. That is exactly why it is a

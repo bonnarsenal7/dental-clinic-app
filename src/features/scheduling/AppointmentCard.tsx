@@ -10,10 +10,14 @@ export default function AppointmentCard({
   appointment,
   onStatusChange,
   busy,
+  invoiceId,
 }: {
   appointment: AppointmentWithPatient
   onStatusChange: (appointment: AppointmentWithPatient, status: AppointmentStatus) => void
   busy: boolean
+  /** The invoice already raised for this appointment's visit, if any.
+   *  Undefined means not yet looked up. */
+  invoiceId?: string | null
 }) {
   const patient = appointment.patients
   const waited = waitingMinutes(appointment.arrived_at)
@@ -63,6 +67,29 @@ export default function AppointmentCard({
             Chart
           </Link>
         )}
+
+        {/* Treatment finished is the moment someone gets billed, so the
+            action lives here rather than making reception go and find the
+            patient again. The appointment's procedure and the price list
+            fill the first line in. */}
+        {appointment.status === 'completed' &&
+          (invoiceId ? (
+            <Link
+              to={`/invoices/${invoiceId}`}
+              className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+            >
+              View invoice
+            </Link>
+          ) : (
+            <Link
+              to={`/patients/${appointment.patient_id}/invoices/new?appointment=${appointment.id}${
+                appointment.visit_id ? `&visit=${appointment.visit_id}` : ''
+              }`}
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+            >
+              Create invoice
+            </Link>
+          ))}
         {nextStatuses(appointment.status).map((status) => (
           <button
             key={status}

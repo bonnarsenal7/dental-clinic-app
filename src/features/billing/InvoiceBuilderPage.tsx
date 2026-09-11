@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { getPatient } from '../patients/api'
 import type { Patient } from '../patients/types'
-import { createInvoice, listBillableCharting, listPatientVisits, listProcedures } from './api'
+import { createInvoice, findInvoiceForVisit, listBillableCharting, listPatientVisits, listProcedures } from './api'
+import { getAppointment } from '../scheduling/api'
 import { formatMoney } from './ledger'
 import type { BillableCharting, Procedure } from './types'
 import { toMessage } from '../../core/errors'
@@ -28,6 +29,9 @@ export default function InvoiceBuilderPage() {
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [visits, setVisits] = useState<{ id: string; visit_date: string }[]>([])
   const [visitId, setVisitId] = useState(searchParams.get('visit') ?? '')
+  const appointmentId = searchParams.get('appointment')
+  const [existingInvoice, setExistingInvoice] = useState<string | null>(null)
+  const [prefilled, setPrefilled] = useState(false)
   const [billable, setBillable] = useState<BillableCharting[]>([])
   const [lines, setLines] = useState<DraftLine[]>([])
   const [manualProcedureId, setManualProcedureId] = useState('')
@@ -51,6 +55,59 @@ export default function InvoiceBuilderPage() {
       .catch((e) => setError(toMessage(e)))
       .finally(() => setLoading(false))
   }, [patientId])
+
+  // Arriving from a completed appointment: seed a line from what was booked.
+  // The appointment already names the procedure, and the price list already
+  // knows its fee, so reception shouldn't have to retype either. The amount
+  // stays editable — the booked procedure isn't always what was done.
+  useEffect(() => {
+    if (!appointmentId || prefilled || procedures.length === 0) return
+    let cancelled = false
+    getAppointment(appointmentId)
+      .then((appointment) => {
+        if (cancelled) return
+        setPrefilled(true)
+        if (appointment.visit_id) setVisitId((current) => current || appointment.visit_id!)
+        const procedure = procedures.find((p) => p.id === appointment.procedure_id)
+        const description = procedure?.name ?? appointment.reason ?? ''
+        if (!description) return
+        setLines((current) => [
+          ...current,
+          {
+            key: `${Date.now()}-appt`,
+            description,
+            amount: Number(procedure?.default_fee ?? 0),
+            procedure_id: procedure?.id ?? null,
+            tooth_record_id: null,
+            tooth_number: null,
+          },
+        ])
+      })
+      .catch((e) => setError(toMessage(e)))
+    return () => {
+      cancelled = true
+    }
+  }, [appointmentId, prefilled, procedures])
+
+  // Warn rather than silently raise a second invoice for the same treatment.
+  useEffect(() => {
+    if (!visitId) {
+      setExistingInvoice(null)
+      return
+    }
+    let cancelled = false
+    findInvoiceForVisit(visitId)
+      .then((invoice) => {
+        if (!cancelled) setExistingInvoice(invoice?.id ?? null)
+      })
+      .catch(() => {
+        // A failed duplicate check shouldn't block invoicing — the warning
+        // is a courtesy, and the unique index still protects charted lines.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [visitId])
 
   useEffect(() => {
     if (!visitId || !canReadChart) {
@@ -249,6 +306,16 @@ export default function InvoiceBuilderPage() {
           </div>
         )}
       </section>
+
+      {existingInvoice && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-300 rounded-md px-3 py-2" role="alert">
+          This visit has already been invoiced.{' '}
+          <Link to={`/invoices/${existingInvoice}`} className="font-semibold underline">
+            Open that invoice
+          </Link>{' '}
+          instead of raising a second one, unless you mean to bill separately.
+        </p>
+      )}
 
       <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-slate-700">Invoice lines</h2>
