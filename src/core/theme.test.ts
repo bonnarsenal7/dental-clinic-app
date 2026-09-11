@@ -70,6 +70,32 @@ describe('design tokens', () => {
     expect(contrast(value, bg)).toBeGreaterThanOrEqual(min)
   })
 
+  // The odontogram gives every tooth and surface role="button". A print
+  // rule that hid everything with that role would print a blank chart —
+  // the one document most worth printing — and nobody would notice until a
+  // sheet came out of the printer empty.
+  it('does not hide the chart when printing', () => {
+    // Comments stripped first: the block carries an explanatory note that
+    // mentions role="button" precisely because this is the trap, and a
+    // naive match finds the comment rather than a rule.
+    const print = stripComments(css.slice(css.indexOf('@media print')))
+    expect(print).toContain('button,')
+    expect(print).not.toMatch(/\[role="button"\]/)
+  })
+
+  // Red decay and a blue filling have to stay distinguishable on paper.
+  it('keeps the chart in colour when printing', () => {
+    const print = stripComments(css.slice(css.indexOf('@media print')))
+    expect(print).toMatch(/print-color-adjust:\s*exact/)
+  })
+
+  // A clipped table on screen scrolls; on paper it is a lost record.
+  it('unclips scroll containers when printing', () => {
+    const print = stripComments(css.slice(css.indexOf('@media print')))
+    expect(print).toContain('.overflow-x-auto')
+    expect(print).toMatch(/overflow:\s*visible/)
+  })
+
   // Amber is the chart's crown and the brand's hue. A third meaning would
   // make all three ambiguous, so record state is red, green or neutral.
   it('keeps amber out of the record-state tokens', () => {
@@ -81,6 +107,10 @@ describe('design tokens', () => {
     }
   })
 })
+
+function stripComments(text: string) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '')
+}
 
 function channels(h: string) {
   return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)

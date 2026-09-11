@@ -1163,3 +1163,27 @@ The suite queries by **accessible name and role**, never by class. So the
 282 tests passing through a 19-field conversion is real evidence the names
 survived — and a failing query during this work means a control genuinely
 stopped saying what it said, not that a style changed.
+
+## Print (Phase E)
+
+Receipts are PDFs, but the treatment ledger, the patient record and the
+tooth chart are printed straight from the browser — for the paper file, for
+a referral, and during the pilot to reconcile against the old ledger. The
+rules live at the end of `src/index.css`.
+
+**The trap: don't hide `[role="button"]`.** The odontogram gives every tooth
+and every surface that role, so a rule hiding everything with it prints a
+blank chart — the one document most worth printing, and a failure nobody
+notices until a sheet comes out of the printer empty. The hide rule is
+scoped to real `<button>` elements and button-styled links. `theme.test.ts`
+asserts this, and fails if `[role="button"]` is ever added to that list.
+
+Also deliberate: `print-color-adjust: exact` on SVG, because a chart in
+greyscale cannot distinguish red decay from a blue filling; scroll
+containers unclipped, since a clipped table on paper is a lost record;
+`thead` repeated on every sheet; and `.fixed` / `.sticky` hidden, or the
+offline banner and the unsaved-marks bar repeat on every page.
+
+**Not verified visually.** These rules are asserted in the stylesheet and
+nothing more — no one has put a page through a printer. That check belongs
+in the pilot.

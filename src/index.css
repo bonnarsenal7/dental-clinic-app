@@ -143,3 +143,105 @@
 canvas {
   touch-action: none;
 }
+
+/* =========================================================================
+   Print.
+   =========================================================================
+
+   Receipts are generated as PDFs, but the treatment ledger, the patient
+   record and the tooth chart are printed straight from the browser — for the
+   paper file, for a referral, or to reconcile against the old ledger during
+   the pilot. Without these rules they come out carrying the nav bar, every
+   button, and tinted panel backgrounds.
+   ------------------------------------------------------------------------ */
+@media print {
+  /* Ink is the clinic's, and a tinted panel costs a lot of it for nothing. */
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #000 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* Chrome and controls: nothing here means anything on paper. */
+  header,
+  nav,
+  [data-sonner-toaster],
+  input[type="file"],
+  button,
+  a[class*="rounded-md"] {
+    display: none !important;
+  }
+
+  /* BUT NOT [role="button"]. The odontogram gives every tooth and every
+     surface that role, so hiding it prints a blank chart — which is the one
+     document most worth printing. Scoping the rule above to real <button>
+     elements and button-styled links is deliberate. */
+
+  /* Anything pinned to the viewport repeats on every sheet otherwise: the
+     offline banner, the unsaved-marks bar on the chart. */
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* The chart is meaningless in greyscale — red decay and a blue filling
+     have to stay distinguishable, so keep its fills. */
+  svg,
+  svg * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  svg [fill]:not([fill="none"]) {
+    background: revert !important;
+  }
+
+  /* Panels become plain sections with a hairline, and none of them should be
+     split across a page break mid-record. */
+  section,
+  article,
+  tr,
+  li {
+    break-inside: avoid;
+  }
+  section {
+    border: 0 !important;
+    border-top: 1px solid #999 !important;
+    padding: 0.5rem 0 !important;
+  }
+
+  /* A ledger running to two pages needs its column headings on both. */
+  thead {
+    display: table-header-group;
+  }
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    border-bottom: 1px solid #ccc !important;
+  }
+
+  /* No scroll containers on paper — a clipped table is a lost record. */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}
