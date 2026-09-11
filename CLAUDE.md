@@ -719,6 +719,46 @@ the source and confirming the tests caught it:
 Worth repeating for any new test asserting something important: a test that
 passes for the wrong reason is worse than no test.
 
+### The api.ts modules are tested through a recording client
+`src/test/supabaseMock.ts` is a Proxy-based stand-in for the Supabase client
+that records the chained call. Queue a result per table (several, in order,
+for code that touches two tables), then assert on the query rather than only
+its result.
+
+These modules are worth testing because **the query is the behaviour**:
+which day's bounds are asked for, that void invoices are excluded from "has
+this visit been billed", that a payment inserts rather than updates, that
+the tooth-image path lands under the dentist-only `tooth/` prefix. None of
+that is observable from a screen test that mocks the api module away — which
+is why all six sat at 0% while their screens were covered.
+
+`src/test/fixtures.ts` builds complete domain objects. Partial literals cast
+with `as` typecheck by fiat, so a field added to the type never shows up as
+missing anywhere.
+
+### Tests run in Asia/Manila
+`npm test` sets `TZ=Asia/Manila`, because on a UTC runner every date
+assertion in this app is vacuously true — local and UTC agree, so a UTC bug
+passes. That is exactly how `listDueRecalls` shipped building its horizon
+from `toISOString().slice(0, 10)`: correct in UTC, one day short for every
+local time before 08:00 in the clinic's own zone.
+
+`toLocalDateString` in `src/core/localDate.ts` is the single definition.
+It previously existed as a copy in two components, which is how the third
+caller came to reach for `toISOString()` instead.
+
+### What coverage is, and what it isn't
+About 73% of statements. The gap is deliberate rather than a backlog:
+`App.tsx` and `main.tsx` are wiring, `sentry.ts` is inert without a DSN,
+`PlaceholderPage` is eight lines. **`receiptPdf.ts` is the one real gap** —
+jsPDF draws to a canvas, so the output is not assertable in happy-dom, and
+a receipt is a money artifact. It needs a human looking at a printed page,
+which belongs in the pilot.
+
+Coverage is a map of what has been *looked* at, not evidence anything
+works. The evidence is that a test fails when the behaviour it names is
+removed — see the mutation notes above, and keep adding to them.
+
 ### Not covered
 No browser-level verification — layout, portrait/landscape, real touch
 targets, and the signature pad are unverified by automation and still need

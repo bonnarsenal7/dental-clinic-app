@@ -68,16 +68,27 @@ export default function PatientEditPage() {
 
   async function handleSubmit(values: PatientRegistrationInput) {
     if (!id) return
-    await updatePatientHistory(id, values)
-    navigate(`/patients/${id}`)
+    setError(null)
+    try {
+      await updatePatientHistory(id, values)
+      // Inside the try and after the await, so a refused write leaves the
+      // edits on screen instead of navigating away from them.
+      navigate(`/patients/${id}`)
+    } catch (e) {
+      // Without this the rejection went unhandled: pressing Save on a write
+      // the database refused did nothing visible at all — no message, no
+      // navigation — which reads as success.
+      setError(toMessage(e))
+    }
   }
 
-  if (error) return <ErrorState message={error} />
+  if (error && !defaultValues) return <ErrorState message={error} />
   if (!defaultValues) return <LoadingState />
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-semibold text-slate-800">Edit patient</h1>
+      {error && <ErrorState message={error} />}
       <PatientForm defaultValues={defaultValues} onSubmit={handleSubmit} submitLabel="Save changes" />
     </div>
   )
