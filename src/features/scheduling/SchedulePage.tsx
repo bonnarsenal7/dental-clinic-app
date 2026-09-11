@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
@@ -18,6 +18,11 @@ function toDateInput(d: Date) {
 
 export default function SchedulePage() {
   const { staff } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Arriving from the recalls list, which links to /schedule?patient=<id>.
+  // Without this the Book button there dropped you on an unchanged schedule
+  // with the form closed and nothing selected.
+  const bookFor = searchParams.get('patient')
   const [day, setDay] = useState(() => toDateInput(new Date()))
   const [appointments, setAppointments] = useState<AppointmentWithPatient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +30,7 @@ export default function SchedulePage() {
   // visit_id → invoice id, so a completed appointment shows "View invoice"
   // rather than inviting a second one. Empty until looked up.
   const [invoiceByVisit, setInvoiceByVisit] = useState<Record<string, string | null>>({})
-  const [booking, setBooking] = useState(false)
+  const [booking, setBooking] = useState(Boolean(bookFor))
   // Re-renders the waiting-time figures without refetching: a number that
   // silently goes stale is worse than no number.
   const [, setTick] = useState(0)
@@ -125,8 +130,12 @@ export default function SchedulePage() {
         <BookAppointmentForm
           defaultDate={day}
           staffId={staff.id}
+          defaultPatientId={bookFor ?? undefined}
           onBooked={() => {
             setBooking(false)
+            // Drop the parameter so a later "Book appointment" opens a blank
+            // form rather than silently reusing the recalled patient.
+            if (bookFor) setSearchParams({}, { replace: true })
             void refresh()
           }}
         />

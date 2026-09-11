@@ -773,6 +773,18 @@ on the session time zone) and generated columns require immutability.
 `api.ts` translates the constraint name into something a receptionist can
 act on.
 
+### Don't use a `size` listbox for a chooser
+The patient picker was `<select size={4}>`. On a tablet — which is where
+this app is used — a multi-row select renders as an inline list instead of
+opening the native picker: fiddly to tap and easy to read as inert, which
+is exactly how it was reported ("not clickable"). Plain single-select with
+a placeholder option.
+
+Its `<label htmlFor>` also pointed at the search box above it, leaving the
+control a user actually picks with unlabelled — invisible to a screen
+reader, and the reason `getByLabelText('Patient')` returned the wrong
+element. Label the control, not its neighbour.
+
 ### Completing an appointment leads into billing
 Finishing treatment is when someone gets billed, so the action lives on the
 appointment rather than making reception go and find the patient again. A

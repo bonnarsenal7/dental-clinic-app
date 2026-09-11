@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
-import { searchPatients } from '../patients/api'
+import { getPatient, searchPatients } from '../patients/api'
 import type { Patient } from '../patients/types'
 import { listProcedures } from '../billing/api'
 import type { Procedure } from '../billing/types'
@@ -34,6 +34,7 @@ export default function BookAppointmentForm({
   const [dentists, setDentists] = useState<{ id: string; name: string }[]>([])
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [query, setQuery] = useState('')
+  const [defaultPatientName, setDefaultPatientName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -65,11 +66,21 @@ export default function BookAppointmentForm({
   }, [])
 
   useEffect(() => {
+    if (defaultPatientId) return
     const handle = setTimeout(() => {
       searchPatients(query).then(setPatients).catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
-  }, [query])
+  }, [query, defaultPatientId])
+
+  // With the chooser hidden there is nothing on screen saying who this
+  // booking is for, which is a poor thing to be vague about.
+  useEffect(() => {
+    if (!defaultPatientId) return
+    getPatient(defaultPatientId)
+      .then((p) => setDefaultPatientName(p.name))
+      .catch((e) => setError(toMessage(e)))
+  }, [defaultPatientId])
 
   const selectedProcedure = watch('procedure_id')
 
@@ -115,23 +126,45 @@ export default function BookAppointmentForm({
 
       {error && <ErrorState message={error} />}
 
-      {!defaultPatientId && (
+      {defaultPatientId ? (
+        <p className="text-sm text-slate-600">
+          Booking for <span className="font-medium text-slate-800">{defaultPatientName ?? '…'}</span>
+        </p>
+      ) : (
         <div className="flex flex-col gap-2">
-          <label className="text-sm text-slate-700" htmlFor="appt-patient-search">Patient</label>
-          <input
-            id="appt-patient-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or contact number…"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <select {...register('patient_id')} size={4} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}{p.cell_number ? ` · ${p.cell_number}` : ''}
-              </option>
-            ))}
-          </select>
+          <label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor="appt-patient-search">
+            Search
+            <input
+              id="appt-patient-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or contact number…"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+          </label>
+          {/* A plain dropdown, not a `size` listbox. A multi-row select does
+              not open the native picker on a tablet, which is where this is
+              used — it renders as an inline list that is fiddly to tap and
+              easy to mistake for being inert. The label points at this
+              control rather than at the search box above it. */}
+          <label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor="appt-patient">
+            Patient
+            <select
+              id="appt-patient"
+              {...register('patient_id')}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="">— choose a patient —</option>
+              {patients.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}{p.cell_number ? ` · ${p.cell_number}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {patients.length === 0 && (
+            <p className="text-xs text-slate-400">No patients match that search.</p>
+          )}
         </div>
       )}
 
