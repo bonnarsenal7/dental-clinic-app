@@ -108,9 +108,19 @@ attached to the wording that was actually on screen when they were given.
 
 ## 2. Done and verified
 
-### 2.1 Audit logging — ACTIVE
+### 2.1 Audit logging — ACTIVE, VERIFIED LIVE
 
-Implemented in `0006_audit.sql`.
+Implemented in `0006_audit.sql`. Verified against the live database on
+2026-09-11 by probing inside a transaction that was rolled back:
+
+| Check | Result |
+|---|---|
+| Triggers installed | 13 of 13 |
+| INSERT produces an entry, `patient_id` resolved | yes |
+| UPDATE records exactly the changed columns | yes — `{cell_number,remarks}` |
+| No-op UPDATE produces no entry | yes, correctly skipped |
+| DELETE produces an entry **and succeeds** | yes — confirms the no-foreign-key decision below was necessary |
+| Rows left behind by the probe | 0 |
 
 **Writes are logged by database triggers, not by the app.** An `AFTER
 INSERT OR UPDATE OR DELETE` trigger fires on every one of: `patients`,
@@ -195,11 +205,38 @@ gitignored so a dump cannot be committed by accident.
 
 ---
 
-## 3. Restore procedure — DOCUMENTED, NOT YET TESTED
+## 3. Restore procedure — BACKUP VERIFIED, RESTORE NOT YET REHEARSED
 
-**This procedure has not been rehearsed.** Writing it down is not the same
-as knowing it works; §1.1 stays blocking until someone has restored into a
-scratch project and logged in against it.
+**The backup half is done and checked.** A real dump was taken on
+2026-09-11 and its contents verified — see §3.1. **The restore half has not
+been rehearsed**, because it needs a scratch database to restore into.
+§1.1 stays blocking until someone has restored and logged in against it.
+
+### 3.1 What the verified backup contains
+
+Taken 2026-09-11 (`20260911T023325Z`, direct `pg_dump`, 358 KB across three
+files). Verified rather than assumed:
+
+| Check | Result |
+|---|---|
+| Clinic tables in schema dump | 15 of 15 |
+| RLS `ENABLE` statements | 40 |
+| Policies on `public.*` | 103 |
+| Audit triggers | 13 |
+| Invoice-totals triggers | 2 |
+| Receptionist policy on `visit_notes` / `tooth_records` | **0 — correctly absent** |
+| `audit_log` UPDATE/DELETE policy | **none — append-only preserved** |
+| `auth.users` / `auth.identities` rows | 4 / 4 — **logins survive a restore** |
+
+Row counts captured: 4 staff, 3 patients, 3 medical + 3 dental histories,
+1 consent, 7 visits, 4 visit notes, 19 tooth records, 2 invoices, 2 invoice
+items, 2 payments, 2 patient files, 1 clinic settings row. `procedures` and
+`audit_log` are empty — expected, since the price list hasn't been
+populated and the audit triggers were installed minutes before the dump.
+
+The `auth.users` result is the one that would have been easy to miss: a
+dump of only the `public` schema would restore every patient record into a
+database nobody could log in to.
 
 ### Taking a backup
 
@@ -256,10 +293,13 @@ and needs no connection string at all.
 X-rays, ID scans, and per-tooth images live in the `patient-files` storage
 bucket and are **not** in any of the three files.
 
-A restore from these dumps therefore produces a database whose
-`consents.signature_image_url` and `patient_files.storage_path` rows point
-at objects that no longer exist — signed consent would be unprovable. This
-is an open task, not a solved one. The bucket needs its own sync (the
+This is now measured, not hypothetical. The verified backup contains **3
+`storage.objects` metadata rows and 0 bytes of file content**. One of those
+three is a consent signature. So a restore today would produce a
+`consents` row asserting a patient signed, pointing at an image that no
+longer exists — **signed consent would already be unprovable.**
+
+This is an open task, not a solved one. The bucket needs its own sync (the
 Supabase CLI has no storage-dump command; `rclone` or the Storage API are
 the usual routes).
 
@@ -284,10 +324,10 @@ Not yet established — Phase 8 owns it. The intended cadence:
 |---|---|---|---|
 | RLS reviewed against role scenarios | done (by reading policies) | — | 2026-09-11 |
 | RLS verified against live logins | **not done** | — | — |
-| Audit logging active | done | — | 2026-09-11 |
+| Audit logging active | done, **verified live** | — | 2026-09-11 |
 | Automated backups confirmed | **FAILED — none exist** | — | 2026-09-11 |
-| Manual export routine | script written, libpq installed, **dump path untested — needs connection string** | — | — |
-| Restore rehearsed | **not done** | — | — |
+| Manual export routine | done, **run and contents verified** | — | 2026-09-11 |
+| Restore rehearsed | **not done — needs a scratch database** | — | — |
 | Storage backup | **not solved** | — | — |
 | Public signup disabled | **not done** | — | — |
 | Consent + privacy notice legal review | **not done** | — | — |
