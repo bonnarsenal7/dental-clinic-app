@@ -377,6 +377,21 @@ on the upper arch. Which edge of a tooth's square is which surface flips by
 quadrant and arch (`surfacesForTooth()`), because the chart is drawn as if
 facing the patient: their right is on the viewer's left.
 
+### The chart is reached by accessible name, not by `<title>`
+Every pickable zone and every tooth carries `role="button"` and an
+`aria-label` — the same wording as its tooltip. An SVG `<title>` nested in
+a `<g>` is announced inconsistently by screen readers **and** is invisible
+to testing-library's `ByTitle`, which only matches `svg > title` as a
+direct child. That is why the chart had no coverage of what a tap actually
+hits until roles were added.
+
+There is deliberately **no `tabIndex`**. Making 260 zones tab-stops would be
+worse than none; keyboard charting needs arrow-key navigation, which is not
+built. That remains an open gap.
+
+The click handler sits on the zone's `<g>`, not on the `<path>` inside it,
+so the shape and the tooltip naming it are one target.
+
 ### Medical alerts on the chart
 `src/features/patients/MedicalAlerts.tsx` renders above the odontogram, so
 nobody starts marking teeth without having passed the allergy they are

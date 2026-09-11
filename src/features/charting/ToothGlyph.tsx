@@ -55,21 +55,37 @@ export default function ToothGlyph({
       fill,
       stroke: '#cbd5e1',
       strokeWidth: 1,
-      // In whole-tooth mode the zones are inert scenery: the click is
-      // handled by the tooth-wide overlay, so a stray tap on a hairline
-      // between zones can't miss.
-      className: surfacePickable ? 'cursor-pointer hover:opacity-70' : undefined,
-      onClick: surfacePickable ? () => onPick(toothNumber, surface) : undefined,
     }
 
+    // The click lives on the group rather than the shape, so the zone and
+    // the tooltip naming it are one target. In whole-tooth mode the zones
+    // are inert scenery: the tooth-wide overlay takes the click, so a stray
+    // tap on a hairline between zones can't miss.
+    const zoneName = `${surfaceLabel(surface, toothNumber)} — tooth ${toothNumber}`
+
     return (
-      <g key={edge}>
+      <g
+        key={edge}
+        // role + aria-label, not just <title>: an SVG <title> nested inside
+        // a <g> is announced inconsistently and is invisible to a
+        // name-based query, which is how this chart came to have no
+        // automated coverage of what a tap actually hits. The <title> stays
+        // for the mouse tooltip.
+        //
+        // Deliberately no tabIndex. Making 260 zones tab-stops would be
+        // worse than none; proper keyboard charting needs arrow-key
+        // navigation, which is not built.
+        role={surfacePickable ? 'button' : undefined}
+        aria-label={surfacePickable ? zoneName : undefined}
+        className={surfacePickable ? 'cursor-pointer hover:opacity-70' : undefined}
+        onClick={surfacePickable ? () => onPick(toothNumber, surface) : undefined}
+      >
         {path ? (
           <path d={path} {...shared} />
         ) : (
           <rect x={I} y={I} width={S - 2 * I} height={S - 2 * I} {...shared} />
         )}
-        {surfacePickable && <title>{`${surfaceLabel(surface, toothNumber)} — tooth ${toothNumber}`}</title>}
+        {surfacePickable && <title>{zoneName}</title>}
       </g>
     )
   }
@@ -144,6 +160,8 @@ export default function ToothGlyph({
         width={S}
         height={S}
         fill="transparent"
+        role="button"
+        aria-label={`${toothNumber} — ${toothName(toothNumber)}`}
         className="cursor-pointer"
         pointerEvents={surfacePickable ? 'none' : 'auto'}
         onClick={() => onPick(toothNumber, null)}
