@@ -253,6 +253,35 @@ try:
           inv[0]["status"] == "paid" and float(inv[0]["total_amount"]) == 1800.0,
           f"{inv[0]['status']}, {inv[0]['total_amount']}")
 
+    # --- 6b. a finished appointment stops holding the chair --------------
+    #
+    # Reported from the clinic as "That dentist is already with another
+    # patient at this time" when the dentist was plainly free. The exclusion
+    # constraint excluded only cancelled and no-show, so every completed
+    # appointment reserved its slot for ever and the day filled with phantom
+    # conflicts as it went on (0014).
+    st, rows = call("/rest/v1/appointments",
+                    {"patient_id": patient_id, "dentist_id": dentist_id,
+                     "scheduled_at": when, "duration_minutes": 30,
+                     "reason": "Same slot, same dentist, after the first finished",
+                     "status": "booked", "created_by": recep_id},
+                    token=RECEP, prefer="return=representation")
+    check("the same dentist can be booked into a finished appointment's slot",
+          st in (200, 201), f"HTTP {st}" + ("" if st in (200, 201) else f" {rows}"))
+    reused = rows[0] if st in (200, 201) else None
+
+    # And the protection it exists for still holds: two live appointments
+    # for one dentist at one time is still refused.
+    st, body = call("/rest/v1/appointments",
+                    {"patient_id": patient_id, "dentist_id": dentist_id,
+                     "scheduled_at": when, "duration_minutes": 30,
+                     "reason": "Genuine clash", "status": "booked", "created_by": recep_id},
+                    token=RECEP, prefer="return=representation")
+    check("but two live appointments at once are still refused",
+          st >= 400 and "appointments_no_double_booking" in json.dumps(body), f"HTTP {st}")
+    if reused:
+        call(f"/rest/v1/appointments?id=eq.{reused['id']}", token=SRK, method="DELETE")
+
     # --- 7. admin overrides, and the log catches it ----------------------
     print("\nAdmin override:")
     st, body = call(f"/rest/v1/invoice_items?id=eq.{item_id}", {"amount": 1500},

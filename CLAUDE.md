@@ -969,6 +969,30 @@ appointment, so the dentist charts against the booking instead of pressing
 "Start a visit for today" by hand. Same no-re-entry thread that already runs
 chart → invoice.
 
+### A finished appointment frees the chair (0014)
+The exclusion constraint excludes `cancelled`, `no_show`, **`completed` and
+`pending_payment`**. The last two were added after a bug report: seating a
+patient and choosing a dentist failed with "That dentist is already with
+another patient at this time" when the dentist was plainly free.
+
+Excluding only cancelled and no-show meant every completed appointment
+reserved its slot for ever. Because a clinic's slots repeat, the day filled
+with phantom conflicts as it went on — four dentists each had a finished
+09:00, so every option in the dropdown was refused.
+
+What the constraint is for is stopping a dentist being committed to two
+patients at once, and commitment ends when treatment does. `pending_payment`
+frees the chair for the same reason `completed` does: the dentist has
+finished and the patient is at the counter. Holding the slot until the bill
+is settled would make the front desk's speed a constraint on the dentist's
+diary.
+
+**The reproduction is worth keeping in mind**: a loop trying every
+(appointment, dentist) pair inside a transaction that rolls back. The
+signature of the bug was that one appointment failed against *every*
+dentist, including ones with nothing booked — which is what said the
+conflict was not real.
+
 ### Double-booking is refused by the database
 A GiST exclusion constraint over `(dentist_id, tstzrange(scheduled_at,
 ends_at))` — not a UI check, since the UI is not the only thing that will
