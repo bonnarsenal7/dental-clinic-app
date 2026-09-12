@@ -111,14 +111,21 @@ def set_active(uid, value):
     urllib.request.urlopen(req).read()
 
 def destroy(acct):
-    urllib.request.urlopen(
-        urllib.request.Request(
-            f"{URL}/rest/v1/staff?id=eq.{acct['id']}",
-            method="DELETE",
-            headers={"apikey": SRK, "Authorization": f"Bearer {SRK}"},
-        )
-    ).read()
-    admin(f"/auth/v1/admin/users/{acct['id']}", method="DELETE")
+    """Deletes the login, which cascades to the staff row.
+
+    Deleting the staff row first is what an earlier version did, and it
+    fails silently: eleven tables reference `staff` with NO ACTION, so if
+    the throwaway account has created anything the delete is refused — and
+    a fire-and-forget call never notices. That is how seven ZZ TEST logins
+    accumulated on the live project. The status is checked now, and a
+    failure is reported rather than swallowed.
+    """
+    st, body = admin(f"/auth/v1/admin/users/{acct['id']}", method="DELETE")
+    if st not in (200, 204):
+        print(f"  WARNING: could not delete {acct['email']}: {st} {body}")
+        print("           run scripts/clear-staff.py to see what is holding it")
+        return False
+    return True
 
 results = []
 def check(name, ok, detail=""):
@@ -203,8 +210,8 @@ finally:
     print()
     print("Cleaning up…")
     for a in created:
-        destroy(a)
-        print(f"  deleted {a['label']} {a['email']}")
+        if destroy(a):
+            print(f"  deleted {a['label']} {a['email']}")
 
 print()
 print(f"{sum(results)}/{len(results)} passed")
