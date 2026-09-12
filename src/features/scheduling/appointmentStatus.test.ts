@@ -3,6 +3,7 @@ import {
   WAIT_NOTICEABLE,
   WAIT_OVERDUE,
   QUEUE_STATUSES,
+  canRoleTransition,
   canTransition,
   isInQueue,
   isPending,
@@ -17,7 +18,14 @@ describe('appointment status transitions', () => {
     expect(canTransition('booked', 'confirmed')).toBe(true)
     expect(canTransition('confirmed', 'arrived')).toBe(true)
     expect(canTransition('arrived', 'in_chair')).toBe(true)
-    expect(canTransition('in_chair', 'completed')).toBe(true)
+    // Finishing treatment raises the bill; it does not finish the visit.
+    // The patient is not done with the clinic until they have paid.
+    expect(canTransition('in_chair', 'pending_payment')).toBe(true)
+    expect(canTransition('pending_payment', 'completed')).toBe(true)
+  })
+
+  it('will not let treatment complete without going past the bill', () => {
+    expect(canTransition('in_chair', 'completed')).toBe(false)
   })
 
   // A day that can run backwards makes the queue meaningless: "arrived"
@@ -66,10 +74,13 @@ describe('appointment status transitions', () => {
 describe('the queue', () => {
   // The queue is derived from status rather than stored, so these two
   // predicates are the entire definition of "who is in the clinic".
-  it('is exactly the arrived and in-chair patients', () => {
-    expect(QUEUE_STATUSES).toEqual(['arrived', 'in_chair'])
+  // Someone owing money is still in the clinic — standing at the counter,
+  // and reception's problem until they have paid and left.
+  it('is the arrived, in-chair and awaiting-payment patients', () => {
+    expect(QUEUE_STATUSES).toEqual(['arrived', 'in_chair', 'pending_payment'])
     expect(isInQueue('arrived')).toBe(true)
     expect(isInQueue('in_chair')).toBe(true)
+    expect(isInQueue('pending_payment')).toBe(true)
   })
 
   it('excludes those not yet here and those already done', () => {
@@ -145,5 +156,39 @@ describe('how bad a wait is', () => {
     expect(waitSeverity(10)).toBe('settled')
     expect(WAIT_NOTICEABLE).toBeGreaterThan(10)
     expect(WAIT_OVERDUE).toBeGreaterThan(WAIT_NOTICEABLE)
+  })
+})
+
+// Mirrors appointments_guard_transition() in 0013. The database refuses
+// these moves too; this is what stops the UI offering a button that is
+// going to be rejected.
+describe('whose move it is', () => {
+  it('lets only the dentist finish treatment', () => {
+    expect(canRoleTransition('dentist', 'in_chair', 'pending_payment')).toBe(true)
+    expect(canRoleTransition('receptionist', 'in_chair', 'pending_payment')).toBe(false)
+  })
+
+  it('lets only reception accept payment and check the patient out', () => {
+    expect(canRoleTransition('receptionist', 'pending_payment', 'completed')).toBe(true)
+    expect(canRoleTransition('dentist', 'pending_payment', 'completed')).toBe(false)
+  })
+
+  it('lets an admin make either move, to fix a mistake', () => {
+    expect(canRoleTransition('admin', 'in_chair', 'pending_payment')).toBe(true)
+    expect(canRoleTransition('admin', 'pending_payment', 'completed')).toBe(true)
+  })
+
+  // Role permission does not widen the state machine: an admin still cannot
+  // move a patient somewhere the day does not go.
+  it('does not let any role make an illegal move', () => {
+    expect(canRoleTransition('admin', 'completed', 'in_chair')).toBe(false)
+    expect(canRoleTransition('admin', 'in_chair', 'completed')).toBe(false)
+  })
+
+  it('leaves the earlier part of the day to everyone', () => {
+    for (const role of ['receptionist', 'dentist', 'admin'] as const) {
+      expect(canRoleTransition(role, 'booked', 'confirmed')).toBe(true)
+      expect(canRoleTransition(role, 'arrived', 'in_chair')).toBe(true)
+    }
   })
 })

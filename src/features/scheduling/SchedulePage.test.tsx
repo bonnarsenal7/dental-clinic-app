@@ -12,14 +12,17 @@ vi.mock('./api', () => ({
   setAppointmentStatus: vi.fn(),
   listDentists: vi.fn(),
   bookAppointment: vi.fn(),
+  finishTreatment: vi.fn(),
 }))
 vi.mock('../billing/api', () => ({
-  findInvoiceForVisit: vi.fn(),
+  findDraftInvoice: vi.fn(),
+  findInvoicesForVisits: vi.fn(),
   listProcedures: vi.fn(),
 }))
 vi.mock('../patients/api', () => ({ searchPatients: vi.fn(), getPatient: vi.fn() }))
+const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }))
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ staff: { id: 's1', name: 'Reception', role: 'receptionist' } }),
+  useAuth: () => ({ staff: { id: 's1', name: 'Whoever', role: auth.role } }),
 }))
 
 const api = await import('./api')
@@ -63,10 +66,13 @@ const seated = (over: Partial<AppointmentWithPatient> = {}): AppointmentWithPati
 
 describe('SchedulePage', () => {
   beforeEach(() => {
+    auth.role = 'receptionist'
     vi.mocked(api.listAppointmentsForDay).mockResolvedValue([])
     vi.mocked(api.listDentists).mockResolvedValue([{ id: 'd-1', name: 'Test Dentist' }])
     vi.mocked(billing.listProcedures).mockResolvedValue([] as never)
-    vi.mocked(billing.findInvoiceForVisit).mockResolvedValue(null)
+    vi.mocked(billing.findDraftInvoice).mockResolvedValue(null)
+    vi.mocked(billing.findInvoicesForVisits).mockResolvedValue({})
+    vi.mocked(api.finishTreatment).mockResolvedValue(anAppointment({ status: 'pending_payment' }))
     vi.mocked(patients.searchPatients).mockResolvedValue([] as never)
     vi.mocked(patients.getPatient).mockResolvedValue({
       id: 'p-9',
@@ -97,50 +103,6 @@ describe('SchedulePage', () => {
 
   // --- Completing leads straight into billing ---------------------------
 
-  // Finishing treatment is when someone gets billed. Leaving a "Create
-  // invoice" link on the card made that a separate step somebody has to
-  // remember at a busy front desk.
-  it('goes to the invoice builder when an appointment is completed', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([seated()])
-    vi.mocked(api.setAppointmentStatus).mockResolvedValue(
-      anAppointment({ id: 'a-1', status: 'completed', visit_id: 'v-1', patient_id: 'p-1' }),
-    )
-    renderAt('/schedule')
-    await user.click(await screen.findByRole('button', { name: /complete/i }))
-    expect(await screen.findByText(/builder for p-1/i)).toBeInTheDocument()
-  })
-
-  // The builder needs both: the appointment to prefill the first line, the
-  // visit to pull what was charted.
-  it('carries the appointment and the visit through to the builder', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([seated()])
-    vi.mocked(api.setAppointmentStatus).mockResolvedValue(
-      anAppointment({ id: 'a-1', status: 'completed', visit_id: 'v-1', patient_id: 'p-1' }),
-    )
-    renderAt('/schedule')
-    await user.click(await screen.findByRole('button', { name: /complete/i }))
-    const landed = await screen.findByText(/builder for p-1/i)
-    expect(landed).toHaveTextContent('appointment=a-1')
-    expect(landed).toHaveTextContent('visit=v-1')
-  })
-
-  // The offer can be taken twice — by the dentist at the chair and by
-  // reception at checkout. Landing on a blank builder for an already-billed
-  // visit is how a second invoice gets raised.
-  it('opens the existing invoice rather than starting a second one', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([seated()])
-    vi.mocked(api.setAppointmentStatus).mockResolvedValue(
-      anAppointment({ id: 'a-1', status: 'completed', visit_id: 'v-1', patient_id: 'p-1' }),
-    )
-    vi.mocked(billing.findInvoiceForVisit).mockResolvedValue({ id: 'inv-7' } as never)
-    renderAt('/schedule')
-    await user.click(await screen.findByRole('button', { name: /complete/i }))
-    expect(await screen.findByText(/existing invoice inv-7/i)).toBeInTheDocument()
-  })
-
   // Only completing bills. Marking someone arrived must leave you on the
   // schedule, with the next patient still in front of you.
   it('stays on the schedule for every other status change', async () => {
@@ -156,17 +118,6 @@ describe('SchedulePage', () => {
     await waitFor(() => expect(api.setAppointmentStatus).toHaveBeenCalled())
     expect(screen.queryByText(/builder for/i)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /schedule/i })).toBeInTheDocument()
-  })
-
-  // A failed write must not navigate away from the error.
-  it('does not redirect when completing fails', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([seated()])
-    vi.mocked(api.setAppointmentStatus).mockRejectedValue(new Error('permission denied'))
-    renderAt('/schedule')
-    await user.click(await screen.findByRole('button', { name: /complete/i }))
-    expect(await screen.findByText(/permission denied/i)).toBeInTheDocument()
-    expect(screen.queryByText(/builder for/i)).not.toBeInTheDocument()
   })
 
   // --- Who is actually treating them ------------------------------------
@@ -271,5 +222,92 @@ describe('SchedulePage', () => {
     await user.click(within(dialog).getByRole('button', { name: /seat patient/i }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(/already with another patient/i)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  // --- Finishing treatment, and taking the money ------------------------
+
+  const inChair = (over: Partial<AppointmentWithPatient> = {}) =>
+    seated({ status: 'in_chair', visit_id: 'v-1', ...over })
+
+  // The invoice is written chairside, so finishing locks it rather than
+  // sending anyone off to build one afterwards.
+  it('locks the chairside draft when the dentist finishes treatment', async () => {
+    const user = userEvent.setup()
+    auth.role = 'dentist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([inChair()])
+    vi.mocked(billing.findDraftInvoice).mockResolvedValue({ id: 'inv-1' } as never)
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /finish treatment/i }))
+    await waitFor(() => expect(api.finishTreatment).toHaveBeenCalled())
+    expect(vi.mocked(api.finishTreatment).mock.calls[0][0]).toMatchObject({ invoiceId: 'inv-1' })
+  })
+
+  it('puts the bill on screen once treatment is finished', async () => {
+    const user = userEvent.setup()
+    auth.role = 'dentist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([inChair()])
+    vi.mocked(billing.findDraftInvoice).mockResolvedValue({ id: 'inv-1' } as never)
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /finish treatment/i }))
+    expect(await screen.findByText(/existing invoice inv-1/i)).toBeInTheDocument()
+  })
+
+  // An appointment where nothing was billable has no bill to wait on.
+  it('completes outright when nothing was billed', async () => {
+    const user = userEvent.setup()
+    auth.role = 'dentist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([inChair()])
+    vi.mocked(billing.findDraftInvoice).mockResolvedValue(null)
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /finish treatment/i }))
+    await waitFor(() => expect(api.finishTreatment).toHaveBeenCalled())
+    expect(vi.mocked(api.finishTreatment).mock.calls[0][0]).toMatchObject({ invoiceId: null })
+    expect(screen.queryByText(/existing invoice/i)).not.toBeInTheDocument()
+  })
+
+  // Mirrors 0013: the database refuses these, and a button that is going to
+  // be rejected is worse than no button.
+  it('does not offer reception the finish-treatment action', async () => {
+    auth.role = 'receptionist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([inChair()])
+    renderAt('/schedule')
+    await screen.findByText('Maria Clara Santos')
+    expect(screen.queryByRole('button', { name: /finish treatment/i })).not.toBeInTheDocument()
+  })
+
+  it('does not offer the dentist the accept-payment action', async () => {
+    auth.role = 'dentist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([
+      seated({ status: 'pending_payment', visit_id: 'v-1' }),
+    ])
+    renderAt('/schedule')
+    await screen.findByText('Maria Clara Santos')
+    expect(screen.queryByRole('button', { name: /accept payment/i })).not.toBeInTheDocument()
+  })
+
+  // Reception is checking people out one after another; being thrown onto an
+  // invoice screen between each one would be worse than useless.
+  it('stays on the day sheet when reception accepts payment', async () => {
+    const user = userEvent.setup()
+    auth.role = 'receptionist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([
+      seated({ status: 'pending_payment', visit_id: 'v-1' }),
+    ])
+    vi.mocked(api.setAppointmentStatus).mockResolvedValue(anAppointment({ status: 'completed' }))
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /accept payment/i }))
+    await waitFor(() => expect(api.setAppointmentStatus).toHaveBeenCalled())
+    expect(vi.mocked(api.setAppointmentStatus).mock.calls[0][0]).toMatchObject({ status: 'completed' })
+    expect(screen.getByRole('heading', { name: /schedule/i })).toBeInTheDocument()
+  })
+
+  it('shows reception the bill to collect against', async () => {
+    auth.role = 'receptionist'
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([
+      seated({ status: 'pending_payment', visit_id: 'v-1' }),
+    ])
+    vi.mocked(billing.findInvoicesForVisits).mockResolvedValue({ 'v-1': 'inv-1' })
+    renderAt('/schedule')
+    expect(await screen.findByRole('link', { name: /view bill/i })).toHaveAttribute('href', '/invoices/inv-1')
   })
 })

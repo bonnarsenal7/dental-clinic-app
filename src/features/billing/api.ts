@@ -1,5 +1,12 @@
 import { supabase } from '../../core/supabaseClient'
-import type { BillableCharting, Invoice, InvoiceWithDetail, PaymentMethod, Procedure } from './types'
+import type {
+  BillableCharting,
+  DraftInvoice,
+  Invoice,
+  InvoiceWithDetail,
+  PaymentMethod,
+  Procedure,
+} from './types'
 
 // --- Price list ----------------------------------------------------------
 
@@ -103,8 +110,123 @@ export async function findInvoiceForVisit(visitId: string): Promise<Invoice | nu
   return (data as Invoice | null) ?? null
 }
 
+/** The live invoice for each of several visits, in one query.
+ *
+ *  Replaces a loop of findInvoiceForVisit — the day sheet was issuing one
+ *  round trip per finished appointment, over the clinic Wi-Fi this app is
+ *  built to tolerate (TECHNICAL_REVIEW F-8). Drafts are excluded as well as
+ *  voids: a draft is not a bill anyone can be asked to pay. */
+export async function findInvoicesForVisits(visitIds: string[]): Promise<Record<string, string>> {
+  if (visitIds.length === 0) return {}
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('id, visit_id')
+    .in('visit_id', visitIds)
+    .not('status', 'in', '("void","draft")')
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+
+  const byVisit: Record<string, string> = {}
+  for (const row of (data ?? []) as { id: string; visit_id: string | null }[]) {
+    // Ordered newest first, so the first one seen for a visit wins.
+    if (row.visit_id && !byVisit[row.visit_id]) byVisit[row.visit_id] = row.id
+  }
+  return byVisit
+}
+
 export async function voidInvoice(id: string) {
   const { error } = await supabase.from('invoices').update({ status: 'void' }).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// --- Chairside billing ---------------------------------------------------
+//
+// The dentist bills what they did while they are doing it. The working
+// total lives on a `draft` invoice, which 0013 makes editable by the
+// dentist and nobody else; finishing treatment takes it out of draft and
+// the figures are fixed from then on.
+
+/** The draft for a visit, if the dentist has started one. */
+export async function findDraftInvoice(visitId: string): Promise<DraftInvoice | null> {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*, invoice_items(*)')
+    .eq('visit_id', visitId)
+    .eq('status', 'draft')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as DraftInvoice | null) ?? null
+}
+
+/** Opens the draft on first use rather than when the patient is seated —
+ *  an appointment where nothing is billable should not leave an empty
+ *  invoice behind. */
+export async function openDraftInvoice(params: {
+  patientId: string
+  visitId: string
+  staffId: string
+}): Promise<DraftInvoice> {
+  const existing = await findDraftInvoice(params.visitId)
+  if (existing) return existing
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .insert({
+      patient_id: params.patientId,
+      visit_id: params.visitId,
+      status: 'draft',
+      created_by: params.staffId,
+    })
+    .select()
+    .single()
+  if (error) throw new Error(`Starting the bill: ${error.message}`)
+  return { ...(data as Invoice), invoice_items: [] }
+}
+
+export async function addDraftLine(params: {
+  invoiceId: string
+  description: string
+  amount: number
+  procedureId?: string | null
+  toothNumber?: number | null
+  toothRecordId?: string | null
+}) {
+  const { error } = await supabase.from('invoice_items').insert({
+    invoice_id: params.invoiceId,
+    description: params.description,
+    amount: params.amount,
+    procedure_id: params.procedureId ?? null,
+    tooth_number: params.toothNumber ?? null,
+    tooth_record_id: params.toothRecordId ?? null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function updateDraftLine(itemId: string, patch: { description?: string; amount?: number }) {
+  const { error } = await supabase.from('invoice_items').update(patch).eq('id', itemId)
+  if (error) throw new Error(error.message)
+}
+
+export async function removeDraftLine(itemId: string) {
+  const { error } = await supabase.from('invoice_items').delete().eq('id', itemId)
+  if (error) throw new Error(error.message)
+}
+
+/** Takes the invoice out of draft. After this the figures are fixed for
+ *  everyone but an admin — enforced by RLS, not by hiding the buttons. */
+export async function lockInvoice(invoiceId: string) {
+  const { error } = await supabase.from('invoices').update({ status: 'unpaid' }).eq('id', invoiceId)
+  if (error) throw new Error(error.message)
+}
+
+// --- Admin overrides ------------------------------------------------------
+//
+// No app-side logging here on purpose: 0006's triggers record every one of
+// these unconditionally, including changes made outside the app entirely.
+// A log the client writes is a log the client can skip.
+
+export async function voidInvoice_admin(invoiceId: string) {
+  const { error } = await supabase.from('invoices').update({ status: 'void' }).eq('id', invoiceId)
   if (error) throw new Error(error.message)
 }
 

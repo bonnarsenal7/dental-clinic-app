@@ -155,4 +155,28 @@ describe('react-hook-form integration', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Name is required')
     expect(onValid).not.toHaveBeenCalled()
   })
+
+  // A hint inside the <label> becomes part of the control's accessible name,
+  // so a screen reader announces "Procedure Fills the description and the fee
+  // from the price list" as though that were the field's name. It belongs
+  // beside the label, not inside it.
+  it('keeps the hint out of the control’s accessible name', () => {
+    render(
+      <Field label="Procedure" hint="Fills the description and the fee from the price list.">
+        <TextInput />
+      </Field>,
+    )
+    expect(screen.getByLabelText('Procedure')).toBeInTheDocument()
+    expect(screen.getByText(/fills the description/i)).toBeInTheDocument()
+  })
+
+  it('keeps the error message out of it too', () => {
+    render(
+      <Field label="Amount" error="An amount must be more than zero.">
+        <TextInput />
+      </Field>,
+    )
+    expect(screen.getByLabelText('Amount')).toBeInTheDocument()
+    expect(screen.getByText(/more than zero/i)).toBeInTheDocument()
+  })
 })

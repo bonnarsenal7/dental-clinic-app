@@ -1,5 +1,13 @@
 export type AppointmentStatus =
-  'booked' | 'confirmed' | 'arrived' | 'in_chair' | 'completed' | 'cancelled' | 'no_show'
+  | 'booked'
+  | 'confirmed'
+  | 'arrived'
+  | 'in_chair'
+  /** Treatment is done and the invoice is raised; the patient still owes. */
+  | 'pending_payment'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
 
 export interface Appointment {
   id: string

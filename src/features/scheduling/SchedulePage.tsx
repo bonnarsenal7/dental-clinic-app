@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
-import { listAppointmentsForDay, listDentists, setAppointmentStatus } from './api'
-import { findInvoiceForVisit } from '../billing/api'
+import { finishTreatment, listAppointmentsForDay, listDentists, setAppointmentStatus } from './api'
+import { findDraftInvoice, findInvoicesForVisits } from '../billing/api'
 import { isInQueue, isPending } from './appointmentStatus'
 import AppointmentCard from './AppointmentCard'
 import BookAppointmentForm from './BookAppointmentForm'
@@ -46,21 +46,12 @@ export default function SchedulePage() {
       const list = await listAppointmentsForDay(new Date(`${day}T12:00:00`))
       setAppointments(list)
 
-      // Only the completed ones can have been billed, so don't ask about
-      // the rest.
+      // Awaiting payment and finished are the states that can have a bill.
+      // One query for all of them rather than one per appointment.
       const visitIds = list
-        .filter((a) => a.status === 'completed' && a.visit_id)
+        .filter((a) => (a.status === 'pending_payment' || a.status === 'completed') && a.visit_id)
         .map((a) => a.visit_id as string)
-      if (visitIds.length > 0) {
-        const found = await Promise.all(
-          visitIds.map(
-            async (visitId) => [visitId, (await findInvoiceForVisit(visitId))?.id ?? null] as const,
-          ),
-        )
-        setInvoiceByVisit(Object.fromEntries(found))
-      } else {
-        setInvoiceByVisit({})
-      }
+      setInvoiceByVisit(await findInvoicesForVisits(visitIds))
     } catch (e) {
       setError(toMessage(e))
     }
@@ -122,27 +113,29 @@ export default function SchedulePage() {
     setBusyId(appointment.id)
     setError(null)
     try {
-      const updated = await setAppointmentStatus({ appointment, status, staffId: staff.id })
+      // Finishing treatment takes the chairside draft out of draft and moves
+      // the patient to the counter. An appointment with nothing billed goes
+      // straight to completed — there is no bill to wait on.
+      if (status === 'pending_payment') {
+        const draft = appointment.visit_id ? await findDraftInvoice(appointment.visit_id) : null
+        await finishTreatment({ appointment, staffId: staff.id, invoiceId: draft?.id ?? null })
 
-      // Finishing treatment is the moment someone gets billed, so the app
-      // goes there rather than leaving whoever pressed Complete to find the
-      // patient again. The card kept offering "Create invoice" after the
-      // fact, which is a step that gets forgotten at a busy front desk.
-      if (status === 'completed') {
-        // The offer can be taken twice — by the dentist at the chair and by
-        // reception at checkout. Landing on a blank builder for a visit
-        // that is already invoiced is how a second invoice gets raised, so
-        // an existing one wins.
-        const existing = updated.visit_id ? await findInvoiceForVisit(updated.visit_id) : null
-        navigate(
-          existing
-            ? `/invoices/${existing.id}`
-            : `/patients/${updated.patient_id}/invoices/new?appointment=${updated.id}` +
-                (updated.visit_id ? `&visit=${updated.visit_id}` : ''),
-        )
+        // The bill goes on screen: the dentist confirms what was charged and
+        // reception has it in front of them when the patient walks over.
+        // Nothing goes to the invoice *builder* any more — the invoice is
+        // written chairside, and a blank builder afterwards is how a second
+        // one gets raised for the same treatment.
+        if (draft) {
+          navigate(`/invoices/${draft.id}`)
+          return
+        }
+        await refresh()
         return
       }
 
+      // Accepting payment deliberately does not navigate: reception is
+      // checking people out one after another and belongs on the day sheet.
+      await setAppointmentStatus({ appointment, status, staffId: staff.id })
       await refresh()
     } catch (e) {
       setError(toMessage(e))
@@ -289,6 +282,7 @@ export default function SchedulePage() {
                     onStatusChange={handleStatus}
                     busy={busyId === a.id}
                     invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null}
+                    role={staff?.role}
                   />
                 ))
               )}
@@ -312,6 +306,7 @@ export default function SchedulePage() {
                   onStatusChange={handleStatus}
                   busy={busyId === a.id}
                   invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null}
+                  role={staff?.role}
                 />
               ))
             )}
@@ -327,6 +322,7 @@ export default function SchedulePage() {
                   onStatusChange={handleStatus}
                   busy={busyId === a.id}
                   invoiceId={a.visit_id ? invoiceByVisit[a.visit_id] : null}
+                  role={staff?.role}
                 />
               ))}
             </section>

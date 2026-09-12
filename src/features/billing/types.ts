@@ -1,4 +1,8 @@
-export type InvoiceStatus = 'unpaid' | 'partial' | 'paid' | 'void'
+/** `draft` is the dentist's working total while the patient is in the
+ *  chair — editable by them and nobody else (0013). Everything after it is
+ *  derived from payments by the totals trigger, except `void`, which is
+ *  sticky like `draft`. */
+export type InvoiceStatus = 'draft' | 'unpaid' | 'partial' | 'paid' | 'void'
 
 export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'other'
 
@@ -50,6 +54,12 @@ export interface Invoice {
   total_amount: number
   created_by: string | null
   created_at: string
+}
+
+/** A draft carries its lines but never any payments — nothing can be paid
+ *  against an invoice that is still being written. */
+export interface DraftInvoice extends Invoice {
+  invoice_items: InvoiceItem[]
 }
 
 export interface InvoiceWithDetail extends Invoice {

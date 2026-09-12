@@ -1,5 +1,6 @@
 import { supabase } from '../../core/supabaseClient'
 import { toLocalDateString } from '../../core/localDate'
+import { lockInvoice } from '../billing/api'
 import type {
   Appointment,
   AppointmentStatus,
@@ -165,6 +166,28 @@ export async function setAppointmentStatus(params: {
  *  booking could not attach a booking to any dentist. The function returns
  *  id and name only, so fixing that does not also hand reception every
  *  colleague's email address. See 0011. */
+/** Finishing treatment: the invoice leaves draft and the patient moves to
+ *  awaiting payment. Both, or neither — a locked invoice with the patient
+ *  still shown as in the chair is worse than either alone.
+ *
+ *  Not a database transaction (supabase-js has none without an RPC), so the
+ *  invoice is locked *after* the status moves: if the lock then fails the
+ *  patient is at the counter with an invoice that is still editable, which
+ *  an admin can fix. The other order leaves a bill nobody can be charged. */
+export async function finishTreatment(params: {
+  appointment: Appointment
+  staffId: string
+  invoiceId: string | null
+}): Promise<Appointment> {
+  const updated = await setAppointmentStatus({
+    appointment: params.appointment,
+    status: params.invoiceId ? 'pending_payment' : 'completed',
+    staffId: params.staffId,
+  })
+  if (params.invoiceId) await lockInvoice(params.invoiceId)
+  return updated
+}
+
 export async function listDentists(): Promise<{ id: string; name: string }[]> {
   const { data, error } = await supabase.rpc('bookable_dentists')
   if (error) throw new Error(error.message)

@@ -1,9 +1,22 @@
 import { Link } from 'react-router-dom'
-import { STATUS_LABELS, STATUS_STYLES, nextStatuses, waitSeverity, waitingMinutes } from './appointmentStatus'
+import {
+  STATUS_LABELS,
+  STATUS_STYLES,
+  canRoleTransition,
+  nextStatuses,
+  waitSeverity,
+  waitingMinutes,
+} from './appointmentStatus'
+import type { StaffRole } from '../auth/types'
 import type { AppointmentStatus, AppointmentWithPatient } from './types'
 
 function timeOf(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+const ACTION_LABELS: Partial<Record<AppointmentStatus, string>> = {
+  pending_payment: 'Finish treatment',
+  completed: 'Accept payment',
 }
 
 export default function AppointmentCard({
@@ -11,6 +24,7 @@ export default function AppointmentCard({
   onStatusChange,
   busy,
   invoiceId,
+  role,
 }: {
   appointment: AppointmentWithPatient
   onStatusChange: (appointment: AppointmentWithPatient, status: AppointmentStatus) => void
@@ -18,6 +32,8 @@ export default function AppointmentCard({
   /** The invoice already raised for this appointment's visit, if any.
    *  Undefined means not yet looked up. */
   invoiceId?: string | null
+  /** Filters the actions to the ones this role may make. */
+  role?: StaffRole
 }) {
   const patient = appointment.patients
   const waited = waitingMinutes(appointment.arrived_at)
@@ -119,21 +135,41 @@ export default function AppointmentCard({
               Create invoice
             </Link>
           ))}
-        {nextStatuses(appointment.status).map((status) => (
-          <button
-            key={status}
-            type="button"
-            disabled={busy}
-            onClick={() => onStatusChange(appointment, status)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-              status === 'arrived' || status === 'in_chair' || status === 'completed'
-                ? 'bg-gold-700 text-white hover:bg-gold-800'
-                : 'border border-slate-300 text-slate-500 hover:bg-slate-100'
-            }`}
+        {/* A patient owing money is the only thing on this card worth
+            interrupting someone for, so the amount is on the card rather
+            than one screen away. */}
+        {appointment.status === 'pending_payment' && invoiceId && (
+          <Link
+            to={`/invoices/${invoiceId}`}
+            className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 hover:bg-red-100"
           >
-            {STATUS_LABELS[status]}
-          </button>
-        ))}
+            View bill
+          </Link>
+        )}
+
+        {/* Only the moves this role may actually make. The database refuses
+            the rest (0013), and a button that is going to be rejected is
+            worse than no button. */}
+        {nextStatuses(appointment.status)
+          .filter((status) => !role || canRoleTransition(role, appointment.status, status))
+          .map((status) => (
+            <button
+              key={status}
+              type="button"
+              disabled={busy}
+              onClick={() => onStatusChange(appointment, status)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                status === 'arrived' ||
+                status === 'in_chair' ||
+                status === 'pending_payment' ||
+                status === 'completed'
+                  ? 'bg-gold-700 text-white hover:bg-gold-800'
+                  : 'border border-slate-300 text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {ACTION_LABELS[status] ?? STATUS_LABELS[status]}
+            </button>
+          ))}
       </div>
     </div>
   )

@@ -27,12 +27,19 @@ export function Field({
   className?: string
 }) {
   return (
-    <label className={cn('flex flex-col gap-1 text-sm text-slate-700', className)}>
-      {label}
-      {children}
+    // The hint and the error sit *outside* the <label>, deliberately. Text
+    // inside a label becomes part of the control's accessible name, so a
+    // hint there is announced as though it were the field's name — "Procedure
+    // Fills the description and the fee from the price list". The label still
+    // wraps the control, so the pairing cannot drift.
+    <div className={cn('flex flex-col gap-1 text-sm text-slate-700', className)}>
+      <label className="flex flex-col gap-1">
+        {label}
+        {children}
+      </label>
       {hint && <span className="text-xs text-slate-400">{hint}</span>}
       <FieldError message={error} />
-    </label>
+    </div>
   )
 }
 

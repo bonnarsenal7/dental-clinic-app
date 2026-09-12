@@ -1075,6 +1075,55 @@ Also: don't render "No patients match that search." before the first search
 has resolved — an empty list at mount is "not loaded yet", not "no results",
 and the form opened by declaring itself broken.
 
+## Chairside billing (0012, 0013)
+
+The dentist bills what they did, while they are doing it; finishing
+treatment locks the figures; reception takes the money and can change
+nothing about what was charged.
+
+    in_chair  --(dentist finishes)-->  pending_payment  --(reception)-->  completed
+
+`pending_payment` is new, and `completed` now means *paid and gone*. It
+counts as in the queue: the patient is standing at the counter and is
+reception's problem until they leave.
+
+### The rules are in Postgres, not in the buttons
+A receptionist with the anon key and curl bypasses every React guard in the
+app, so the buttons are a convenience and 0013 is the rule:
+
+- **invoice_items**: dentist may insert/update/delete only while the parent
+  invoice is `draft`; reception has no write at all; admin always.
+- **invoices**: dentist raises the draft and edits it while draft; reception
+  cannot insert or update; admin always.
+- **transitions**: a BEFORE UPDATE trigger, not more RLS — RLS answers "may
+  you touch this row", and whether a particular OLD → NEW move is yours needs
+  both rows at once.
+
+`canRoleTransition()` mirrors that trigger so the UI does not offer a button
+the database is about to reject. **If one changes, change both.**
+
+### Two things that look like details and are not
+**`refresh_invoice_totals` is SECURITY DEFINER.** Reception records a
+payment, which fires the trigger to update `invoices` — and reception has no
+update on `invoices`. As an invoker function it would silently fail to move
+the invoice to paid: money in, status stuck.
+
+**`draft` is sticky in that trigger, like `void`.** Otherwise the invoice
+leaves draft the moment the dentist adds a first line, unlocking nothing and
+locking them out of their own running total.
+
+### A second procedure is a second booking
+Nothing reopens a finished invoice. `completed` and `pending_payment` are
+both dead ends for everyone but an admin — the trigger says so in words
+("Book the extra procedure separately"). A new booking makes a new visit,
+which makes its own invoice.
+
+### No app-side audit logging was added, deliberately
+0006's triggers already record every admin override unconditionally,
+including changes made outside the app. A log the client writes is a log the
+client can skip. `scripts/test-chairside-billing.py` proves the override
+lands in `audit_log` with the field name and the admin's id.
+
 ### Completing an appointment leads into billing
 Finishing treatment is when someone gets billed, so **pressing Complete
 navigates straight to the invoice** rather than leaving a link to follow
