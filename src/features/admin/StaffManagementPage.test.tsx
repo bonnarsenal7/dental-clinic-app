@@ -58,6 +58,7 @@ describe('StaffManagementPage', () => {
     vi.mocked(api.createStaff).mockResolvedValue({
       staffId: 'n1',
       tempPassword: 'Tmp-9fA2xQ',
+      chosen: false,
       note: 'ok',
     })
     vi.mocked(api.deactivateStaff).mockResolvedValue({ ok: true })
@@ -65,6 +66,7 @@ describe('StaffManagementPage', () => {
     vi.mocked(api.resetStaffPassword).mockResolvedValue({
       staffId: 'd1',
       tempPassword: 'Tmp-7hK2pQ',
+      chosen: false,
       note: 'ok',
     })
   })
@@ -79,10 +81,10 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     const row = within(screen.getByText('Test Dentist').closest('tr')!)
-    await user.click(row.getByRole('button', { name: /reset password/i }))
+    await user.click(row.getByRole('button', { name: /set password/i }))
     const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: /^reset password$/i }))
-    await waitFor(() => expect(api.resetStaffPassword).toHaveBeenCalledWith('d1'))
+    await user.click(within(dialog).getByRole('button', { name: /^set password$/i }))
+    await waitFor(() => expect(api.resetStaffPassword).toHaveBeenCalledWith('d1', undefined))
   })
 
   it('shows the new password once, with what to do with it', async () => {
@@ -90,9 +92,9 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     const row = within(screen.getByText('Test Dentist').closest('tr')!)
-    await user.click(row.getByRole('button', { name: /reset password/i }))
+    await user.click(row.getByRole('button', { name: /set password/i }))
     const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: /^reset password$/i }))
+    await user.click(within(dialog).getByRole('button', { name: /^set password$/i }))
     expect(await screen.findByText(/Tmp-7hK2pQ/)).toBeInTheDocument()
     expect(screen.getByText(/share this with them directly/i)).toBeInTheDocument()
   })
@@ -104,9 +106,9 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     const row = within(screen.getByText('Test Dentist').closest('tr')!)
-    await user.click(row.getByRole('button', { name: /reset password/i }))
+    await user.click(row.getByRole('button', { name: /set password/i }))
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent(/reset the password for test dentist/i)
+    expect(dialog).toHaveTextContent(/set a new password for test dentist/i)
     expect(dialog).toHaveTextContent(/stops working immediately/i)
     expect(api.resetStaffPassword).not.toHaveBeenCalled()
   })
@@ -118,7 +120,7 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     const row = within(screen.getByText('Test Dentist').closest('tr')!)
-    await user.click(row.getByRole('button', { name: /reset password/i }))
+    await user.click(row.getByRole('button', { name: /set password/i }))
     expect(await screen.findByRole('dialog')).toHaveTextContent(/session .* stays valid/i)
   })
 
@@ -127,7 +129,7 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     const row = within(screen.getByText('Test Dentist').closest('tr')!)
-    await user.click(row.getByRole('button', { name: /reset password/i }))
+    await user.click(row.getByRole('button', { name: /set password/i }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -141,7 +143,7 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Former Receptionist')
     const row = within(screen.getByText('Former Receptionist').closest('tr')!)
-    expect(row.queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument()
+    expect(row.queryByRole('button', { name: /set password/i })).not.toBeInTheDocument()
     expect(row.getByRole('button', { name: /restore access/i })).toBeInTheDocument()
   })
 
@@ -151,9 +153,9 @@ describe('StaffManagementPage', () => {
     render(<StaffManagementPage />)
     await screen.findByText('Test Dentist')
     const row = within(screen.getByText('Test Dentist').closest('tr')!)
-    await user.click(row.getByRole('button', { name: /reset password/i }))
+    await user.click(row.getByRole('button', { name: /set password/i }))
     const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: /^reset password$/i }))
+    await user.click(within(dialog).getByRole('button', { name: /^set password$/i }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(/admin role required/i)
   })
 
@@ -360,5 +362,124 @@ describe('StaffManagementPage', () => {
     await user.type(screen.getByLabelText(/email/i), 'x@x.com')
     await user.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/only an active admin/i)
+  })
+
+  // --- Setting a password by hand ----------------------------------------
+
+  // Reading "Tmp-9fA2xQ" down the phone is how a new starter is locked out
+  // on their first morning. An admin can say the password out loud instead.
+  it('sets the password an admin typed, rather than generating one', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.resetStaffPassword).mockResolvedValue({
+      staffId: 'd1',
+      tempPassword: 'ToothCo2026!',
+      chosen: true,
+      note: 'ok',
+    })
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /set password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/new password/i), 'ToothCo2026!')
+    await user.click(within(dialog).getByRole('button', { name: /^set password$/i }))
+    await waitFor(() => expect(api.resetStaffPassword).toHaveBeenCalledWith('d1', 'ToothCo2026!'))
+  })
+
+  it('says the password was set rather than generated', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.resetStaffPassword).mockResolvedValue({
+      staffId: 'd1',
+      tempPassword: 'ToothCo2026!',
+      chosen: true,
+      note: 'ok',
+    })
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /set password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/new password/i), 'ToothCo2026!')
+    await user.click(within(dialog).getByRole('button', { name: /^set password$/i }))
+    expect(await screen.findByText(/password set for test dentist/i)).toBeInTheDocument()
+  })
+
+  // Generating stays the default, so the existing flow is unchanged for
+  // anyone who does not care to choose.
+  it('still generates one when the field is left blank', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /set password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^set password$/i }))
+    await waitFor(() => expect(api.resetStaffPassword).toHaveBeenCalledWith('d1', undefined))
+    expect(await screen.findByText(/new temporary password for test dentist/i)).toBeInTheDocument()
+  })
+
+  // Matches the minimum ResetPasswordPage enforces, so a password an admin
+  // sets is one the staff member could have set themselves.
+  it('warns about a password under eight characters', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /set password/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/new password/i), 'short')
+    expect(within(dialog).getByText(/at least 8 characters/i)).toBeInTheDocument()
+  })
+
+  // The field is per-account. Carrying a typed password from one dialog to
+  // the next would set it on somebody it was never meant for.
+  it('does not carry a typed password to the next account', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    const row = within(screen.getByText('Test Dentist').closest('tr')!)
+    await user.click(row.getByRole('button', { name: /set password/i }))
+    let dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/new password/i), 'ToothCo2026!')
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await user.click(row.getByRole('button', { name: /set password/i }))
+    dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText(/new password/i)).toHaveValue('')
+  })
+
+  // --- Choosing a password at creation ------------------------------------
+
+  it('creates the account with the password an admin typed', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.createStaff).mockResolvedValue({
+      staffId: 'n1',
+      tempPassword: 'ToothCo2026!',
+      chosen: true,
+      note: 'ok',
+    })
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    await user.type(screen.getByLabelText(/full name/i), 'New Receptionist')
+    await user.type(screen.getByLabelText(/email/i), 'new@x.com')
+    await user.type(screen.getByLabelText(/password/i), 'ToothCo2026!')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+    await waitFor(() => expect(api.createStaff).toHaveBeenCalled())
+    expect(vi.mocked(api.createStaff).mock.calls[0][0]).toMatchObject({
+      password: 'ToothCo2026!',
+    })
+  })
+
+  it('refuses to create with a password under eight characters', async () => {
+    const user = userEvent.setup()
+    render(<StaffManagementPage />)
+    await screen.findByText('Test Dentist')
+    await user.type(screen.getByLabelText(/full name/i), 'New Receptionist')
+    await user.type(screen.getByLabelText(/email/i), 'new@x.com')
+    await user.type(screen.getByLabelText(/password/i), 'short')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+    expect(await screen.findByText(/at least 8 characters/i)).toBeInTheDocument()
+    expect(api.createStaff).not.toHaveBeenCalled()
   })
 })

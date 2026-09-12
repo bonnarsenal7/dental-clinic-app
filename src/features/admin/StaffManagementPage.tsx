@@ -14,6 +14,8 @@ interface CreateStaffForm {
   name: string
   email: string
   role: StaffRole
+  /** Blank means "generate one". */
+  password: string
 }
 
 export default function StaffManagementPage() {
@@ -32,7 +34,9 @@ export default function StaffManagementPage() {
     handleSubmit,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm<CreateStaffForm>({ defaultValues: { role: 'receptionist' } })
+  } = useForm<CreateStaffForm>({ defaultValues: { role: 'receptionist', password: '' } })
+  // Blank means the server generates one, which stays the default.
+  const [newPassword, setNewPassword] = useState('')
 
   async function refresh() {
     try {
@@ -52,9 +56,9 @@ export default function StaffManagementPage() {
     try {
       const result = await createStaff(values)
       setNewAccountNotice(
-        `Account created for ${values.email}. Temporary password: ${result.tempPassword} — share this with them directly; they should change it after first login.`,
+        `Account created for ${values.email}. ${result.chosen ? 'Password' : 'Temporary password'}: ${result.tempPassword} — share this with them directly; they should change it after first login.`,
       )
-      reset({ name: '', email: '', role: 'receptionist' })
+      reset({ name: '', email: '', role: 'receptionist', password: '' })
       await refresh()
     } catch (e) {
       setError(toMessage(e))
@@ -87,11 +91,12 @@ export default function StaffManagementPage() {
     setBusyId(s.id)
     setNewAccountNotice(null)
     try {
-      const result = await resetStaffPassword(s.id)
+      const result = await resetStaffPassword(s.id, newPassword || undefined)
       // Shown once, in the same place a new account's password appears —
-      // there is nowhere to look it up again afterwards.
+      // there is nowhere to look it up again afterwards. A chosen one is
+      // echoed back too, so the admin can see what they actually typed.
       setNewAccountNotice(
-        `New temporary password for ${s.name}: ${result.tempPassword} — share this with them directly; they should change it after logging in.`,
+        `${result.chosen ? 'Password set' : 'New temporary password'} for ${s.name}: ${result.tempPassword} — share this with them directly; they should change it after logging in.`,
       )
     } finally {
       setBusyId(null)
@@ -127,6 +132,20 @@ export default function StaffManagementPage() {
             <option value="dentist">Dentist</option>
             <option value="admin">Admin</option>
           </NativeSelect>
+        </Field>
+        <Field
+          label="Password (optional)"
+          error={errors.password?.message}
+          hint="Leave blank to generate one. Set it yourself if you would rather say it out loud than read out a random string."
+        >
+          <TextInput
+            type="text"
+            autoComplete="off"
+            placeholder="Generated if left blank"
+            {...register('password', {
+              validate: (v) => !v || v.length >= 8 || 'Password must be at least 8 characters.',
+            })}
+          />
         </Field>
         <Button type="submit" disabled={isSubmitting} className="self-start">
           {isSubmitting ? 'Creating…' : 'Create account'}
@@ -203,11 +222,14 @@ export default function StaffManagementPage() {
                       the login before the password is checked. */}
                   {s.active && (
                     <button
-                      onClick={() => setPendingReset(s)}
+                      onClick={() => {
+                        setNewPassword('')
+                        setPendingReset(s)
+                      }}
                       disabled={busyId === s.id}
                       className="text-xs text-slate-600 hover:underline disabled:opacity-50 ml-3"
                     >
-                      {busyId === s.id ? 'Resetting…' : 'Reset password'}
+                      {busyId === s.id ? 'Setting…' : 'Set password'}
                     </button>
                   )}
                 </td>
@@ -222,14 +244,30 @@ export default function StaffManagementPage() {
         onOpenChange={(open) => {
           if (!open) setPendingReset(null)
         }}
-        title={`Reset the password for ${pendingReset?.name ?? 'this account'}?`}
-        description="Their current password stops working immediately. A new temporary one is shown once, for you to pass on in person. Any session they already have open stays valid until it times out."
-        confirmLabel="Reset password"
+        title={`Set a new password for ${pendingReset?.name ?? 'this account'}?`}
+        description="Their current password stops working immediately. Leave the field blank to generate one, or type the password you want them to have. Either way it is shown once, for you to pass on in person, and any session they already have open stays valid until it times out."
+        confirmLabel="Set password"
         tone="default"
         onConfirm={async () => {
           if (pendingReset) await onResetPassword(pendingReset)
         }}
-      />
+      >
+        <Field
+          label="New password (optional)"
+          error={
+            newPassword && newPassword.length < 8 ? 'Password must be at least 8 characters.' : undefined
+          }
+          hint="Leave blank to generate one."
+        >
+          <TextInput
+            type="text"
+            autoComplete="off"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Generated if left blank"
+          />
+        </Field>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={pendingReactivation !== null}

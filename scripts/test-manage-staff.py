@@ -159,7 +159,8 @@ try:
     )
     new_pw = body.get("tempPassword")
     check("an admin gets a new temporary password back", st == 200 and bool(new_pw), f"HTTP {st}, password {mask(new_pw) if new_pw else body}")
-    check("the response says what to do with it", "share this" in (body.get("note") or "").lower())
+    # Wording-independent: it must say to hand it over in person, not email it.
+    check("the response says what to do with it", "directly" in (body.get("note") or "").lower())
     check("it warns that an open session survives", "session" in (body.get("note") or "").lower())
 
     # 2 — the password must actually work. A reset that returns a string the
@@ -193,6 +194,29 @@ try:
             token=tok2["access_token"],
         )
         check("a receptionist cannot reset an admin", st == 403, f"HTTP {st}: {body.get('error')}")
+
+    # 5b — an admin may set the password instead of relaying a generated one.
+    st, body = call(
+        "/functions/v1/manage-staff",
+        {"action": "reset_password", "staffId": target["id"], "password": "ToothCo2026!"},
+        token=admin_jwt,
+    )
+    check("an admin can set a specific password", st == 200 and body.get("chosen") is True,
+          f"HTTP {st}")
+    st, _ = sign_in(target["email"], "ToothCo2026!")
+    check("the password the admin chose actually signs in", st == 200, f"HTTP {st}")
+
+    # The minimum has to hold at the function, not only in the browser —
+    # this endpoint is reachable with any HTTP client.
+    st, body = call(
+        "/functions/v1/manage-staff",
+        {"action": "reset_password", "staffId": target["id"], "password": "short"},
+        token=admin_jwt,
+    )
+    check("a too-short password is refused by the server", st == 400,
+          f"HTTP {st}: {body.get('error')}")
+    st, _ = sign_in(target["email"], "ToothCo2026!")
+    check("and the refused attempt left the old password working", st == 200, f"HTTP {st}")
 
     # 6 — an unknown staff id is a clean 404, not a bare admin-API error.
     st, body = call(

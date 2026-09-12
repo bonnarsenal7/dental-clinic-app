@@ -27,6 +27,18 @@ function json(body: unknown, status = 200) {
   })
 }
 
+/** The one rule an admin-chosen password has to clear.
+ *
+ *  Matches ResetPasswordPage's own minimum, so a password an admin sets is
+ *  one the staff member could have set themselves. Enforced here rather
+ *  than only in the browser: this function is reachable with any HTTP
+ *  client, and "the UI checks it" is not a check. */
+function rejectWeakPassword(password: string): string | null {
+  if (password.length < 8) return 'Password must be at least 8 characters.'
+  if (password.trim().length === 0) return 'Password cannot be only spaces.'
+  return null
+}
+
 function generateTempPassword() {
   // 16 random bytes -> base64url, trimmed to a comfortable length.
   const bytes = crypto.getRandomValues(new Uint8Array(16))
@@ -82,7 +94,12 @@ Deno.serve(async (req) => {
   const action = payload.action
 
   if (action === 'create') {
-    const { name, email, role } = payload as { name?: string; email?: string; role?: string }
+    const { name, email, role, password } = payload as {
+      name?: string
+      email?: string
+      role?: string
+      password?: string
+    }
     if (!name || !email || !role) {
       return json({ error: 'name, email, and role are required' }, 400)
     }
@@ -90,7 +107,15 @@ Deno.serve(async (req) => {
       return json({ error: 'role must be dentist, receptionist, or admin' }, 400)
     }
 
-    const tempPassword = generateTempPassword()
+    // An admin may set the password rather than relay a generated one —
+    // reading "Tmp-9fA2xQ" down the phone is how a new starter ends up
+    // locked out on their first morning.
+    if (password !== undefined && password !== '') {
+      const weak = rejectWeakPassword(password)
+      if (weak) return json({ error: weak }, 400)
+    }
+    const chosen = password !== undefined && password !== ''
+    const tempPassword = chosen ? password! : generateTempPassword()
 
     const { data: created, error: createError } = await adminClient.auth.admin.createUser({
       email,
@@ -117,8 +142,13 @@ Deno.serve(async (req) => {
 
     return json({
       staffId: created.user.id,
+      // Echoed back either way: a generated one has to be, and repeating a
+      // chosen one is how the admin checks they typed what they meant.
       tempPassword,
-      note: 'Share this temporary password with the new staff member out of band. They should change it after first login.',
+      chosen,
+      note: chosen
+        ? 'Give this password to the new staff member directly. They should change it after logging in.'
+        : 'Share this temporary password with the new staff member out of band. They should change it after first login.',
     })
   }
 
@@ -149,7 +179,7 @@ Deno.serve(async (req) => {
   }
 
   if (action === 'reset_password') {
-    const { staffId } = payload as { staffId?: string }
+    const { staffId, password } = payload as { staffId?: string; password?: string }
     if (!staffId) {
       return json({ error: 'staffId is required' }, 400)
     }
@@ -185,7 +215,13 @@ Deno.serve(async (req) => {
       )
     }
 
-    const tempPassword = generateTempPassword()
+    if (password !== undefined && password !== '') {
+      const weak = rejectWeakPassword(password)
+      if (weak) return json({ error: weak }, 400)
+    }
+    const chosen = password !== undefined && password !== ''
+    const tempPassword = chosen ? password! : generateTempPassword()
+
     const { error: updateError } = await adminClient.auth.admin.updateUserById(staffId, {
       password: tempPassword,
     })
@@ -196,7 +232,8 @@ Deno.serve(async (req) => {
     return json({
       staffId,
       tempPassword,
-      note: 'Share this temporary password with them directly. They should change it after logging in. Any session they already have open stays valid until it times out — deactivate and restore the account if you need to cut those off.',
+      chosen,
+      note: 'Give this password to them directly. They should change it after logging in. Any session they already have open stays valid until it times out — deactivate and restore the account if you need to cut those off.',
     })
   }
 

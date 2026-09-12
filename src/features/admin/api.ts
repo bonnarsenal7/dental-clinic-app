@@ -10,10 +10,19 @@ export async function listStaff(): Promise<StaffProfile[]> {
   return data as StaffProfile[]
 }
 
-export async function createStaff(input: { name: string; email: string; role: StaffRole }) {
+/** `password` is optional: leave it out and the server generates one.
+ *  An admin may set it instead, because reading a generated password down
+ *  the phone is how a new starter is locked out on their first morning. */
+export async function createStaff(input: {
+  name: string
+  email: string
+  role: StaffRole
+  password?: string
+}) {
   const { data, error } = await supabase.functions.invoke<{
     staffId: string
     tempPassword: string
+    chosen: boolean
     note: string
   }>('manage-staff', { body: { action: 'create', ...input } })
   if (error) throw new Error(error.message)
@@ -44,12 +53,13 @@ export async function reactivateStaff(staffId: string) {
  *
  *  Goes through the Edge Function because setting another user's password
  *  needs the service role, which must never reach the browser. */
-export async function resetStaffPassword(staffId: string) {
+export async function resetStaffPassword(staffId: string, password?: string) {
   const { data, error } = await supabase.functions.invoke<{
     staffId: string
     tempPassword: string
+    chosen: boolean
     note: string
-  }>('manage-staff', { body: { action: 'reset_password', staffId } })
+  }>('manage-staff', { body: { action: 'reset_password', staffId, password } })
   if (error) throw new Error(error.message)
   if (!data) throw new Error('No response from server')
   return data
