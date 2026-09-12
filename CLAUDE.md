@@ -909,6 +909,38 @@ would make the queue meaningless — "arrived" after "completed" puts a
 treated patient back in the waiting room. The UI only ever offers
 `nextStatuses()`, so the buttons and the rules can't diverge.
 
+### Seating asks who is actually treating the patient
+Moving someone to `in_chair` opens a dialog naming the treating dentist,
+defaulting to whoever the booking says. Whoever was pencilled in days ago is
+often not who is free when the patient finally sits down, and the visit is
+attributed to whoever is named here — so it asks rather than assuming. An
+unassigned booking says so, which is the case where asking earns its keep.
+
+Changing it also moves `appointments.dentist_id`, so the schedule shows
+reality rather than the original guess. That reassignment goes through the
+same exclusion constraint as a new booking, so it can be refused if that
+dentist is already with someone — translated into words and shown inside
+the dialog.
+
+### Reception reads dentists through a function, not the staff table
+`staff` lets a non-admin read **only their own row** (0002_rls.sql), so a
+direct select returned nothing for a receptionist: the Dentist dropdown
+offered only "unassigned", the role that does most of the booking could not
+attach a booking to anyone, and the double-booking constraint never engaged
+because it excludes null-dentist rows.
+
+`bookable_dentists()` (0011) is `SECURITY DEFINER` and returns **id and name
+only**. A policy would have been the obvious fix and is the wrong one: RLS is
+row-level, so letting reception read those rows also hands them colleagues'
+email addresses. The function does its own authorization —
+`current_staff_role()` is null for anyone not active staff, so an anonymous
+caller gets an empty set.
+
+**This was invisible to the unit tests**, which all mock `listDentists`. It
+only appeared when the booking flow was exercised as a signed-in
+receptionist against the live database. Worth remembering before trusting a
+green suite on anything RLS-shaped.
+
 ### Seating a patient creates the visit
 Moving to `in_chair` inserts the `visits` row and stores `visit_id` on the
 appointment, so the dentist charts against the booking instead of pressing

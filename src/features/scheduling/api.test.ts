@@ -180,15 +180,23 @@ describe('scheduling api', () => {
 
   // --- Dentist list -------------------------------------------------------
 
-  // A deactivated dentist must not be bookable: current_staff_role() returns
-  // null for them, so the booking would be refused at the database anyway —
-  // offering the name is how you get a receptionist stuck.
-  it('offers only active dentists and admins', async () => {
-    sb.current!.queue('staff', { data: [] })
-    await api.listDentists()
-    const q = sb.current!.query('staff')!
-    expect(q.arg('in', 1)).toEqual(['dentist', 'admin'])
-    expect(q.calls.find((c) => c.method === 'eq')?.args).toEqual(['active', true])
+  // A direct select on `staff` returned nothing for a receptionist — they
+  // may read only their own row — so the role that does most of the booking
+  // could not attach a booking to any dentist. The filtering now lives in
+  // bookable_dentists(), which is SECURITY DEFINER and returns id and name
+  // only, so fixing that does not also expose colleagues' email addresses.
+  it('asks the database for the bookable dentists rather than reading staff', async () => {
+    sb.current!.queueRpc('bookable_dentists', {
+      data: [{ id: 'd-1', name: 'Test Dentist' }],
+    })
+    await expect(api.listDentists()).resolves.toEqual([{ id: 'd-1', name: 'Test Dentist' }])
+    expect(sb.current!.rpcCalls.map((c) => c.name)).toEqual(['bookable_dentists'])
+    expect(sb.current!.query('staff')).toBeUndefined()
+  })
+
+  it('treats no bookable dentists as an empty list, not a crash', async () => {
+    sb.current!.queueRpc('bookable_dentists', { data: null })
+    await expect(api.listDentists()).resolves.toEqual([])
   })
 
   // --- Recalls ------------------------------------------------------------

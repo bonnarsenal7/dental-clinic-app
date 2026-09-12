@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -151,6 +151,8 @@ describe('SchedulePage', () => {
     )
     renderAt('/schedule')
     await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const seatDialog = await screen.findByRole('dialog')
+    await user.click(within(seatDialog).getByRole('button', { name: /seat patient/i }))
     await waitFor(() => expect(api.setAppointmentStatus).toHaveBeenCalled())
     expect(screen.queryByText(/builder for/i)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /schedule/i })).toBeInTheDocument()
@@ -165,5 +167,109 @@ describe('SchedulePage', () => {
     await user.click(await screen.findByRole('button', { name: /complete/i }))
     expect(await screen.findByText(/permission denied/i)).toBeInTheDocument()
     expect(screen.queryByText(/builder for/i)).not.toBeInTheDocument()
+  })
+
+  // --- Who is actually treating them ------------------------------------
+
+  const waiting = (over: Partial<AppointmentWithPatient> = {}) =>
+    seated({ status: 'arrived', visit_id: null, ...over })
+
+  // Whoever was pencilled in at booking is often not who is free when the
+  // patient finally sits down, and the visit is attributed to whoever is
+  // named here — so seating asks rather than assuming.
+  it('asks who is treating the patient before seating them', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting()])
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(/who is treating maria clara santos/i)
+    expect(within(dialog).getByLabelText(/treating dentist/i)).toBeInTheDocument()
+    expect(api.setAppointmentStatus).not.toHaveBeenCalled()
+  })
+
+  it('offers the dentists the database says are bookable', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listDentists).mockResolvedValue([
+      { id: 'd-1', name: 'Test Dentist' },
+      { id: 'd-2', name: 'Dr Cruz' },
+    ])
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting()])
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const select = within(await screen.findByRole('dialog')).getByLabelText(/treating dentist/i)
+    expect(within(select).getByRole('option', { name: 'Dr Cruz' })).toBeInTheDocument()
+    expect(within(select).getByRole('option', { name: 'Test Dentist' })).toBeInTheDocument()
+  })
+
+  // The booking is the best guess, so it is what the question opens on —
+  // confirming should be one tap when nothing has changed.
+  it('starts on the dentist the appointment was booked with', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listDentists).mockResolvedValue([{ id: 'd-1', name: 'Test Dentist' }])
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting({ dentist_id: 'd-1' })])
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const select = within(await screen.findByRole('dialog')).getByLabelText(/treating dentist/i)
+    expect((select as HTMLSelectElement).value).toBe('d-1')
+  })
+
+  it('seats with the dentist actually chosen, not the one booked', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listDentists).mockResolvedValue([
+      { id: 'd-1', name: 'Test Dentist' },
+      { id: 'd-2', name: 'Dr Cruz' },
+    ])
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting({ dentist_id: 'd-1' })])
+    vi.mocked(api.setAppointmentStatus).mockResolvedValue(
+      anAppointment({ id: 'a-1', status: 'in_chair', visit_id: 'v-1' }),
+    )
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.selectOptions(within(dialog).getByLabelText(/treating dentist/i), 'd-2')
+    await user.click(within(dialog).getByRole('button', { name: /seat patient/i }))
+    await waitFor(() => expect(api.setAppointmentStatus).toHaveBeenCalled())
+    expect(vi.mocked(api.setAppointmentStatus).mock.calls[0][0]).toMatchObject({
+      status: 'in_chair',
+      dentistId: 'd-2',
+    })
+  })
+
+  // An unassigned booking is exactly the case where asking earns its keep.
+  it('says so when the booking has no dentist on it', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting({ dentist_id: null })])
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/no dentist assigned/i)
+  })
+
+  it('does not seat anyone if the question is cancelled', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting()])
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.setAppointmentStatus).not.toHaveBeenCalled()
+  })
+
+  // Reassigning can collide with what that dentist is already doing. The
+  // refusal belongs inside the dialog, where the person choosing is looking.
+  it('reports a clash inside the dialog and stays open', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listDentists).mockResolvedValue([{ id: 'd-1', name: 'Test Dentist' }])
+    vi.mocked(api.listAppointmentsForDay).mockResolvedValue([waiting()])
+    vi.mocked(api.setAppointmentStatus).mockRejectedValue(
+      new Error('That dentist is already with another patient at this time.'),
+    )
+    renderAt('/schedule')
+    await user.click(await screen.findByRole('button', { name: /chair/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /seat patient/i }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/already with another patient/i)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

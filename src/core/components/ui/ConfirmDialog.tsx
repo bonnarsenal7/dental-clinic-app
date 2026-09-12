@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Dialog } from './Dialog'
 import { toMessage } from '../../errors'
 import { ErrorState } from '../states'
@@ -18,6 +18,7 @@ export default function ConfirmDialog({
   confirmLabel,
   onConfirm,
   tone = 'destructive',
+  children,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -26,6 +27,10 @@ export default function ConfirmDialog({
   confirmLabel: string
   onConfirm: () => Promise<void>
   tone?: 'destructive' | 'default'
+  /** Anything the decision needs before it can be confirmed — a choice to
+   *  make, a detail to check. Kept inside the dialog so the pending state
+   *  and the inline failure still apply to it. */
+  children?: ReactNode
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +84,7 @@ export default function ConfirmDialog({
         </>
       }
     >
+      {children}
       {error && <ErrorState message={error} />}
     </Dialog>
   )

@@ -3,13 +3,15 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
-import { listAppointmentsForDay, setAppointmentStatus } from './api'
+import { listAppointmentsForDay, listDentists, setAppointmentStatus } from './api'
 import { findInvoiceForVisit } from '../billing/api'
 import { isInQueue, isPending } from './appointmentStatus'
 import AppointmentCard from './AppointmentCard'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { AppointmentStatus, AppointmentWithPatient } from './types'
 import { PageHeader } from '../../core/components/ui/Page'
+import ConfirmDialog from '../../core/components/ui/ConfirmDialog'
+import { Field, NativeSelect } from '../../core/components/ui/Field'
 import { toLocalDateString } from '../../core/localDate'
 
 export default function SchedulePage() {
@@ -24,6 +26,12 @@ export default function SchedulePage() {
   const [appointments, setAppointments] = useState<AppointmentWithPatient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [dentists, setDentists] = useState<{ id: string; name: string }[]>([])
+  // Seating asks who is actually treating the patient, because whoever was
+  // pencilled in at booking is often not who is free when the patient
+  // finally sits down — and the visit has to record the one who did the work.
+  const [pendingSeat, setPendingSeat] = useState<AppointmentWithPatient | null>(null)
+  const [treatingId, setTreatingId] = useState('')
   // visit_id → invoice id, so a completed appointment shows "View invoice"
   // rather than inviting a second one. Empty until looked up.
   const [invoiceByVisit, setInvoiceByVisit] = useState<Record<string, string | null>>({})
@@ -68,6 +76,12 @@ export default function SchedulePage() {
     return () => clearInterval(handle)
   }, [])
 
+  useEffect(() => {
+    listDentists()
+      .then(setDentists)
+      .catch((e) => setError(toMessage(e)))
+  }, [])
+
   const queue = useMemo(() => appointments?.filter((a) => isInQueue(a.status)) ?? [], [appointments])
   const upcoming = useMemo(() => appointments?.filter((a) => isPending(a.status)) ?? [], [appointments])
   const done = useMemo(
@@ -77,8 +91,34 @@ export default function SchedulePage() {
 
   const isToday = day === toLocalDateString(new Date())
 
+  async function seatPatient(appointment: AppointmentWithPatient, dentistId: string) {
+    if (!staff) return
+    setBusyId(appointment.id)
+    try {
+      await setAppointmentStatus({
+        appointment,
+        status: 'in_chair',
+        staffId: staff.id,
+        dentistId: dentistId || null,
+      })
+      await refresh()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function handleStatus(appointment: AppointmentWithPatient, status: AppointmentStatus) {
     if (!staff) return
+
+    // Seating is the one transition that asks a question first: the answer
+    // decides who the visit is attributed to, and it is the last moment
+    // anybody can correct the booking cheaply.
+    if (status === 'in_chair') {
+      setPendingSeat(appointment)
+      setTreatingId(appointment.dentist_id ?? '')
+      return
+    }
+
     setBusyId(appointment.id)
     setError(null)
     try {
@@ -188,6 +228,38 @@ export default function SchedulePage() {
         )}
         <span className="text-sm text-slate-400 ml-auto">{appointments?.length ?? 0} booked</span>
       </section>
+
+      {/* Throws rather than catching: ConfirmDialog shows the failure inside
+          itself, which is where the person who pressed the button is looking
+          — and reassigning can be refused if that dentist is already busy. */}
+      <ConfirmDialog
+        open={pendingSeat !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingSeat(null)
+        }}
+        title={`Who is treating ${pendingSeat?.patients?.name ?? 'this patient'}?`}
+        description={
+          pendingSeat?.dentist_id
+            ? 'Booked with the dentist shown. Change it if someone else is taking them — the visit is recorded against whoever you pick here.'
+            : 'This booking has no dentist assigned. Pick whoever is taking them, so the visit is recorded against the right person.'
+        }
+        confirmLabel="Seat patient"
+        tone="default"
+        onConfirm={async () => {
+          if (pendingSeat) await seatPatient(pendingSeat, treatingId)
+        }}
+      >
+        <Field label="Treating dentist">
+          <NativeSelect value={treatingId} onChange={(e) => setTreatingId(e.target.value)}>
+            <option value="">— unassigned —</option>
+            {dentists.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      </ConfirmDialog>
 
       {appointments === null && <LoadingState label="Loading the day…" />}
 

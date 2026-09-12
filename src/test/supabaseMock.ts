@@ -67,6 +67,8 @@ export function createSupabaseMock() {
   let signedUrl = 'https://signed.example/file.png'
   const invoked: { name: string; body: unknown }[] = []
   let invokeResult: QueryResult = { data: { ok: true } }
+  const rpcCalls: { name: string; args: unknown }[] = []
+  const rpcResults = new Map<string, QueryResult>()
 
   /** Queue a result for the next query against `table`. Queue several to
    *  answer successive calls in order — `setAppointmentStatus` touches two
@@ -89,6 +91,11 @@ export function createSupabaseMock() {
       }
       queries.push(record)
       return makeBuilder(next, record)
+    },
+    rpc(name: string, args?: unknown) {
+      rpcCalls.push({ name, args })
+      const result = rpcResults.get(name) ?? { data: [] }
+      return Promise.resolve({ data: result.data ?? null, error: result.error ?? null })
     },
     storage: {
       from(bucket: string) {
@@ -149,6 +156,13 @@ export function createSupabaseMock() {
     get invoked() {
       return invoked
     },
+    get rpcCalls() {
+      return rpcCalls
+    },
+    queueRpc(name: string, result: QueryResult) {
+      rpcResults.set(name, result)
+      return client
+    },
     setStorageResult(r: QueryResult) {
       storageResult = r
     },
@@ -163,6 +177,8 @@ export function createSupabaseMock() {
       queries.length = 0
       storageOps.length = 0
       invoked.length = 0
+      rpcCalls.length = 0
+      rpcResults.clear()
       storageResult = { data: null }
       invokeResult = { data: { ok: true } }
     },

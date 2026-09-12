@@ -105,6 +105,11 @@ export async function setAppointmentStatus(params: {
   appointment: Appointment
   status: AppointmentStatus
   staffId: string
+  /** Who is actually treating the patient, asked when they are seated.
+   *  Whoever was pencilled in at booking is often not who is free when the
+   *  patient finally sits down, and the visit has to record the dentist who
+   *  did the work rather than the one on the original booking. */
+  dentistId?: string | null
 }): Promise<Appointment> {
   const now = new Date().toISOString()
   const patch: Record<string, unknown> = { status: params.status }
@@ -114,12 +119,18 @@ export async function setAppointmentStatus(params: {
 
   if (params.status === 'in_chair') {
     patch.seated_at = now
+
+    // Who is treating them, decided now rather than at booking. Undefined
+    // means nobody was asked; null means asked and left unassigned.
+    const treating = params.dentistId !== undefined ? params.dentistId : params.appointment.dentist_id
+    if (treating !== params.appointment.dentist_id) patch.dentist_id = treating
+
     if (!params.appointment.visit_id) {
       const { data: visit, error: visitError } = await supabase
         .from('visits')
         .insert({
           patient_id: params.appointment.patient_id,
-          staff_id: params.appointment.dentist_id ?? params.staffId,
+          staff_id: treating ?? params.staffId,
           visit_date: now,
         })
         .select()
@@ -135,19 +146,29 @@ export async function setAppointmentStatus(params: {
     .eq('id', params.appointment.id)
     .select()
     .single()
-  if (error) throw new Error(error.message)
+  if (error) {
+    // Moving the appointment onto a different dentist can collide with what
+    // that dentist is already doing — the exclusion constraint applies to
+    // the reassignment just as it does to a new booking.
+    if (error.message.includes('appointments_no_double_booking')) {
+      throw new Error('That dentist is already with another patient at this time.')
+    }
+    throw new Error(error.message)
+  }
   return data as Appointment
 }
 
+/** Through `bookable_dentists()` rather than a select on `staff`.
+ *
+ *  `staff` lets a non-admin read only their own row, so the direct select
+ *  returned nothing for a receptionist — the role that does most of the
+ *  booking could not attach a booking to any dentist. The function returns
+ *  id and name only, so fixing that does not also hand reception every
+ *  colleague's email address. See 0011. */
 export async function listDentists(): Promise<{ id: string; name: string }[]> {
-  const { data, error } = await supabase
-    .from('staff')
-    .select('id, name')
-    .in('role', ['dentist', 'admin'])
-    .eq('active', true)
-    .order('name')
+  const { data, error } = await supabase.rpc('bookable_dentists')
   if (error) throw new Error(error.message)
-  return data as { id: string; name: string }[]
+  return (data ?? []) as { id: string; name: string }[]
 }
 
 // --- Recalls -------------------------------------------------------------
