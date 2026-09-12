@@ -55,7 +55,7 @@ export default function AppShell() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 min-w-0">
               <img src={toothcoLogo} alt="" className="h-8 w-auto shrink-0" />
-              <p className="text-sm font-semibold text-slate-800 truncate">{clinicName || CLINIC_NAME}</p>
+              <p className="text-sm font-semibold text-slate-800 truncate"></p>
             </div>
 
             {/* The name and role are read, not pressed, so they stay text —
