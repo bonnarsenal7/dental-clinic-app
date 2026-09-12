@@ -145,9 +145,20 @@ Supersedes `COMPLIANCE.md` §1.2, which should now be marked resolved.
 
 ### F-2 Consent wording has never had legal review — OPEN
 
-`CONSENT_TEXT_VERSION` is still `v2-draft` and the text still contains
-bracketed placeholders. The signature screen carries a visible draft
-warning, which is correct handling.
+`CONSENT_TEXT_VERSION` is `v3-draft` as of 2026-09-12. The signature screen
+carries a visible draft warning, which is correct handling.
+
+**v3 narrowed what the review has to decide, without pretending to replace
+it.** It fixed a contradiction v2 contained (promising erasure and
+objection, then saying records are kept anyway), added the "who is signing"
+clause to match `0010`, and moved the three clinic facts out of bracketed
+prose into named constants — v2 would have shown patients the literal string
+`[RETENTION PERIOD]`. Two of those three are facts the clinic simply knows;
+the third, retention, needs a source rather than a lawyer.
+
+What still needs legal judgement, and is why this stays blocking: whether
+consent is the right basis under §13 for processing health data at all, and
+whether the clinic must register a Data Protection Officer with the NPC.
 
 Because consent is stored per signing event with its version attached,
 re-consenting later is cheap — but every signature gathered before review

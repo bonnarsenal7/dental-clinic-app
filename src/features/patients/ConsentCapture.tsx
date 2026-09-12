@@ -1,6 +1,11 @@
 import { useRef, useState } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
-import { CONSENT_TEXT, CONSENT_TEXT_VERSION } from './historyOptions'
+import {
+  CONSENT_DETAILS_COMPLETE,
+  CONSENT_TEXT,
+  CONSENT_TEXT_VERSION,
+  missingConsentDetails,
+} from './historyOptions'
 import { saveConsent } from './api'
 import { SIGNER_RELATIONSHIPS, type SignerRelationship } from './types'
 import { toMessage } from '../../core/errors'
@@ -70,11 +75,21 @@ export default function ConsentCapture({ patientId, staffId, onSaved, submitLabe
       <div className="text-xs text-slate-500 whitespace-pre-line bg-slate-50 border border-slate-200 rounded-md p-3 max-h-64 overflow-y-auto">
         {CONSENT_TEXT}
       </div>
+      {/* Two separate problems, said separately. The legal review is
+          somebody else's to do; the missing clinic facts are three strings
+          in historyOptions.ts, and naming them is the difference between a
+          warning that gets acted on and one that gets read past. */}
       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-        Draft wording — not yet reviewed by anyone qualified in Philippine data privacy law, and the bracketed
-        fields (retention period, data protection officer, contact details) still need filling in. See
+        Draft wording — not yet reviewed by anyone qualified in Philippine data privacy law. See
         docs/COMPLIANCE.md. Version tag: {CONSENT_TEXT_VERSION}.
       </p>
+      {!CONSENT_DETAILS_COMPLETE && (
+        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <strong className="font-semibold">This notice is incomplete.</strong> It still does not say{' '}
+          {missingConsentDetails().join(', ')}. A patient signing now is shown those gaps on screen. Fill them
+          in <code>src/features/patients/historyOptions.ts</code> and bump the version tag.
+        </p>
+      )}
 
       {error && <ErrorState message={error} />}
 

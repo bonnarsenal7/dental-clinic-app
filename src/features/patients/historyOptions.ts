@@ -58,9 +58,14 @@ export const ORAL_HABITS: { key: string; label: string }[] = [
 // Phase 5 replaced Phase 2's one-paragraph placeholder with a full draft
 // covering the Data Privacy Act of 2012 (RA 10173) disclosures: what is
 // collected, why, who sees it, how long it is kept, and the data subject's
-// rights. It is STILL A DRAFT. It has not been reviewed by anyone
-// qualified in Philippine data privacy law, and the bracketed fields below
-// are placeholders the clinic must fill in.
+// rights. It is STILL A DRAFT: it has not been reviewed by anyone qualified
+// in Philippine data privacy law.
+//
+// v3 rewrote v2 in plainer language, added the paragraph about who may sign
+// for a patient who cannot consent themselves (0010 records that), and
+// resolved a contradiction v2 contained — it promised erasure and objection
+// outright, then said records are kept anyway. v3 states the limit instead
+// of implying a right the clinic cannot honour.
 //
 // Do not remove the draft notice in ConsentCapture.tsx until a lawyer has
 // signed this off. See docs/COMPLIANCE.md for what that review must cover.
@@ -68,56 +73,119 @@ export const ORAL_HABITS: { key: string; label: string }[] = [
 // The version tag is stored on every consents row, so re-wording this text
 // means bumping the version — old signatures stay attached to the words
 // that were actually on screen when they were given.
-export const CONSENT_TEXT_VERSION = 'v2-draft'
+export const CONSENT_TEXT_VERSION = 'v3-draft'
+
+/** The two clinic facts RA 10173 requires the notice to state.
+ *
+ *  Neither is a legal judgement — but both are promises made to every
+ *  patient who signs, so they live here as named constants rather than as
+ *  brackets buried in prose where an unfilled one ships unnoticed. That is
+ *  exactly what happened to v2: patients would have been shown the literal
+ *  text "[RETENTION PERIOD]".
+ *
+ *  Filling these changes what a patient is told, so bump
+ *  CONSENT_TEXT_VERSION when you do. */
+export const PRIVACY_CONTACT = {
+  /** Who a patient contacts about their information — a person or a role. */
+  name: '',
+  /** How to reach them: phone number or email address. */
+  details: '',
+}
+
+/** How long records are kept after a patient's last visit, written as a
+ *  patient would read it (e.g. "10 years").
+ *
+ *  This needs a source rather than a guess — whatever the clinic is
+ *  actually required to keep under professional record-keeping rules. A
+ *  number here is a commitment to every signatory. */
+export const RECORD_RETENTION = ''
+
+/** False while any of the above is unset. The capture screen says which,
+ *  and a test holds the warning in place until all three are filled. */
+export const CONSENT_DETAILS_COMPLETE =
+  PRIVACY_CONTACT.name.trim() !== '' &&
+  PRIVACY_CONTACT.details.trim() !== '' &&
+  RECORD_RETENTION.trim() !== ''
+
+/** Names what is still missing, for the warning on the capture screen. */
+export function missingConsentDetails(): string[] {
+  const missing: string[] = []
+  if (PRIVACY_CONTACT.name.trim() === '') missing.push('the contact for privacy questions')
+  if (PRIVACY_CONTACT.details.trim() === '') missing.push('their phone number or email')
+  if (RECORD_RETENTION.trim() === '') missing.push('how long records are kept')
+  return missing
+}
+
+function orMarker(value: string, label: string) {
+  // Deliberately shouty. If an unfilled value ever reaches a patient it
+  // should be unmistakable on screen, not a tidy blank they read past.
+  return value.trim() === '' ? `«${label} NOT SET»` : value.trim()
+}
+
 export const CONSENT_TEXT = `CONSENT FOR DENTAL TREATMENT
 
-I consent to dental examination and to the treatment recommended by the
-dentist. The nature of the proposed treatment, its risks and benefits, the
-alternatives available to me, and the likely result of declining treatment
-have been explained to me in language I understand, and I have had the
-opportunity to ask questions.
+I agree to dental examination and to the treatment the dentist recommends.
 
-I understand that dentistry is not an exact science and that no guarantee
-has been made to me about the result of treatment. I understand that during
-treatment the dentist may find conditions requiring a change of plan, and I
-authorise the dentist to use professional judgement in that event.
+The dentist has explained to me, in language I understand, what the
+treatment involves, its risks and benefits, what alternatives I have, and
+what is likely to happen if I decline. I have been able to ask questions.
+
+I understand that dentistry cannot guarantee a result and that no guarantee
+has been given to me. If the dentist finds something during treatment that
+means the plan should change, I authorise them to use their professional
+judgement.
+
+I may withdraw this consent at any time, including during treatment.
+
+WHO IS SIGNING
+
+If the patient is under 18, or cannot consent for themselves, this form is
+signed by a parent, legal guardian or authorised representative. By signing,
+that person confirms they are entitled to consent on the patient's behalf.
+The name of the person signing and their relationship to the patient are
+recorded with this consent.
 
 PRIVACY NOTICE (Data Privacy Act of 2012, RA 10173)
 
-What we collect. Your name, address, date of birth, sex, contact numbers,
-occupation, and the name of your spouse; your medical and dental history,
-including conditions, allergies and medication; clinical notes, tooth
-charts, images and X-rays; and records of payments you make to the clinic.
+The clinic is responsible for the information described below.
 
-Why we collect it. To provide dental care safely, to keep a continuous
-record of your treatment, and to bill for it. Your medical history is
-collected specifically so that treatment is not given where it would be
-unsafe.
+What we hold. Your name, address, date of birth, sex, contact numbers,
+occupation and the name of your spouse; your medical and dental history,
+including conditions, allergies and medication; clinical notes, tooth
+charts, images and X-rays; and a record of payments you make to the clinic.
+
+Why we hold it. To provide dental care safely, to keep a continuous record
+of your treatment, and to bill for it. Your medical history is collected
+specifically so that treatment is not given where it would be unsafe. We
+process this information because it is necessary to provide you with dental
+care, and with your agreement as recorded on this form.
 
 Who can see it. Clinic staff, each according to their role: reception staff
 can see your contact and billing details but not the dentist's clinical
 notes or your tooth chart. Your records are held on secure servers operated
 by our hosting provider on the clinic's behalf. We do not sell your
-information, and we do not share it with anyone outside the clinic except
-where you ask us to, where another health professional needs it for your
-care, or where the law requires it.
+information. We do not share it outside the clinic except where you ask us
+to, where another health professional needs it for your care, or where the
+law requires it.
 
-How long we keep it. Your records are retained for [RETENTION PERIOD] after
-your last visit, after which they are securely deleted.
+How long we keep it. Your records are kept for ${orMarker(RECORD_RETENTION, 'RETENTION PERIOD')} after your
+last visit, and are then securely destroyed.
 
 Your rights. You have the right to be informed about how your information
 is used, to access it, to have it corrected if it is wrong, to object to
 its processing, to have it erased or blocked in the circumstances the law
 allows, to receive a copy in a portable format, and to be compensated for
-damage caused by its misuse. To exercise any of these rights, contact
-[CLINIC CONTACT / DATA PROTECTION OFFICER] at [CONTACT DETAILS]. If you are
-not satisfied with our response, you may complain to the National Privacy
-Commission.
+damage caused by its misuse.
 
-Withdrawing consent. You may withdraw your consent at any time by telling
-us in writing. Withdrawal does not affect anything done before you withdrew,
-and we may still need to keep your records for the retention period above
-to meet our legal and professional obligations.
+Some of these rights are limited for as long as we are required to keep a
+dental record of your treatment. Where that applies we will tell you, and
+we will stop using your information for anything beyond meeting that
+requirement. Withdrawing your agreement does not undo anything already done
+before you withdrew.
+
+Questions and complaints. Contact ${orMarker(PRIVACY_CONTACT.name, 'PRIVACY CONTACT')} at ${orMarker(PRIVACY_CONTACT.details, 'CONTACT DETAILS')}.
+If you are not satisfied with our response, you may complain to the
+National Privacy Commission.
 
 I have read and understood the above. I consent to the treatment described
 and to the handling of my information as set out in this notice.

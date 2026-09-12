@@ -90,17 +90,31 @@ curl -s "$VITE_SUPABASE_URL/auth/v1/settings" -H "apikey: $VITE_SUPABASE_ANON_KE
 
 ### 1.3 The consent and privacy notice has not had legal review — BLOCKING
 
-`CONSENT_TEXT` in `src/features/patients/historyOptions.ts` (version
-`v2-draft`) is a full draft covering the Data Privacy Act of 2012 (RA
-10173) disclosures, replacing Phase 2's one-paragraph placeholder. **It was
-written by a developer, not a lawyer.**
+`CONSENT_TEXT` in `src/features/patients/historyOptions.ts` (now version
+`v3-draft`) covers the Data Privacy Act of 2012 (RA 10173) disclosures.
+**It was written by a developer, not a lawyer**, and that has not changed.
 
-It also contains bracketed placeholders the clinic must fill in before it
-means anything:
-- `[RETENTION PERIOD]` — how long records are kept after a patient's last
-  visit
-- `[CLINIC CONTACT / DATA PROTECTION OFFICER]` and `[CONTACT DETAILS]` —
-  who a patient contacts to exercise their rights
+**v3 (2026-09-12)** rewrote v2 in plainer language and fixed two things a
+review would have caught anyway:
+
+- v2 promised erasure and objection outright, then said records are kept
+  anyway. v3 states the limit — rights are constrained while a dental record
+  must be kept — instead of implying one the clinic cannot honour.
+- v2 said nothing about who may sign for a patient who cannot consent. v3
+  has a "Who is signing" clause, matching the `signed_by_name` and
+  `signer_relationship` columns added in `0010`.
+
+The three clinic facts are now **named constants** (`PRIVACY_CONTACT`,
+`RECORD_RETENTION`) rather than brackets inside prose, because v2's
+brackets would have been shown to patients verbatim. While any is unset the
+notice renders a loud `«… NOT SET»` marker and the capture screen shows a
+red banner naming exactly which. Filling them is not a legal judgement:
+
+- `RECORD_RETENTION` — needs a **source**, not necessarily a lawyer.
+  Whatever professional record-keeping rule applies to Philippine dental
+  records. A number here is a promise to every signatory.
+- `PRIVACY_CONTACT.name` / `.details` — simply who a patient contacts. The
+  clinic knows this.
 
 **A review needs to confirm at minimum:**
 - that consent is the right lawful basis here, or whether the clinic should

@@ -2,7 +2,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ConsentCapture from './ConsentCapture'
-import { CONSENT_TEXT_VERSION } from './historyOptions'
+import {
+  CONSENT_DETAILS_COMPLETE,
+  CONSENT_TEXT,
+  CONSENT_TEXT_VERSION,
+  missingConsentDetails,
+} from './historyOptions'
 
 vi.mock('./api', () => ({ saveConsent: vi.fn() }))
 
@@ -54,6 +59,43 @@ describe('ConsentCapture', () => {
     render(<ConsentCapture patientId="p1" staffId="s1" onSaved={vi.fn()} />)
     expect(screen.getByText(/not yet reviewed by anyone qualified/i)).toBeInTheDocument()
     expect(screen.getByText(new RegExp(CONSENT_TEXT_VERSION))).toBeInTheDocument()
+  })
+
+  // v2 shipped the literal string "[RETENTION PERIOD]" into the text a
+  // patient reads. Three strings in historyOptions.ts fix it, so the warning
+  // names them rather than saying "some fields need filling in".
+  it('names exactly which clinic facts the notice is still missing', () => {
+    render(<ConsentCapture patientId="p1" staffId="s1" onSaved={vi.fn()} />)
+    if (CONSENT_DETAILS_COMPLETE) {
+      expect(screen.queryByText(/this notice is incomplete/i)).not.toBeInTheDocument()
+      return
+    }
+    expect(screen.getByText(/this notice is incomplete/i)).toBeInTheDocument()
+    for (const missing of missingConsentDetails()) {
+      expect(screen.getByText(new RegExp(missing, 'i'))).toBeInTheDocument()
+    }
+  })
+
+  // The unfilled value has to be unmistakable where the patient reads it,
+  // not a tidy blank.
+  it('marks an unset value loudly inside the notice itself', () => {
+    render(<ConsentCapture patientId="p1" staffId="s1" onSaved={vi.fn()} />)
+    const unsetMarkers = (CONSENT_TEXT.match(/«[^»]+NOT SET»/g) ?? []).length
+    expect(unsetMarkers).toBe(CONSENT_DETAILS_COMPLETE ? 0 : missingConsentDetails().length)
+  })
+
+  // v2 promised erasure and objection outright, then said records are kept
+  // anyway. v3 states the limit rather than implying a right the clinic
+  // cannot honour.
+  it('does not promise a right it then takes back', () => {
+    render(<ConsentCapture patientId="p1" staffId="s1" onSaved={vi.fn()} />)
+    expect(CONSENT_TEXT).toMatch(/some of these rights are limited/i)
+  })
+
+  // 0010 records who signed; the wording has to explain why it is asked.
+  it('explains who may sign for a patient who cannot consent', () => {
+    render(<ConsentCapture patientId="p1" staffId="s1" onSaved={vi.fn()} />)
+    expect(screen.getByText(/parent, legal guardian or authorised representative/i)).toBeInTheDocument()
   })
 
   // An unsigned consent row would assert a patient agreed when they did

@@ -368,10 +368,23 @@ authority is a half-record that looks complete in a list and answers nothing
 when it matters.
 
 ### Consent text
-The wording in `historyOptions.ts` (`CONSENT_TEXT`) is a placeholder,
-clearly flagged in the UI as draft pending Phase 5's legal review under
-the Data Privacy Act — do not treat it as final, and don't remove the
-"draft" notice until Phase 5 actually replaces it.
+`CONSENT_TEXT` in `historyOptions.ts` is `v3-draft`, flagged in the UI as
+draft pending legal review under the Data Privacy Act. Do not treat it as
+final and do not remove the draft notice until a lawyer has signed it off.
+
+**The three clinic facts are constants, not brackets in the prose.**
+`PRIVACY_CONTACT.name`, `PRIVACY_CONTACT.details` and `RECORD_RETENTION`
+start empty. While any is unset the notice renders `«… NOT SET»` where a
+patient reads it, and the capture screen shows a red banner naming which —
+because v2 kept them as `[RETENTION PERIOD]` inside the text, which would
+have been shown to patients verbatim. A placeholder that is loud on screen
+is the point; a tidy blank is the bug.
+
+Filling them changes what a patient is told, so **bump
+`CONSENT_TEXT_VERSION` when you do.** The version is stored on every
+consents row, so old signatures stay attached to the words actually shown
+when they were given — which is why the test fixtures still reference
+`v2-draft` and should keep doing so.
 
 ### Reconciling the Supabase CLI (done — kept for the record)
 Migrations 0001 and 0002 were applied by pasting SQL directly into the
