@@ -255,24 +255,25 @@ try:
 
     # --- 7. admin overrides, and the log catches it ----------------------
     print("\nAdmin override:")
-    st, before_log = call(
-        f"/rest/v1/audit_log?select=id&table_name=eq.invoice_items&operation=eq.update",
-        token=ADMIN, method="GET")
     st, body = call(f"/rest/v1/invoice_items?id=eq.{item_id}", {"amount": 1500},
                     token=ADMIN, method="PATCH")
     st, after = call(f"/rest/v1/invoice_items?select=amount&id=eq.{item_id}", token=SRK, method="GET")
     check("an admin can correct a line item on a paid invoice",
           float(after[0]["amount"]) == 1500.0, f"now {after[0]['amount']}")
 
-    st, after_log = call(
-        f"/rest/v1/audit_log?select=id,changed_fields,staff_id&table_name=eq.invoice_items&operation=eq.update&order=created_at.desc&limit=1",
+    # Asked for by record id rather than by counting rows: a count is
+    # relative to whatever earlier runs left behind, and this script has
+    # already been failed once by exactly that.
+    st, entry = call(
+        f"/rest/v1/audit_log?select=changed_fields,staff_id,operation"
+        f"&table_name=eq.invoice_items&operation=eq.update&record_id=eq.{item_id}"
+        f"&order=created_at.desc&limit=1",
         token=ADMIN, method="GET")
-    check("the override is in the audit log",
-          len(after_log or []) > len(before_log or []) - 1 and after_log
-          and "amount" in json.dumps(after_log[0].get("changed_fields")),
-          f"changed_fields {after_log[0].get('changed_fields') if after_log else '?'}")
+    check("the override is in the audit log, against that line item",
+          bool(entry) and "amount" in json.dumps(entry[0].get("changed_fields")),
+          f"changed_fields {entry[0].get('changed_fields') if entry else 'no entry'}")
     check("and it names who did it",
-          after_log and after_log[0].get("staff_id") == admin_id,
+          bool(entry) and entry[0].get("staff_id") == admin_id,
           "staff_id matches the admin")
 
     st, body = call(f"/rest/v1/appointments?id=eq.{appt['id']}",
