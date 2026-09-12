@@ -199,6 +199,7 @@ export default function PatientProfilePage() {
         {showConsent && staff && (
           <ConsentCapture
             patientId={id}
+            patientName={patient.name}
             staffId={staff.id}
             submitLabel="Save re-confirmed consent"
             onSaved={() => {

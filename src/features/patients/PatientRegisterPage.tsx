@@ -57,6 +57,7 @@ export default function PatientRegisterPage() {
         {staff && (
           <ConsentCapture
             patientId={newPatientId}
+            patientName={newPatientName}
             staffId={staff.id}
             onSaved={() => navigate(`/patients/${newPatientId}`)}
           />

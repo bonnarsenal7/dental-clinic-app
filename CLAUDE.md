@@ -379,6 +379,16 @@ signature was indistinguishable from the patient's own, on a document
 written in the patient's voice ("I consent"). For a clinic that treats
 children that is a gap in the record, not a cosmetic one.
 
+The name is **prefilled with the patient's own** when they are signing for
+themselves, which is the ordinary case and one the record already knows.
+Asking a receptionist to retype a name that is on file is how one record
+ends up with it spelled two ways.
+
+It **clears** the moment anyone else is named as the signer. Leaving the
+patient's name above a guardian's signature is worse than leaving it blank:
+the record would assert that the wrong person agreed. Prefilled, not fixed —
+the name on file is not always the one somebody signs with.
+
 **Both columns are nullable, and must stay that way.** Ten consents predate
 this and nothing knows who signed them. Backfilling `self` would invent a
 fact about a document somebody already put their name to. A null means

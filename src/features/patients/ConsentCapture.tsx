@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
 import {
   CONSENT_DETAILS_COMPLETE,
@@ -14,18 +14,35 @@ import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
 
 interface ConsentCaptureProps {
   patientId: string
+  /** Filled in for them when the patient is signing for themselves. */
+  patientName: string
   staffId: string
   onSaved: () => void
   /** Shown on the button — differs for first-time vs. re-confirm. */
   submitLabel?: string
 }
 
-export default function ConsentCapture({ patientId, staffId, onSaved, submitLabel }: ConsentCaptureProps) {
+export default function ConsentCapture({
+  patientId,
+  patientName,
+  staffId,
+  onSaved,
+  submitLabel,
+}: ConsentCaptureProps) {
   const padRef = useRef<SignatureCanvas>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [signedByName, setSignedByName] = useState('')
   const [relationship, setRelationship] = useState<SignerRelationship>('self')
+  const [signedByName, setSignedByName] = useState(patientName)
+
+  // The patient signing for themselves is the ordinary case, and their name
+  // is already on file — asking a receptionist to retype it is how it ends
+  // up spelled two ways in one record. Anyone else has to be named, so the
+  // field clears rather than leaving the patient's name over a guardian's
+  // signature.
+  useEffect(() => {
+    setSignedByName(relationship === 'self' ? patientName : '')
+  }, [relationship, patientName])
 
   function handleClear() {
     padRef.current?.clear()
