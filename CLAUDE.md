@@ -989,10 +989,35 @@ has resolved — an empty list at mount is "not loaded yet", not "no results",
 and the form opened by declaring itself broken.
 
 ### Completing an appointment leads into billing
-Finishing treatment is when someone gets billed, so the action lives on the
-appointment rather than making reception go and find the patient again. A
-`completed` card offers **Create invoice**, linking to
+Finishing treatment is when someone gets billed, so **pressing Complete
+navigates straight to the invoice** rather than leaving a link to follow
+later. A step that has to be remembered at a busy front desk is a step that
+gets skipped. The `completed` card still offers **Create invoice** for
+anything completed earlier, linking to the same place:
 `/patients/:id/invoices/new?appointment=<id>&visit=<id>`.
+
+The redirect checks for an existing invoice first and opens that instead.
+The offer can be taken twice — by the dentist at the chair and by reception
+at checkout — and landing on a blank builder for an already-billed visit is
+how a second invoice gets raised. Only `completed` redirects; every other
+status change leaves you on the schedule with the next patient in front of
+you.
+
+`completed` is reachable only from `in_chair`, and seating creates the
+visit, so a completed appointment always has a `visit_id` to bill against.
+
+### The invoice builder shows the dentist's note
+A chart records findings; the note records the appointment. Whoever raises
+the invoice sees the note for that visit inline, because work that was done
+but never charted is otherwise billed as nothing. An absent note says so
+explicitly rather than rendering blank, which would read as "nothing was
+done".
+
+**Reception does not see it, and the screen says so.** `visit_notes` has no
+policy at all for them (0002_rls.sql) — the same boundary that already hides
+charted procedures. `getVisitNote` is not even called for reception. Do not
+route around this to make the billing screen "complete": a test asserts the
+note text never reaches a receptionist's DOM.
 
 The builder uses both parameters: `appointment` to prefill the first line,
 `visit` to pull charted procedures. The prefill takes the description from

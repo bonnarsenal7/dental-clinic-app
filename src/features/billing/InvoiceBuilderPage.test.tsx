@@ -9,11 +9,13 @@ vi.mock('./api', () => ({
   listBillableCharting: vi.fn(),
   listPatientVisits: vi.fn(),
   listProcedures: vi.fn(),
+  getVisitNote: vi.fn(),
 }))
 vi.mock('../scheduling/api', () => ({ getAppointment: vi.fn() }))
 vi.mock('../patients/api', () => ({ getPatient: vi.fn() }))
+const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }))
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ staff: { id: 's1', name: 'Reception', role: 'receptionist' } }),
+  useAuth: () => ({ staff: { id: 's1', name: 'Whoever', role: auth.role } }),
 }))
 
 const api = await import('./api')
@@ -42,6 +44,10 @@ function renderBuilder(search: string) {
 
 describe('arriving from a completed appointment', () => {
   beforeEach(() => {
+    // Reset, or the role a later test sets leaks backwards into the
+    // earlier ones the moment anybody reorders this file.
+    auth.role = 'receptionist'
+    vi.mocked(api.getVisitNote).mockResolvedValue(null)
     vi.mocked(patients.getPatient).mockResolvedValue({
       id: 'pat-1',
       name: 'Maria Clara Santos',
@@ -106,5 +112,63 @@ describe('arriving from a completed appointment', () => {
     await screen.findByText(/new invoice/i)
     await waitFor(() => expect(scheduling.getAppointment).not.toHaveBeenCalled())
     expect(screen.getByText(/no lines yet/i)).toBeInTheDocument()
+  })
+
+  // --- The dentist's note ------------------------------------------------
+
+  // A chart records findings; the note records the appointment. Whoever
+  // raises the invoice needs the note in front of them, not one screen away
+  // — otherwise work that was done but never charted gets billed as nothing.
+  it("shows the dentist's note for the visit being billed", async () => {
+    auth.role = 'dentist'
+    vi.mocked(api.getVisitNote).mockResolvedValue(
+      'Composite filling 36 occlusal. Advised on grinding; review in 6 months.',
+    )
+    renderBuilder('?visit=v-1')
+    expect(await screen.findByText(/composite filling 36 occlusal/i)).toBeInTheDocument()
+    expect(screen.getByText(/dentist's note for this visit/i)).toBeInTheDocument()
+  })
+
+  // Silence here would read as "nothing was done", which is exactly the
+  // wrong conclusion to invite on a billing screen.
+  it('says plainly when no note was written', async () => {
+    auth.role = 'dentist'
+    vi.mocked(api.getVisitNote).mockResolvedValue(null)
+    renderBuilder('?visit=v-1')
+    expect(await screen.findByText(/no note was written for this visit/i)).toBeInTheDocument()
+  })
+
+  it('treats an empty note the same as no note', async () => {
+    auth.role = 'dentist'
+    vi.mocked(api.getVisitNote).mockResolvedValue('   ')
+    renderBuilder('?visit=v-1')
+    expect(await screen.findByText(/no note was written for this visit/i)).toBeInTheDocument()
+  })
+
+  // visit_notes has no policy at all for reception (0002_rls.sql). The
+  // boundary is the database's, and the screen must not try to route around
+  // it — it says who can see the note instead.
+  it('does not show the note to reception, and says why', async () => {
+    auth.role = 'receptionist'
+    vi.mocked(api.getVisitNote).mockResolvedValue('Clinical detail reception must not see')
+    renderBuilder('?visit=v-1')
+    await screen.findByText(/only visible to dentist\/admin accounts/i)
+    expect(screen.queryByText(/clinical detail reception must not see/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/dentist's note for this visit/i)).not.toBeInTheDocument()
+  })
+
+  it('does not even ask for the note as reception', async () => {
+    auth.role = 'receptionist'
+    renderBuilder('?visit=v-1')
+    await screen.findByText(/only visible to dentist\/admin accounts/i)
+    expect(api.getVisitNote).not.toHaveBeenCalled()
+  })
+
+  // A note that fails to load must not take the billing screen down with it.
+  it('still bills when the note cannot be loaded', async () => {
+    auth.role = 'dentist'
+    vi.mocked(api.getVisitNote).mockRejectedValue(new Error('network'))
+    renderBuilder('?visit=v-1')
+    expect(await screen.findByText(/no note was written for this visit/i)).toBeInTheDocument()
   })
 })

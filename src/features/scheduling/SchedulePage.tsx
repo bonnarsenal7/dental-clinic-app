@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
@@ -15,6 +15,7 @@ import { toLocalDateString } from '../../core/localDate'
 export default function SchedulePage() {
   const { staff } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   // Arriving from the recalls list, which links to /schedule?patient=<id>.
   // Without this the Book button there dropped you on an unchanged schedule
   // with the form closed and nothing selected.
@@ -81,7 +82,27 @@ export default function SchedulePage() {
     setBusyId(appointment.id)
     setError(null)
     try {
-      await setAppointmentStatus({ appointment, status, staffId: staff.id })
+      const updated = await setAppointmentStatus({ appointment, status, staffId: staff.id })
+
+      // Finishing treatment is the moment someone gets billed, so the app
+      // goes there rather than leaving whoever pressed Complete to find the
+      // patient again. The card kept offering "Create invoice" after the
+      // fact, which is a step that gets forgotten at a busy front desk.
+      if (status === 'completed') {
+        // The offer can be taken twice — by the dentist at the chair and by
+        // reception at checkout. Landing on a blank builder for a visit
+        // that is already invoiced is how a second invoice gets raised, so
+        // an existing one wins.
+        const existing = updated.visit_id ? await findInvoiceForVisit(updated.visit_id) : null
+        navigate(
+          existing
+            ? `/invoices/${existing.id}`
+            : `/patients/${updated.patient_id}/invoices/new?appointment=${updated.id}` +
+                (updated.visit_id ? `&visit=${updated.visit_id}` : ''),
+        )
+        return
+      }
+
       await refresh()
     } catch (e) {
       setError(toMessage(e))

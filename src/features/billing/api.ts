@@ -182,6 +182,24 @@ export async function listBillableCharting(visitId: string): Promise<BillableCha
     }))
 }
 
+/** The dentist's write-up for a visit, so whoever raises the invoice can
+ *  see what was actually done rather than billing from the tooth chart
+ *  alone — a chart records findings, the note records the appointment.
+ *
+ *  `visit_notes` has no policy at all for reception (0002_rls.sql), so this
+ *  returns null for them rather than erroring. That is the RLS boundary
+ *  doing its job and must not be worked around: the builder says who can
+ *  see it instead of quietly showing an empty panel. */
+export async function getVisitNote(visitId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('visit_notes')
+    .select('notes')
+    .eq('visit_id', visitId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data?.notes as string | undefined) ?? null
+}
+
 /** Visits for the invoice builder's "which visit is this for" selector. */
 export async function listPatientVisits(patientId: string): Promise<{ id: string; visit_date: string }[]> {
   const { data, error } = await supabase

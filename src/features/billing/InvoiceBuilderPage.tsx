@@ -6,6 +6,7 @@ import type { Patient } from '../patients/types'
 import {
   createInvoice,
   findInvoiceForVisit,
+  getVisitNote,
   listBillableCharting,
   listPatientVisits,
   listProcedures,
@@ -35,6 +36,7 @@ export default function InvoiceBuilderPage() {
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [visits, setVisits] = useState<{ id: string; visit_date: string }[]>([])
   const [visitId, setVisitId] = useState(searchParams.get('visit') ?? '')
+  const [visitNote, setVisitNote] = useState<string | null>(null)
   const appointmentId = searchParams.get('appointment')
   const [existingInvoice, setExistingInvoice] = useState<string | null>(null)
   const [prefilled, setPrefilled] = useState(false)
@@ -114,6 +116,18 @@ export default function InvoiceBuilderPage() {
       cancelled = true
     }
   }, [visitId])
+
+  // The note is what the dentist wrote while the patient was in the chair.
+  // Whoever bills needs it in front of them, not one screen away.
+  useEffect(() => {
+    if (!visitId || !canReadChart) {
+      setVisitNote(null)
+      return
+    }
+    getVisitNote(visitId)
+      .then(setVisitNote)
+      .catch(() => setVisitNote(null))
+  }, [visitId, canReadChart])
 
   useEffect(() => {
     if (!visitId || !canReadChart) {
@@ -276,10 +290,29 @@ export default function InvoiceBuilderPage() {
           )}
         </div>
 
+        {/* Same RLS boundary as the charted procedures: reception has no
+            policy at all on visit_notes, so there is nothing to show them
+            and saying so beats an empty panel. */}
+        {canReadChart && visitId && (
+          <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Dentist's note for this visit
+            </p>
+            {visitNote && visitNote.trim() ? (
+              <p className="text-sm text-slate-700 whitespace-pre-line mt-1">{visitNote}</p>
+            ) : (
+              <p className="text-sm text-slate-400 mt-1">
+                No note was written for this visit. Billing from the chart alone risks missing work that was
+                done but not charted.
+              </p>
+            )}
+          </div>
+        )}
+
         {!canReadChart ? (
           <p className="text-sm text-slate-400">
-            Charted procedures are only visible to dentist/admin accounts. Ask the dentist to build the
-            invoice from the chart, or add the lines by hand below.
+            Charted procedures and the dentist's note are only visible to dentist/admin accounts. Ask the
+            dentist to build the invoice from the chart, or add the lines by hand below.
           </p>
         ) : !visitId ? (
           <p className="text-sm text-slate-400">Choose a visit above to see what was charted.</p>
