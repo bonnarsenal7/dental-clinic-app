@@ -1415,11 +1415,18 @@ It's used in two places:
   hidden heading exists only so `LoginPage.test.tsx`'s
   `getByRole('heading').toHaveTextContent(CLINIC_NAME)` still has something
   to find. Don't delete the hidden heading without updating that test.
-- `AppShell.tsx` — shown small in the header next to the clinic name text.
-  Here the `<img>` is `alt=""` (decorative) because the adjacent text node
-  already says the clinic's name out loud via `clinicName || CLINIC_NAME`;
-  giving the image its own alt text would announce the name twice to a
-  screen reader.
+- `AppShell.tsx` — shown small in the header, and it is the **only** thing
+  naming the clinic there. The name is not repeated beside it, because the
+  logo is a wordmark that already reads "ToothCo Dental Clinic" and printing
+  the same words next to it is duplication.
+
+  **That makes the alt text load-bearing**: the image carries
+  `alt={clinicName || CLINIC_NAME}`, not `alt=""`. The two are coupled — the
+  moment the text beside it goes, the image stops being decorative. Removing
+  the text *and* leaving `alt=""` left the header naming the clinic to
+  nobody on a screen reader, and nothing in the suite noticed until a test
+  was added for it. It is also what keeps a rename in `clinic_settings`
+  meaningful in the header at all.
 
 The logo is a static asset for the "ToothCo" brand mark specifically, while
 the text next to it in `AppShell` stays driven by `clinic_settings.clinic_name`

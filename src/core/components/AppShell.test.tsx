@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StaffRole } from '../../features/auth/types'
+import { CLINIC_NAME } from '../branding'
 
 const signOut = vi.fn()
 const auth = vi.hoisted(() => ({
@@ -18,10 +19,16 @@ const auth = vi.hoisted(() => ({
 vi.mock('../../features/auth/AuthContext', () => ({
   useAuth: () => ({ staff: auth.staff, signOut }),
 }))
+const settings = vi.hoisted(() => ({ clinic_name: null as string | null }))
 vi.mock('../supabaseClient', () => ({
   supabase: {
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null }) }) }),
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () =>
+            Promise.resolve({ data: settings.clinic_name ? { clinic_name: settings.clinic_name } : null }),
+        }),
+      }),
     }),
   },
 }))
@@ -46,6 +53,33 @@ function accountCluster() {
 describe('AppShell', () => {
   beforeEach(() => {
     signOut.mockClear()
+    settings.clinic_name = null
+  })
+
+  // --- The clinic's name ---------------------------------------------------
+
+  // The logo is a wordmark, so the name is not repeated beside it — which
+  // makes the image the only thing naming the clinic. It must therefore
+  // carry real alt text: with the name removed *and* the image left
+  // decorative, the header named the clinic to nobody on a screen reader,
+  // and nothing in the suite noticed.
+  it('names the clinic to a screen reader', async () => {
+    renderShell()
+    expect(await screen.findByRole('img', { name: CLINIC_NAME })).toBeInTheDocument()
+  })
+
+  it('uses the name an admin set, so a rename still shows', async () => {
+    settings.clinic_name = 'Davao Smile Studio'
+    renderShell()
+    expect(await screen.findByRole('img', { name: 'Davao Smile Studio' })).toBeInTheDocument()
+  })
+
+  // A wordmark plus the same words beside it is the duplication this
+  // removed; announcing it twice is the screen-reader version of that.
+  it('does not say the clinic name twice', async () => {
+    renderShell()
+    await screen.findByRole('img', { name: CLINIC_NAME })
+    expect(screen.queryAllByText(CLINIC_NAME)).toHaveLength(0)
   })
 
   // --- The account cluster ------------------------------------------------

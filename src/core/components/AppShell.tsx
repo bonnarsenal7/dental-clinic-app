@@ -53,9 +53,14 @@ export default function AppShell() {
             can push the other around. */}
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
+            {/* The logo is a wordmark — it already reads "ToothCo Dental
+                Clinic" — so the name is not repeated beside it. That makes
+                the image the only thing naming the clinic, which is why it
+                carries real alt text rather than alt="": with the text gone
+                and the image decorative, the header named the clinic to
+                nobody using a screen reader. */}
             <div className="flex items-center gap-2 min-w-0">
-              <img src={toothcoLogo} alt="" className="h-8 w-auto shrink-0" />
-              <p className="text-sm font-semibold text-slate-800 truncate"></p>
+              <img src={toothcoLogo} alt={clinicName || CLINIC_NAME} className="h-8 w-auto shrink-0" />
             </div>
 
             {/* The name and role are read, not pressed, so they stay text —
