@@ -12,7 +12,6 @@ import { createVisitToday, listChartVisits, listToothRecords, saveToothMarks } f
 import ChartLegend from './ChartLegend'
 import Odontogram from './Odontogram'
 import ToothDetailPanel from './ToothDetailPanel'
-import ChairsideBilling from '../billing/ChairsideBilling'
 import type { ChartVisit, PendingMark, ToothRecord } from './types'
 import type { InteractionMode } from './ToothGlyph'
 import { toMessage } from '../../core/errors'
@@ -249,13 +248,6 @@ export default function PatientChartPage() {
           }
         />
       </div>
-
-      {/* Billing sits with the chart because this is where the dentist is
-          while the work is happening. Reconstructing a bill afterwards from
-          a chart is how work goes unbilled — the chart records findings, not
-          what was charged for. Needs a visit for the same reason the chart
-          does: a line item has to belong to an appointment. */}
-      {visitId && staff && <ChairsideBilling patientId={patientId} visitId={visitId} staffId={staff.id} />}
 
       {/* Nothing is written until this bar is used, so a mis-tap chairside
           is undone with a tap rather than a database correction. */}

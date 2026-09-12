@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../auth/AuthContext'
 import { addVisitWithNote, listVisits } from './api'
+import { listInvoices } from '../billing/api'
+import VisitBilling from '../billing/VisitBilling'
+import type { InvoiceWithDetail } from '../billing/types'
 import type { VisitWithNote } from './types'
 import { toMessage } from '../../core/errors'
 
@@ -16,6 +19,10 @@ interface NoteForm {
 export default function VisitTimeline({ patientId }: { patientId: string }) {
   const { staff } = useAuth()
   const [visits, setVisits] = useState<VisitWithNote[] | null>(null)
+  // Fetched once for the patient and matched to visits here, rather than a
+  // query per visit — a long history would otherwise be one round trip per
+  // row over the clinic Wi-Fi.
+  const [invoicesByVisit, setInvoicesByVisit] = useState<Record<string, InvoiceWithDetail>>({})
   const [error, setError] = useState<string | null>(null)
   const canWriteNotes = staff?.role === 'dentist' || staff?.role === 'admin'
 
@@ -29,10 +36,28 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
   })
 
   async function refresh() {
+    // Fetched separately on purpose. The visit history is the clinical
+    // record and has to render whether or not billing loads — tying them
+    // together with Promise.all meant one failed invoice query hid every
+    // note the dentist had written.
     try {
       setVisits(await listVisits(patientId))
     } catch (e) {
       setError(toMessage(e))
+    }
+
+    try {
+      const byVisit: Record<string, InvoiceWithDetail> = {}
+      for (const invoice of await listInvoices(patientId)) {
+        // Newest first from the API, so the first one seen for a visit wins.
+        if (invoice.visit_id && !byVisit[invoice.visit_id]) byVisit[invoice.visit_id] = invoice
+      }
+      setInvoicesByVisit(byVisit)
+    } catch {
+      // Left empty: each visit then reads as not billed, which is wrong but
+      // survivable, and is better than losing the clinical history behind a
+      // billing error.
+      setInvoicesByVisit({})
     }
   }
 
@@ -102,6 +127,20 @@ export default function VisitTimeline({ patientId }: { patientId: string }) {
                   ? 'No notes for this visit.'
                   : 'Clinical notes are only visible to dentist/admin accounts.'}
               </p>
+            )}
+
+            {/* What the visit cost, beside what was done at it. This is the
+                history of a patient, and a bill is part of that history. */}
+            {staff && (
+              <VisitBilling
+                patientId={patientId}
+                visitId={v.id}
+                visitDate={v.visit_date}
+                invoice={invoicesByVisit[v.id] ?? null}
+                staffId={staff.id}
+                role={staff.role}
+                onChanged={() => void refresh()}
+              />
             )}
           </div>
         ))}

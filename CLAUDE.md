@@ -1141,6 +1141,38 @@ narrower trigger did not fire at all and the change went straight through.
 not offer a control the database will refuse. **If one changes, change
 both.**
 
+## Billing lives in the patient's history, never in the chart
+
+`VisitBilling` renders inside `VisitTimeline`, under the visit it belongs
+to. A tooth chart records findings — what is there and what was done to it.
+What anybody was charged is a different question, and the chart does not
+raise it: **no section, no summary, no "view invoice" link, no import.**
+
+`src/features/charting/noBilling.test.ts` holds that. It is a structural
+test rather than a behavioural one because the thing being protected is an
+*absence*, and an absence is exactly what a behavioural test cannot notice
+coming back. It fails on an import from billing, on the words invoice /
+billing / billable anywhere in the feature, and on an `/invoices/` path.
+
+### The panel is chosen by the invoice, not the role
+    no invoice, visit is today   the dentist's line-item entry
+    a draft                      the same, still editable
+    anything else                the bill, read-only, with what is owed
+
+Role only decides who may act, mirroring 0013: a dentist edits a draft and
+nobody else; reception takes payment and never edits. Reception is told a
+draft "is still being added to" rather than shown a total that may move.
+
+**Line entry is offered only on a visit dated today.** Offering it on a
+visit from six months ago would create a draft nothing can finish — "finish
+treatment" exists only on an appointment that is in the chair.
+
+**Visits and invoices are fetched separately, and must stay that way.**
+They were briefly loaded with one `Promise.all`, which meant a failed
+invoice query hid every clinical note the dentist had written. The history
+is the clinical record and renders whether or not billing loads; a test
+covers exactly that.
+
 ## Chairside billing (0012, 0013)
 
 The dentist bills what they did, while they are doing it; finishing
