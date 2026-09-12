@@ -212,6 +212,24 @@ export async function removeDraftLine(itemId: string) {
   if (error) throw new Error(error.message)
 }
 
+/** Writes the visit's note, which is now part of the bill rather than a
+ *  clinical aside: the dentist writes it chairside, it locks when treatment
+ *  finishes, and whoever takes payment can read it.
+ *
+ *  Upsert on `visit_id`, which is unique — a visit has one note, and
+ *  re-saving replaces it. 0016 refuses the write once the visit is closed,
+ *  so a dentist editing after finishing gets a refusal rather than a
+ *  silently discarded edit. */
+export async function saveVisitNote(params: { visitId: string; notes: string; staffId: string }) {
+  const { error } = await supabase
+    .from('visit_notes')
+    .upsert(
+      { visit_id: params.visitId, notes: params.notes, created_by: params.staffId },
+      { onConflict: 'visit_id' },
+    )
+  if (error) throw new Error(error.message)
+}
+
 /** Takes the invoice out of draft. After this the figures are fixed for
  *  everyone but an admin — enforced by RLS, not by hiding the buttons. */
 export async function lockInvoice(invoiceId: string) {

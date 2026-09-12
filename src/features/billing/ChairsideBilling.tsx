@@ -3,9 +3,17 @@ import { useForm } from 'react-hook-form'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
 import Button from '../../core/components/ui/Button'
-import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
+import { Field, NativeSelect, TextArea, TextInput } from '../../core/components/ui/Field'
 import { formatMoney } from './ledger'
-import { addDraftLine, findDraftInvoice, listProcedures, openDraftInvoice, removeDraftLine } from './api'
+import {
+  addDraftLine,
+  findDraftInvoice,
+  getVisitNote,
+  listProcedures,
+  openDraftInvoice,
+  removeDraftLine,
+  saveVisitNote,
+} from './api'
 import type { DraftInvoice, Procedure } from './types'
 
 interface LineForm {
@@ -42,6 +50,13 @@ export default function ChairsideBilling({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // The visit note lives with the bill now: written here, locked by the
+  // same "finish treatment" that locks the amounts, and readable afterwards
+  // by whoever takes the payment.
+  const [note, setNote] = useState('')
+  const [noteLoaded, setNoteLoaded] = useState(false)
+  const [noteSaved, setNoteSaved] = useState(false)
+  const [savingNote, setSavingNote] = useState(false)
 
   const {
     register,
@@ -73,6 +88,27 @@ export default function ChairsideBilling({
       .then(setProcedures)
       .catch((e) => setError(toMessage(e)))
   }, [])
+
+  useEffect(() => {
+    getVisitNote(visitId)
+      .then((existing) => setNote(existing ?? ''))
+      .catch(() => setNote(''))
+      .finally(() => setNoteLoaded(true))
+  }, [visitId])
+
+  async function onSaveNote() {
+    setError(null)
+    setSavingNote(true)
+    setNoteSaved(false)
+    try {
+      await saveVisitNote({ visitId, notes: note, staffId })
+      setNoteSaved(true)
+    } catch (e) {
+      setError(toMessage(e))
+    } finally {
+      setSavingNote(false)
+    }
+  }
 
   useEffect(() => {
     onTotalChange?.(invoice)
@@ -140,6 +176,30 @@ export default function ChairsideBilling({
       </div>
 
       {error && <ErrorState message={error} />}
+
+      {/* Optional, and it says so — plenty of visits need no write-up, and a
+          field that looks required gets filled with "n/a". */}
+      <Field
+        label="Note for this visit (optional)"
+        hint="Saved with the bill. Reception can read it when they take payment, and it locks when you finish treatment."
+      >
+        <TextArea
+          rows={3}
+          value={note}
+          disabled={!noteLoaded}
+          onChange={(e) => {
+            setNote(e.target.value)
+            setNoteSaved(false)
+          }}
+          placeholder="What was done, anything the patient should know."
+        />
+      </Field>
+      <div className="flex items-center gap-3 -mt-1">
+        <Button variant="secondary" size="sm" onClick={() => void onSaveNote()} disabled={savingNote}>
+          {savingNote ? 'Saving…' : 'Save note'}
+        </Button>
+        {noteSaved && <span className="text-xs text-emerald-700">Saved.</span>}
+      </div>
 
       {lines.length === 0 ? (
         <p className="text-sm text-slate-400">Nothing billed yet.</p>

@@ -47,70 +47,10 @@ describe('VisitTimeline when the connection drops mid-entry', () => {
     auth.role = 'dentist'
   })
 
-  it('keeps the typed note on screen when the write fails', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.addVisitWithNote).mockRejectedValue(new TypeError('Failed to fetch'))
-
-    renderTimeline()
-    const notes = await screen.findByLabelText(/notes/i)
-    await user.type(notes, NOTE)
-    await user.click(screen.getByRole('button', { name: /add visit note/i }))
-
-    // The note is still there to retry with — nothing typed was discarded.
-    await waitFor(() => expect(notes).toHaveValue(NOTE))
-  })
-
-  it('explains the failure as a connection problem, not a raw fetch error', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.addVisitWithNote).mockRejectedValue(new TypeError('Failed to fetch'))
-
-    renderTimeline()
-    await user.type(await screen.findByLabelText(/notes/i), NOTE)
-    await user.click(screen.getByRole('button', { name: /add visit note/i }))
-
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/you're offline/i)
-    expect(alert).not.toHaveTextContent(/failed to fetch/i)
-  })
-
-  it('does not crash the screen', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.addVisitWithNote).mockRejectedValue(new TypeError('Failed to fetch'))
-
-    renderTimeline()
-    await user.type(await screen.findByLabelText(/notes/i), NOTE)
-    await user.click(screen.getByRole('button', { name: /add visit note/i }))
-
-    await screen.findByRole('alert')
-    expect(screen.getByRole('button', { name: /add visit note/i })).toBeEnabled()
-  })
-
-  // A real database error must keep its own wording — sending staff to
-  // check the Wi-Fi over an RLS refusal would waste everyone's time.
-  it('passes a real database error through unchanged', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.addVisitWithNote).mockRejectedValue(
-      new Error('new row violates row-level security policy for table "visit_notes"'),
-    )
-
-    renderTimeline()
-    await user.type(await screen.findByLabelText(/notes/i), NOTE)
-    await user.click(screen.getByRole('button', { name: /add visit note/i }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/row-level security/i)
-  })
-
-  it('clears the form once the write succeeds', async () => {
-    const user = userEvent.setup()
-    vi.mocked(api.addVisitWithNote).mockResolvedValue(undefined)
-
-    renderTimeline()
-    const notes = await screen.findByLabelText(/notes/i)
-    await user.type(notes, NOTE)
-    await user.click(screen.getByRole('button', { name: /add visit note/i }))
-
-    await waitFor(() => expect(notes).toHaveValue(''))
-  })
+  // The note form that used to live here is gone: the note is part of the
+  // bill now (0016). Phase 6's exit criterion moved with it — the test that
+  // a rejected write leaves the typed note on screen is in
+  // ChairsideBilling.test.tsx, against the field that now holds it.
 
   // --- Billing moved here from the chart --------------------------------
 

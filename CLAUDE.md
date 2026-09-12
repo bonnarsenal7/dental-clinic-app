@@ -1141,6 +1141,36 @@ narrower trigger did not fire at all and the change went straight through.
 not offer a control the database will refuse. **If one changes, change
 both.**
 
+## The visit note is part of the bill (0016)
+
+Written in the chairside panel, locked by the same "finish treatment" that
+locks the amounts, and **readable by reception**. There is no separate "add
+visit note" section any more.
+
+**0016 reverses the boundary Phase 1 was built around, at the clinic's
+instruction.** `visit_notes` is its own table precisely so reception could
+have `visits` without the write-up — RLS cannot hide one column of a row a
+role can otherwise select. Two consequences, neither optional:
+
+- **`CONSENT_TEXT` is now wrong.** It tells patients reception "can see your
+  contact and billing details but not the dentist's clinical notes or your
+  tooth chart". The first half of that is false as of 0016, in a document
+  signed under RA 10173 and already waiting on legal review. This widens
+  what that review must cover.
+- **Tooth charts did not move.** Reception still has no policy at all on
+  `tooth_records`, so the second half stays true.
+
+`visit_is_open(visit_id)` is the lock: no invoice has left draft and no
+appointment for the visit is finished. A function rather than a status
+lookup because a visit can exist with no appointment — the chart can start
+one — and the note must stay writable there too.
+
+**Phase 6's exit criterion moved with the field.** The test that a rejected
+write leaves the typed note on screen now lives in
+`ChairsideBilling.test.tsx`. Losing a clinical note to a dropped connection
+is the failure it exists to prevent, and the note changing sections does not
+change that.
+
 ## Billing lives in the patient's history, never in the chart
 
 `VisitBilling` renders inside `VisitTimeline`, under the visit it belongs

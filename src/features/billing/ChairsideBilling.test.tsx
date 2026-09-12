@@ -9,6 +9,8 @@ vi.mock('./api', () => ({
   addDraftLine: vi.fn(),
   removeDraftLine: vi.fn(),
   listProcedures: vi.fn(),
+  getVisitNote: vi.fn(),
+  saveVisitNote: vi.fn(),
 }))
 
 const api = await import('./api')
@@ -51,6 +53,8 @@ describe('ChairsideBilling', () => {
     vi.mocked(api.openDraftInvoice).mockResolvedValue(draft([]))
     vi.mocked(api.addDraftLine).mockResolvedValue(undefined)
     vi.mocked(api.removeDraftLine).mockResolvedValue(undefined)
+    vi.mocked(api.getVisitNote).mockReset().mockResolvedValue(null)
+    vi.mocked(api.saveVisitNote).mockReset().mockResolvedValue(undefined)
   })
 
   it('says plainly when nothing has been billed yet', async () => {
@@ -186,5 +190,89 @@ describe('ChairsideBilling', () => {
     renderPanel()
     await screen.findByText(/nothing billed yet/i)
     expect(screen.getByText(/only an admin can change them/i)).toBeInTheDocument()
+  })
+
+  // --- The visit note, now part of the bill ------------------------------
+
+  // It used to be its own dentist-only section on the profile. It is part of
+  // the bill now: written here, locked by the same "finish treatment", and
+  // read afterwards by whoever takes the payment.
+  it('offers a note field, and says it is optional', async () => {
+    renderPanel()
+    expect(await screen.findByLabelText(/note for this visit/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/note for this visit/i)).toHaveAccessibleName(/optional/i)
+  })
+
+  it('loads a note already written for this visit', async () => {
+    vi.mocked(api.getVisitNote).mockResolvedValue('Scaling upper right, patient tolerated well.')
+    renderPanel()
+    await waitFor(() =>
+      expect(screen.getByLabelText(/note for this visit/i)).toHaveValue(
+        'Scaling upper right, patient tolerated well.',
+      ),
+    )
+  })
+
+  it('saves the note against the visit', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    await screen.findByLabelText(/note for this visit/i)
+    await user.type(screen.getByLabelText(/note for this visit/i), 'Composite 36 placed.')
+    await user.click(screen.getByRole('button', { name: /save note/i }))
+    await waitFor(() => expect(api.saveVisitNote).toHaveBeenCalled())
+    expect(vi.mocked(api.saveVisitNote).mock.calls[0][0]).toMatchObject({
+      visitId: 'v-1',
+      notes: 'Composite 36 placed.',
+      staffId: 's-1',
+    })
+  })
+
+  // Plenty of visits need no write-up, and a field that looks required gets
+  // filled with "n/a".
+  it('allows an empty note', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    await screen.findByLabelText(/note for this visit/i)
+    await user.click(screen.getByRole('button', { name: /save note/i }))
+    await waitFor(() => expect(api.saveVisitNote).toHaveBeenCalled())
+    expect(vi.mocked(api.saveVisitNote).mock.calls[0][0]).toMatchObject({ notes: '' })
+  })
+
+  it('confirms the note saved, since nothing else would show it had', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    await screen.findByLabelText(/note for this visit/i)
+    await user.click(screen.getByRole('button', { name: /save note/i }))
+    expect(await screen.findByText(/^saved\.$/i)).toBeInTheDocument()
+  })
+
+  // Phase 6's exit criterion, moved here with the note. A rejected write
+  // must leave what was typed on screen — losing a clinical note because
+  // the Wi-Fi dropped is the failure that test exists to prevent, and the
+  // note changing sections does not change that.
+  it('keeps the typed note on screen when the write fails', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.saveVisitNote).mockRejectedValue(new TypeError('Failed to fetch'))
+    renderPanel()
+    await screen.findByLabelText(/note for this visit/i)
+    const field = screen.getByLabelText(/note for this visit/i)
+    await user.type(field, 'Distal caries on 16, deep. Discussed options with patient.')
+    await user.click(screen.getByRole('button', { name: /save note/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/you're offline/i)
+    expect(field).toHaveValue('Distal caries on 16, deep. Discussed options with patient.')
+  })
+
+  // 0016 refuses the write once the visit is closed. A dentist editing after
+  // finishing has to see the refusal, not lose the text silently.
+  it('surfaces a refusal when the visit has already been closed', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.saveVisitNote).mockRejectedValue(
+      new Error('new row violates row-level security policy for table "visit_notes"'),
+    )
+    renderPanel()
+    await screen.findByLabelText(/note for this visit/i)
+    await user.type(screen.getByLabelText(/note for this visit/i), 'Too late')
+    await user.click(screen.getByRole('button', { name: /save note/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/row-level security/i)
   })
 })

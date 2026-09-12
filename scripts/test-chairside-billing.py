@@ -151,6 +151,30 @@ try:
           inv and inv[0]["status"] == "draft" and float(inv[0]["total_amount"]) == 1800.0,
           f"{inv[0]['status'] if inv else '?'}, total {inv[0]['total_amount'] if inv else '?'}")
 
+    # --- 1b. the visit note travels with the bill ------------------------
+    print("\nThe visit note, while the visit is open:")
+    st, _ = call("/rest/v1/visit_notes",
+                 {"visit_id": visit["id"], "notes": "Composite 36 placed under LA.",
+                  "created_by": dentist_id}, token=DENTIST, prefer="return=representation")
+    check("the dentist can write it", st in (200, 201), f"HTTP {st}")
+
+    st, seen = call(f"/rest/v1/visit_notes?select=notes&visit_id=eq.{visit['id']}",
+                    token=RECEP, method="GET")
+    check("reception can read it — this is the boundary 0016 reversed",
+          st == 200 and len(seen or []) == 1, f"{len(seen or [])} row(s)")
+
+    st, body = call(f"/rest/v1/visit_notes?visit_id=eq.{visit['id']}",
+                    {"notes": "Rewritten by reception"}, token=RECEP, method="PATCH")
+    st, after = call(f"/rest/v1/visit_notes?select=notes&visit_id=eq.{visit['id']}",
+                     token=SRK, method="GET")
+    check("reception cannot rewrite it",
+          after[0]["notes"] == "Composite 36 placed under LA.", f"still {after[0]['notes'][:30]!r}")
+
+    st, body = call("/rest/v1/visit_notes",
+                    {"visit_id": visit["id"], "notes": "Added by reception"},
+                    token=RECEP, prefer="return=representation")
+    check("reception cannot add one", refused(st, body), f"HTTP {st}")
+
     # --- 2. reception cannot touch the figures ---------------------------
     print("\nReception, going straight at the database:")
     st, body = call("/rest/v1/invoice_items",
@@ -202,6 +226,21 @@ try:
     st, after = call(f"/rest/v1/invoice_items?select=amount&id=eq.{item_id}", token=SRK, method="GET")
     check("nor change what is already on it", float(after[0]["amount"]) == 1800.0,
           f"still {after[0]['amount']}")
+
+    # The note locks at the same moment the figures do.
+    st, body = call(f"/rest/v1/visit_notes?visit_id=eq.{visit['id']}",
+                    {"notes": "Edited after finishing"}, token=DENTIST, method="PATCH")
+    st, after = call(f"/rest/v1/visit_notes?select=notes&visit_id=eq.{visit['id']}",
+                     token=SRK, method="GET")
+    check("the dentist cannot edit the note after finishing",
+          after[0]["notes"] == "Composite 36 placed under LA.", f"still {after[0]['notes'][:30]!r}")
+
+    st, body = call(f"/rest/v1/visit_notes?visit_id=eq.{visit['id']}",
+                    {"notes": "Corrected by admin"}, token=ADMIN, method="PATCH")
+    st, after = call(f"/rest/v1/visit_notes?select=notes&visit_id=eq.{visit['id']}",
+                     token=SRK, method="GET")
+    check("but an admin can correct it", after[0]["notes"] == "Corrected by admin",
+          f"now {after[0]['notes']!r}")
 
     st, body = call(f"/rest/v1/appointments?id=eq.{appt['id']}",
                     {"status": "completed"}, token=DENTIST, method="PATCH")
