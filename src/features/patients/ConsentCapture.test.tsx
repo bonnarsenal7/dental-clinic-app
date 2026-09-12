@@ -143,6 +143,7 @@ describe('ConsentCapture', () => {
     render(
       <ConsentCapture
         patientId="p1"
+        patientName="Maria Clara Santos"
         staffId="s1"
         onSaved={vi.fn()}
         submitLabel="Save re-confirmed consent"
