@@ -128,7 +128,13 @@ from actors, (values
   ('5eed1006-0000-4000-8000-000000000006','5eed0006-0000-4000-8000-000000000006',130),
   ('5eed1007-0000-4000-8000-000000000007','5eed0007-0000-4000-8000-000000000007', 88),
   ('5eed1008-0000-4000-8000-000000000008','5eed0008-0000-4000-8000-000000000008', 55),
-  ('5eed1009-0000-4000-8000-000000000009','5eed0010-0000-4000-8000-000000000010', 10)
+  ('5eed1009-0000-4000-8000-000000000009','5eed0010-0000-4000-8000-000000000010', 10),
+  -- Today's three, so the schedule has real bills behind it rather than
+  -- appointments with nothing attached. Each one puts a different stage of
+  -- the billing lifecycle on the pilot's first screen.
+  ('5eed1010-0000-4000-8000-000000000010','5eed0007-0000-4000-8000-000000000007',  0),
+  ('5eed1011-0000-4000-8000-000000000011','5eed0006-0000-4000-8000-000000000006',  0),
+  ('5eed1012-0000-4000-8000-000000000012','5eed0001-0000-4000-8000-000000000001',  0)
 ) as v(id, pid, days_ago);
 
 insert into visit_notes (visit_id, notes, created_by)
@@ -142,7 +148,10 @@ from actors, (values
   ('5eed1006-0000-4000-8000-000000000006','Attrition on posterior teeth consistent with bruxism. Nightguard impression taken. Discussed stress triggers.'),
   ('5eed1007-0000-4000-8000-000000000007','Generalised gingival inflammation, consistent with poorly controlled diabetes. Prophylaxis done. Referred to physician for HbA1c.'),
   ('5eed1008-0000-4000-8000-000000000008','Paediatric check-up with mother present. Fissure sealants placed on 36 and 46. Thumb-sucking discussed with parent.'),
-  ('5eed1009-0000-4000-8000-000000000009','Upper partial denture loose. Relined chairside. Reviewed hygiene of denture and remaining abutments.')
+  ('5eed1009-0000-4000-8000-000000000009','Upper partial denture loose. Relined chairside. Reviewed hygiene of denture and remaining abutments.'),
+  ('5eed1010-0000-4000-8000-000000000010','Gum review. Generalised inflammation improving since last prophylaxis. Scaling in progress.'),
+  ('5eed1011-0000-4000-8000-000000000011','Attrition reviewed. Composite restoration 17 placed, panoramic taken. Nightguard impression next visit.'),
+  ('5eed1012-0000-4000-8000-000000000012','Oral prophylaxis. Light calculus lower anteriors. Nothing else of note.')
 ) as v(vid, note);
 
 -- Tooth records. Written in one insert, so seq orders them exactly as
@@ -169,15 +178,27 @@ from actors, (values
 
 -- Invoices. total_amount and status are left alone — the triggers from
 -- 0005 derive them, which is also a live check that they still work.
-insert into invoices (id, patient_id, visit_id, created_by, created_at)
-select v.id::uuid, v.pid::uuid, v.vid::uuid, actors.admin, (select visit_date from visits where id = v.vid::uuid)
+-- `status` is given explicitly for today's three. Everywhere else the
+-- default and the 0005 triggers decide it, which is deliberate — but a
+-- draft has to be *asked* for, since the trigger treats draft as sticky and
+-- will never put an invoice into it.
+insert into invoices (id, patient_id, visit_id, created_by, created_at, status)
+select v.id::uuid, v.pid::uuid, v.vid::uuid, actors.admin,
+       (select visit_date from visits where id = v.vid::uuid),
+       coalesce(v.status, 'unpaid')::text
 from actors, (values
-  ('5eed2001-0000-4000-8000-000000000001','5eed0001-0000-4000-8000-000000000001','5eed1002-0000-4000-8000-000000000002'),
-  ('5eed2002-0000-4000-8000-000000000002','5eed0002-0000-4000-8000-000000000002','5eed1003-0000-4000-8000-000000000003'),
-  ('5eed2003-0000-4000-8000-000000000003','5eed0004-0000-4000-8000-000000000004','5eed1005-0000-4000-8000-000000000005'),
-  ('5eed2004-0000-4000-8000-000000000004','5eed0007-0000-4000-8000-000000000007','5eed1007-0000-4000-8000-000000000007'),
-  ('5eed2005-0000-4000-8000-000000000005','5eed0008-0000-4000-8000-000000000008','5eed1008-0000-4000-8000-000000000008')
-) as v(id, pid, vid);
+  ('5eed2001-0000-4000-8000-000000000001','5eed0001-0000-4000-8000-000000000001','5eed1002-0000-4000-8000-000000000002', null),
+  ('5eed2002-0000-4000-8000-000000000002','5eed0002-0000-4000-8000-000000000002','5eed1003-0000-4000-8000-000000000003', null),
+  ('5eed2003-0000-4000-8000-000000000003','5eed0004-0000-4000-8000-000000000004','5eed1005-0000-4000-8000-000000000005', null),
+  ('5eed2004-0000-4000-8000-000000000004','5eed0007-0000-4000-8000-000000000007','5eed1007-0000-4000-8000-000000000007', null),
+  ('5eed2005-0000-4000-8000-000000000005','5eed0008-0000-4000-8000-000000000008','5eed1008-0000-4000-8000-000000000008', null),
+  -- Still being added to, chairside, while Lorna is in the chair.
+  ('5eed2006-0000-4000-8000-000000000006','5eed0007-0000-4000-8000-000000000007','5eed1010-0000-4000-8000-000000000010','draft'),
+  -- Treatment finished, invoice locked, patient at the counter owing money.
+  ('5eed2007-0000-4000-8000-000000000007','5eed0006-0000-4000-8000-000000000006','5eed1011-0000-4000-8000-000000000011', null),
+  -- Paid and gone, this morning.
+  ('5eed2008-0000-4000-8000-000000000008','5eed0001-0000-4000-8000-000000000001','5eed1012-0000-4000-8000-000000000012', null)
+) as v(id, pid, vid, status);
 
 -- created_at is set from the invoice rather than left to default now().
 -- Without this the line items carry today's date while their invoice and
@@ -195,7 +216,11 @@ from (values
   ('5eed2003-0000-4000-8000-000000000003','Periapical x-ray',                500.00,'Periapical x-ray',              null),
   ('5eed2004-0000-4000-8000-000000000004','Oral prophylaxis (cleaning)',    1200.00,'Oral prophylaxis (cleaning)',   null),
   ('5eed2005-0000-4000-8000-000000000005','Pit and fissure sealant',         900.00,'Pit and fissure sealant',        36),
-  ('5eed2005-0000-4000-8000-000000000005','Pit and fissure sealant',         900.00,'Pit and fissure sealant',        46)
+  ('5eed2005-0000-4000-8000-000000000005','Pit and fissure sealant',         900.00,'Pit and fissure sealant',        46),
+  ('5eed2006-0000-4000-8000-000000000006','Oral prophylaxis (cleaning)',    1200.00,'Oral prophylaxis (cleaning)',   null),
+  ('5eed2007-0000-4000-8000-000000000007','Composite filling (light cure)', 1800.00,'Composite filling (light cure)', 17),
+  ('5eed2007-0000-4000-8000-000000000007','Panoramic x-ray',                1800.00,'Panoramic x-ray',               null),
+  ('5eed2008-0000-4000-8000-000000000008','Oral prophylaxis (cleaning)',    1200.00,'Oral prophylaxis (cleaning)',   null)
 ) as v(inv, descr, amount, proc, tooth);
 
 -- A deliberate mix: paid in full, part-paid, and untouched — so the ledger
@@ -207,7 +232,10 @@ from actors, (values
   ('5eed2001-0000-4000-8000-000000000001',3000.00,'cash','OR-10432'),
   ('5eed2002-0000-4000-8000-000000000002', 500.00,'cash','OR-10455'),
   ('5eed2003-0000-4000-8000-000000000003',2000.00,'card','OR-10478'),
-  ('5eed2005-0000-4000-8000-000000000005',1800.00,'cash','OR-10502')
+  ('5eed2005-0000-4000-8000-000000000005',1800.00,'cash','OR-10502'),
+  -- This morning's, already settled. 5eed2007 is deliberately unpaid: it is
+  -- the one the front desk is meant to collect during the pilot.
+  ('5eed2008-0000-4000-8000-000000000008',1200.00,'cash','OR-10511')
 ) as v(inv, amount, method, ref);
 
 commit;
@@ -227,8 +255,10 @@ delete from recalls where patient_id::text like '5eed%';
 create temp table sched_actors on commit drop as
   select (select id from staff where role = 'dentist' and active order by created_at limit 1) as dentist;
 
-insert into appointments (patient_id, dentist_id, scheduled_at, duration_minutes, reason, status, arrived_at, seated_at, reception_notes)
-select v.pid::uuid, sched_actors.dentist,
+-- visit_id matters: the schedule finds a bill through it, so an
+-- appointment without one shows no invoice however well billed it is.
+insert into appointments (patient_id, dentist_id, visit_id, scheduled_at, duration_minutes, reason, status, arrived_at, seated_at, reception_notes)
+select v.pid::uuid, sched_actors.dentist, v.visit::uuid,
        -- Local midnight, not UTC midnight. date_trunc('day', now())
        -- truncates in the *session* timezone, which is UTC over a normal
        -- connection — so a 09:00 clinic slot landed at 09:00 UTC, which is
@@ -241,14 +271,20 @@ select v.pid::uuid, sched_actors.dentist,
        case when v.status = 'in_chair' then now() - interval '5 minutes' end,
        v.note
 from sched_actors, (values
-  ('5eed0001-0000-4000-8000-000000000001','09:00',30,'Oral prophylaxis',     'completed', 0,  null),
-  ('5eed0007-0000-4000-8000-000000000007','09:30',30,'Gum review',           'in_chair',  25, 'Diabetic — see medical alerts'),
-  ('5eed0002-0000-4000-8000-000000000002','10:00',60,'Root canal, upper left','arrived',  12, 'Anxious — allow extra time'),
-  ('5eed0008-0000-4000-8000-000000000008','11:00',30,'Paediatric check-up',  'confirmed', 0,  'Mother attending'),
-  ('5eed0005-0000-4000-8000-000000000005','13:30',30,'First consultation',   'booked',    0,  'New patient — no consent on file yet'),
-  ('5eed0010-0000-4000-8000-000000000010','14:30',45,'Denture adjustment',   'booked',    0,  null),
-  ('5eed0004-0000-4000-8000-000000000004','15:30',30,'Post-extraction check','booked',    0,  'Hypertensive — check BP')
-) as v(pid, at, mins, reason, status, waited, note);
+  -- Paid and gone, so the card offers "View invoice".
+  ('5eed0001-0000-4000-8000-000000000001','09:00',30,'Oral prophylaxis',     'completed', 0,  null,                                   '5eed1012-0000-4000-8000-000000000012'),
+  -- In the chair with a draft being added to, so the dentist's chairside
+  -- panel opens on work already in progress.
+  ('5eed0007-0000-4000-8000-000000000007','09:30',30,'Gum review',           'in_chair',  25, 'Diabetic — see medical alerts',        '5eed1010-0000-4000-8000-000000000010'),
+  ('5eed0002-0000-4000-8000-000000000002','10:00',60,'Root canal, upper left','arrived',  12, 'Anxious — allow extra time',           null),
+  -- Treatment finished, invoice locked, standing at the counter owing
+  -- ₱3,600. This is the one reception is meant to collect during the pilot.
+  ('5eed0006-0000-4000-8000-000000000006','11:30',30,'Nightguard review',    'pending_payment', 0, 'Bill ready — take payment',       '5eed1011-0000-4000-8000-000000000011'),
+  ('5eed0008-0000-4000-8000-000000000008','12:30',30,'Paediatric check-up',  'confirmed', 0,  'Mother attending',                     null),
+  ('5eed0005-0000-4000-8000-000000000005','13:30',30,'First consultation',   'booked',    0,  'New patient — no consent on file yet', null),
+  ('5eed0010-0000-4000-8000-000000000010','14:30',45,'Denture adjustment',   'booked',    0,  null,                                   null),
+  ('5eed0004-0000-4000-8000-000000000004','15:30',30,'Post-extraction check','booked',    0,  'Hypertensive — check BP',              null)
+) as v(pid, at, mins, reason, status, waited, note, visit);
 
 -- Tomorrow, so the day navigation has somewhere to go.
 insert into appointments (patient_id, dentist_id, scheduled_at, duration_minutes, reason, status)
