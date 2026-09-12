@@ -951,6 +951,39 @@ symptom is a test that times out with nothing rendered. Real browsers
 compare with decimal scaling per spec and accept it, so this was a test-only
 failure hiding behind a production-shaped smell.
 
+### The patient chooser is a visible result list, not a dropdown
+Search results render as clickable rows. This replaced a native `<select>`,
+and the two sections below are kept because they record how it got here —
+`size` listbox, then plain dropdown, then this.
+
+The root problem a dropdown could not solve: **a closed `<select>` hides its
+own contents**, so narrowing the search changed nothing anybody could see.
+Every fix for that was a workaround for the control being wrong — a match
+count beside the field, auto-selecting a single result. Both are gone; the
+results are simply on screen.
+
+**The chosen patient is held as the whole `Patient`, not an id.** That is
+what removes the old bug class rather than patching it: the form cannot book
+somebody who is not on screen, because what it books *is* what is on screen.
+The earlier version kept an id in react-hook-form, and a `<select>` whose
+chosen `<option>` had been filtered away silently fell back to its
+placeholder while the id stayed — booking a patient nobody could see.
+
+Once chosen, the chooser gives way to a "Booking for" banner with a Change
+button, and the search stops running. Reception books with the patient's
+name in their ear; losing it behind a collapsed control while the rest of
+the form is filled in is how the wrong person gets booked.
+
+Rows are real `<button>` elements, so the `pointer: coarse` rule gives them
+a 44px target without any extra class. Both of a patient's numbers show
+beside the name — the search matches either, and seeing which one you
+recognised is how you tell two people with the same name apart.
+
+**A test here must outlast the 250ms debounce.** An assertion made straight
+after a click passes even if the selection is cleared a moment later; a
+mutation that did exactly that survived the whole suite until a test waited
+the debounce out.
+
 ### Don't use a `size` listbox for a chooser
 The patient picker was `<select size={4}>`. On a tablet — which is where
 this app is used — a multi-row select renders as an inline list instead of

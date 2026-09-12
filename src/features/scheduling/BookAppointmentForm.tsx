@@ -8,6 +8,7 @@ import { listProcedures } from '../billing/api'
 import type { Procedure } from '../billing/types'
 import { bookAppointment, listDentists } from './api'
 import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
+import Button from '../../core/components/ui/Button'
 
 interface BookingForm {
   patient_id: string
@@ -18,6 +19,13 @@ interface BookingForm {
   reason: string
   procedure_id: string
   reception_notes: string
+}
+
+/** Both numbers, because the search matches either and the receptionist
+ *  needs to see which one they recognised. */
+function contactLine(patient: Patient): string {
+  const numbers = [patient.cell_number, patient.phone_number].filter(Boolean)
+  return numbers.length > 0 ? numbers.join(' · ') : 'No contact number on file'
 }
 
 export default function BookAppointmentForm({
@@ -40,13 +48,18 @@ export default function BookAppointmentForm({
   // before it had searched for anything.
   const [searched, setSearched] = useState(false)
   const [defaultPatientName, setDefaultPatientName] = useState<string | null>(null)
+  // Held as the whole patient, not just an id, so the banner can keep
+  // showing who was chosen no matter what the current search returns. That
+  // is what removes the old bug class outright: the form can no longer book
+  // somebody who is not on screen, because the person it will book *is* the
+  // thing on screen.
+  const [selected, setSelected] = useState<Patient | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
     setValue,
-    getValues,
     watch,
     formState: { isSubmitting, errors },
   } = useForm<BookingForm>({
@@ -72,29 +85,27 @@ export default function BookAppointmentForm({
   }, [])
 
   useEffect(() => {
-    if (defaultPatientId) return
+    if (defaultPatientId || selected) return
     const handle = setTimeout(() => {
       searchPatients(query)
         .then((found) => {
           setPatients(found)
           setSearched(true)
-
-          // A <select> whose chosen <option> is removed falls back to showing
-          // the placeholder, but react-hook-form still holds the old id. The
-          // form then books a patient who is nowhere on screen — so drop the
-          // selection when the search no longer contains it.
-          const chosen = getValues('patient_id')
-          if (chosen && !found.some((p) => p.id === chosen)) setValue('patient_id', '')
-
-          // Narrowing to a single patient has already answered the question;
-          // selecting them is also the clearest sign that the search box and
-          // the dropdown are connected at all.
-          if (found.length === 1) setValue('patient_id', found[0].id)
         })
         .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
-  }, [query, defaultPatientId, getValues, setValue])
+  }, [query, defaultPatientId, selected])
+
+  function choosePatient(patient: Patient) {
+    setSelected(patient)
+    setValue('patient_id', patient.id)
+  }
+
+  function clearPatient() {
+    setSelected(null)
+    setValue('patient_id', '')
+  }
 
   // With the chooser hidden there is nothing on screen saying who this
   // booking is for, which is a poor thing to be vague about.
@@ -106,12 +117,12 @@ export default function BookAppointmentForm({
   }, [defaultPatientId])
 
   const matchHint = !searched
-    ? 'Loading patients…'
+    ? 'Searching…'
     : patients.length === 0
       ? 'No patients match that search.'
       : patients.length === 1
-        ? '1 match, selected below.'
-        : `${patients.length} matches — pick one.`
+        ? '1 match — tap the name to choose.'
+        : `${patients.length} matches — tap a name to choose.`
 
   const selectedProcedure = watch('procedure_id')
 
@@ -162,9 +173,24 @@ export default function BookAppointmentForm({
         <p className="text-sm text-slate-600">
           Booking for <span className="font-medium text-slate-800">{defaultPatientName ?? '…'}</span>
         </p>
+      ) : selected ? (
+        /* The chosen patient stays on screen while the rest of the form is
+           filled in. Reception is booking on the phone with the patient's
+           name in their ear; losing it behind a collapsed control is how the
+           wrong person gets booked. */
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-md border border-gold-300 bg-gold-50 px-3 py-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Booking for</p>
+            <p className="text-sm font-medium text-slate-800">{selected.name}</p>
+            <p className="text-xs text-slate-500">{contactLine(selected)}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={clearPatient}>
+            Change
+          </Button>
+        </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <Field label="Search">
+          <Field label="Find the patient">
             <TextInput
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -175,27 +201,34 @@ export default function BookAppointmentForm({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') e.preventDefault()
               }}
-              placeholder="Search name or contact number…"
+              placeholder="Search by name or mobile number…"
             />
           </Field>
-          {/* A plain dropdown, not a `size` listbox. A multi-row select does
-              not open the native picker on a tablet, which is where this is
-              used — it renders as an inline list that is fiddly to tap and
-              easy to mistake for being inert. */}
-          <Field label="Patient">
-            <NativeSelect {...register('patient_id')}>
-              <option value="">— choose a patient —</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.cell_number ? ` · ${p.cell_number}` : ''}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
+
           <p className="text-xs text-slate-400" aria-live="polite">
             {matchHint}
           </p>
+
+          {/* Results are a visible list, not options inside a closed
+              <select>. A dropdown hides its own contents, so narrowing the
+              search changed nothing anybody could see — which is exactly how
+              this was reported: "search is not working". */}
+          {patients.length > 0 && (
+            <ul className="flex flex-col divide-y divide-slate-100 rounded-md border border-slate-200 max-h-64 overflow-y-auto">
+              {patients.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => choosePatient(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-gold-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold-500"
+                  >
+                    <span className="block text-sm font-medium text-slate-800">{p.name}</span>
+                    <span className="block text-xs text-slate-500">{contactLine(p)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
