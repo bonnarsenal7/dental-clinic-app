@@ -5,7 +5,7 @@ import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
 import { finishTreatment, listAppointmentsForDay, listDentists, setAppointmentStatus } from './api'
 import { findDraftInvoice, findInvoicesForVisits } from '../billing/api'
-import { isInQueue, isPending } from './appointmentStatus'
+import { canManageBookings, isInQueue, isPending } from './appointmentStatus'
 import AppointmentCard from './AppointmentCard'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { AppointmentStatus, AppointmentWithPatient } from './types'
@@ -161,19 +161,22 @@ export default function SchedulePage() {
           >
             Recalls
           </Link>
-          <button
-            type="button"
-            onClick={() => setBooking((b) => !b)}
-            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
-          >
-            {booking ? 'Close' : '+ Book appointment'}
-          </button>
+          {/* The diary is reception's. A dentist reads it. */}
+          {staff && canManageBookings(staff.role) && (
+            <button
+              type="button"
+              onClick={() => setBooking((b) => !b)}
+              className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
+            >
+              {booking ? 'Close' : '+ Book appointment'}
+            </button>
+          )}
         </div>
       </div>
 
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
 
-      {booking && staff && (
+      {booking && staff && canManageBookings(staff.role) && (
         <BookAppointmentForm
           defaultDate={day}
           staffId={staff.id}

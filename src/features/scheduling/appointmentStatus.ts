@@ -68,15 +68,24 @@ export function isPending(status: AppointmentStatus): boolean {
 
 /** Who does this move belong to?
  *
- *  Mirrors appointments_guard_transition() in 0013 — the database refuses
- *  the same moves, and this is what stops the UI offering a button that is
- *  going to be rejected. If one changes, change both. */
+ *  Mirrors appointments_guard_transition() (0015) — the database refuses the
+ *  same moves, and this is what stops the UI offering a button that is going
+ *  to be rejected. If one changes, change both.
+ *
+ *  The diary is reception's: a dentist reads it and the only write they make
+ *  is finishing treatment. */
 export function canRoleTransition(role: StaffRole, from: AppointmentStatus, to: AppointmentStatus): boolean {
   if (!canTransition(from, to)) return false
   if (role === 'admin') return true
-  if (from === 'in_chair' && to === 'pending_payment') return role === 'dentist'
-  if (from === 'pending_payment') return role === 'receptionist' && to === 'completed'
-  return true
+  if (role === 'dentist') return from === 'in_chair' && to === 'pending_payment'
+  // Reception does everything else, but finishing treatment is not theirs.
+  return !(from === 'in_chair' && to === 'pending_payment')
+}
+
+/** Bookings — making them, moving them, cancelling them — belong to
+ *  reception. A dentist's view of the diary is read-only. */
+export function canManageBookings(role: StaffRole): boolean {
+  return role === 'receptionist' || role === 'admin'
 }
 
 /** How long someone has been waiting, in whole minutes. The number reception

@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
 import { createRecall, listPatientAppointments, listPatientRecalls } from './api'
-import { STATUS_LABELS, STATUS_STYLES } from './appointmentStatus'
+import { STATUS_LABELS, STATUS_STYLES, canManageBookings } from './appointmentStatus'
 import BookAppointmentForm from './BookAppointmentForm'
 import type { Appointment, Recall } from './types'
 import { Field, TextInput } from '../../core/components/ui/Field'
@@ -81,7 +81,7 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
     <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-sm font-semibold text-slate-700">Appointments & recalls</h2>
-        {staff && (
+        {staff && canManageBookings(staff.role) && (
           <button
             type="button"
             onClick={() => setBooking((b) => !b)}
@@ -94,7 +94,7 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
 
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
 
-      {booking && staff && (
+      {booking && staff && canManageBookings(staff.role) && (
         <BookAppointmentForm
           defaultDate={addMonths(0)}
           defaultPatientId={patientId}

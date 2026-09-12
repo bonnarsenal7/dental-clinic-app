@@ -205,8 +205,11 @@ try:
 
     st, body = call(f"/rest/v1/appointments?id=eq.{appt['id']}",
                     {"status": "completed"}, token=DENTIST, method="PATCH")
+    # 0015 answers this from the dentist branch now — "bookings are managed
+    # by reception" rather than "only reception can accept payment", which
+    # is the more useful thing to tell them.
     check("the dentist cannot check the patient out",
-          refused(st, body, "only reception"), f"HTTP {st}")
+          refused(st, body, "a dentist can finish treatment"), f"HTTP {st}")
 
     # --- 5. reception takes the money ------------------------------------
     print("\nAt the front desk:")
@@ -281,6 +284,59 @@ try:
           st >= 400 and "appointments_no_double_booking" in json.dumps(body), f"HTTP {st}")
     if reused:
         call(f"/rest/v1/appointments?id=eq.{reused['id']}", token=SRK, method="DELETE")
+
+    # --- 6c. the diary belongs to reception ------------------------------
+    #
+    # A dentist reads the whole diary and writes nothing to it except
+    # finishing treatment (0015). Tried here with a valid dentist token
+    # straight at PostgREST, because the UI is not where this holds.
+    print("\nA dentist, going straight at the database:")
+
+    st, all_appts = call("/rest/v1/appointments?select=id,scheduled_at,status",
+                         token=DENTIST, method="GET")
+    check("can read the whole diary", st == 200 and len(all_appts or []) > 0,
+          f"{len(all_appts or [])} appointment(s) visible")
+
+    st, body = call("/rest/v1/appointments",
+                    {"patient_id": patient_id, "dentist_id": dentist_id,
+                     "scheduled_at": (datetime.now() + timedelta(days=2)).astimezone().isoformat(),
+                     "duration_minutes": 30, "reason": "Booked by the dentist",
+                     "status": "booked", "created_by": dentist_id},
+                    token=DENTIST, prefer="return=representation")
+    check("cannot create a booking", refused(st, body), f"HTTP {st}")
+
+    # Reschedule: change the time on the one they just could not create.
+    if second:
+        st, body = call(f"/rest/v1/appointments?id=eq.{second['id']}",
+                        {"scheduled_at": (datetime.now() + timedelta(days=4)).astimezone().isoformat()},
+                        token=DENTIST, method="PATCH")
+        moved = refused(st, body, "cannot change the booking") or refused(st, body)
+        check("cannot reschedule one", moved, f"HTTP {st}")
+
+        st, body = call(f"/rest/v1/appointments?id=eq.{second['id']}",
+                        {"reason": "Rewritten by the dentist"}, token=DENTIST, method="PATCH")
+        check("cannot edit the reason", refused(st, body), f"HTTP {st}")
+
+        st, body = call(f"/rest/v1/appointments?id=eq.{second['id']}",
+                        {"status": "cancelled"}, token=DENTIST, method="PATCH")
+        check("cannot cancel one", refused(st, body, "bookings are managed by reception"),
+              f"HTTP {st}")
+
+        call(f"/rest/v1/appointments?id=eq.{second['id']}", token=DENTIST, method="DELETE")
+        st, still = call(f"/rest/v1/appointments?select=id&id=eq.{second['id']}",
+                         token=SRK, method="GET")
+        check("cannot delete one", bool(still), "the booking survived")
+
+        st, after = call(f"/rest/v1/appointments?select=reason,scheduled_at&id=eq.{second['id']}",
+                         token=SRK, method="GET")
+        check("and none of it got through",
+              after and after[0]["reason"] == "Extraction, same day",
+              f"reason still {after[0]['reason'] if after else '?'}")
+
+    # Reception's diary is unaffected.
+    st, body = call(f"/rest/v1/appointments?id=eq.{second['id']}",
+                    {"reason": "Moved by reception"}, token=RECEP, method="PATCH")
+    check("reception can still edit a booking", st in (200, 204), f"HTTP {st}")
 
     # --- 7. admin overrides, and the log catches it ----------------------
     print("\nAdmin override:")

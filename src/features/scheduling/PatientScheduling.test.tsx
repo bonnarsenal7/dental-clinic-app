@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { anAppointment } from '../../test/fixtures'
 
+const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }))
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ staff: { id: 's-1', name: 'Dr Cruz', role: 'dentist' } }),
+  useAuth: () => ({ staff: { id: 's-1', name: 'Whoever', role: auth.role } }),
 }))
 vi.mock('./BookAppointmentForm', () => ({
   default: ({ defaultPatientId, onBooked }: { defaultPatientId?: string; onBooked: () => void }) => (
@@ -31,6 +32,7 @@ const past = new Date(Date.now() - 48 * HOUR).toISOString()
 
 describe('PatientScheduling', () => {
   beforeEach(() => {
+    auth.role = 'receptionist'
     vi.mocked(api.listPatientAppointments).mockReset().mockResolvedValue([])
     vi.mocked(api.listPatientRecalls).mockReset().mockResolvedValue([])
     vi.mocked(api.createRecall)
@@ -133,6 +135,22 @@ describe('PatientScheduling', () => {
     await screen.findByText(/no recall set/i)
     await user.click(screen.getByRole('button', { name: /^add$/i }))
     expect(await screen.findByText(/permission denied/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument()
+  })
+
+  // The diary is reception's; a dentist reads it (0015).
+  it('does not offer a dentist the booking control', async () => {
+    auth.role = 'dentist'
+    render(<PatientScheduling patientId="p-1" />)
+    await screen.findByText(/nothing booked/i)
+    expect(screen.queryByRole('button', { name: /book appointment/i })).not.toBeInTheDocument()
+  })
+
+  // Recalls are a clinical judgement and stay open to them.
+  it('still lets a dentist set a recall', async () => {
+    auth.role = 'dentist'
+    render(<PatientScheduling patientId="p-1" />)
+    await screen.findByText(/no recall set/i)
     expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument()
   })
 })

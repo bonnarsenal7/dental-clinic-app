@@ -1109,6 +1109,38 @@ Also: don't render "No patients match that search." before the first search
 has resolved — an empty list at mount is "not loaded yet", not "no results",
 and the form opened by declaring itself broken.
 
+## The diary belongs to reception (0015)
+
+    receptionist  books, reschedules, cancels, seats, accepts payment
+    dentist       reads everything; the only write is finishing treatment
+    admin         everything, and 0006's triggers record it
+
+**The dentist keeps one update, and that is deliberate.** 0013 made
+finishing treatment theirs — it locks the invoice and hands the patient to
+the front desk — and that write lands on `appointments.status`. Taking
+UPDATE away entirely would have broken it. "Cannot edit a booking" is about
+who, when and with whom; advancing the day's status is not editing a
+booking. So the policy still permits the row and the trigger permits exactly
+one move, carrying no other changed field.
+
+**Seating is reception's** because the seating dialog asks who is treating
+the patient and writes `dentist_id` — booking management however it is
+spelled.
+
+**Recalls are untouched.** "Come back in six months" is a clinical
+judgement and stays open to the dentist. Turning one into a booking is
+reception's, and goes through `appointments` like any other booking — which
+is why the Book link on the recalls list is hidden from a dentist while the
+recall itself, and dismissing it, are not.
+
+The trigger widened from `before update of status` to `before update`. A
+dentist changing only the time never touched the status column, so the
+narrower trigger did not fire at all and the change went straight through.
+
+`canManageBookings()` and `canRoleTransition()` mirror this so the UI does
+not offer a control the database will refuse. **If one changes, change
+both.**
+
 ## Chairside billing (0012, 0013)
 
 The dentist bills what they did, while they are doing it; finishing

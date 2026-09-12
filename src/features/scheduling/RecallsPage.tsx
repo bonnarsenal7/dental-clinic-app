@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toMessage } from '../../core/errors'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
+import { useAuth } from '../auth/AuthContext'
+import { canManageBookings } from './appointmentStatus'
 import { listDueRecalls, setRecallStatus } from './api'
 import type { RecallWithPatient } from './types'
 import { PageHeader } from '../../core/components/ui/Page'
@@ -23,6 +25,7 @@ function daysOverdue(dueOn: string): number {
  *  without this list, a six-month cleaning only happens if the patient
  *  remembers, which mostly means it doesn't. */
 export default function RecallsPage() {
+  const { staff } = useAuth()
   const [horizon, setHorizon] = useState(30)
   const [recalls, setRecalls] = useState<RecallWithPatient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -139,12 +142,17 @@ export default function RecallsPage() {
               </div>
 
               <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                <Link
-                  to={`/schedule?patient=${recall.patient_id}`}
-                  className="rounded-md bg-gold-700 text-white text-xs font-medium px-3 py-1.5 hover:bg-gold-800"
-                >
-                  Book
-                </Link>
+                {/* A dentist can see who is due back — that is clinical —
+                    but the booking itself is reception's, so the link that
+                    opens the booking form is not shown to them. */}
+                {staff && canManageBookings(staff.role) && (
+                  <Link
+                    to={`/schedule?patient=${recall.patient_id}`}
+                    className="rounded-md bg-gold-700 text-white text-xs font-medium px-3 py-1.5 hover:bg-gold-800"
+                  >
+                    Book
+                  </Link>
+                )}
                 <button
                   type="button"
                   disabled={busyId === recall.id}

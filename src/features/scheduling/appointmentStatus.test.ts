@@ -3,6 +3,7 @@ import {
   WAIT_NOTICEABLE,
   WAIT_OVERDUE,
   QUEUE_STATUSES,
+  canManageBookings,
   canRoleTransition,
   canTransition,
   isInQueue,
@@ -185,10 +186,28 @@ describe('whose move it is', () => {
     expect(canRoleTransition('admin', 'in_chair', 'completed')).toBe(false)
   })
 
-  it('leaves the earlier part of the day to everyone', () => {
-    for (const role of ['receptionist', 'dentist', 'admin'] as const) {
+  // The diary is reception's (0015). Confirming, seating and cancelling are
+  // all moves on a booking, and a dentist reads the booking rather than
+  // writing to it. Seating in particular assigns the treating dentist,
+  // which is booking management however it is spelled.
+  it('leaves the rest of the day to reception and admin', () => {
+    for (const role of ['receptionist', 'admin'] as const) {
       expect(canRoleTransition(role, 'booked', 'confirmed')).toBe(true)
       expect(canRoleTransition(role, 'arrived', 'in_chair')).toBe(true)
+      expect(canRoleTransition(role, 'booked', 'cancelled')).toBe(true)
     }
+  })
+
+  it('gives a dentist no move on a booking but finishing treatment', () => {
+    expect(canRoleTransition('dentist', 'booked', 'confirmed')).toBe(false)
+    expect(canRoleTransition('dentist', 'arrived', 'in_chair')).toBe(false)
+    expect(canRoleTransition('dentist', 'booked', 'cancelled')).toBe(false)
+    expect(canRoleTransition('dentist', 'in_chair', 'pending_payment')).toBe(true)
+  })
+
+  it('says who may manage bookings at all', () => {
+    expect(canManageBookings('receptionist')).toBe(true)
+    expect(canManageBookings('admin')).toBe(true)
+    expect(canManageBookings('dentist')).toBe(false)
   })
 })

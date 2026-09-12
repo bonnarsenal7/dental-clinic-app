@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RecallsPage from './RecallsPage'
 
 vi.mock('./api', () => ({ listDueRecalls: vi.fn(), setRecallStatus: vi.fn() }))
+const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }))
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ staff: { id: 's-1', name: 'Whoever', role: auth.role } }),
+}))
 const api = await import('./api')
 
 function recall(id: string, dueOffsetDays: number, name = 'Maria Clara Santos') {
@@ -36,6 +40,7 @@ describe('RecallsPage', () => {
   beforeEach(() => {
     vi.mocked(api.listDueRecalls).mockResolvedValue([recall('r1', -45)] as never)
     vi.mocked(api.setRecallStatus).mockResolvedValue(undefined)
+    auth.role = 'receptionist'
   })
 
   it('says how overdue someone is, not just that they are due', async () => {
@@ -84,5 +89,21 @@ describe('RecallsPage', () => {
     vi.mocked(api.listDueRecalls).mockResolvedValue([] as never)
     renderPage()
     expect(await screen.findByText(/nobody due in this window/i)).toBeInTheDocument()
+  })
+
+  // Who is due back is clinical and a dentist should see it. Turning one
+  // into a booking is reception's, so the link that opens the booking form
+  // is not offered to them (0015).
+  it('does not offer a dentist the booking link', async () => {
+    auth.role = 'dentist'
+    render(
+      <MemoryRouter>
+        <RecallsPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText(/maria clara santos/i)
+    expect(screen.queryByRole('link', { name: /^book$/i })).not.toBeInTheDocument()
+    // They can still see the recall itself, and dismiss it.
+    expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
   })
 })
