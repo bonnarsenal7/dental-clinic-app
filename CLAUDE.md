@@ -1754,6 +1754,12 @@ existing code rather than chosen from defaults — no semicolons, single
 quotes, double quotes in JSX — so adopting it did not also impose a style
 change nobody asked for.
 
+**Run the verification as its own command, and read the output, before
+committing.** Chaining `npm run build && git commit` in one shell line does
+not stop the commit — the commit runs whatever the build printed, and a red
+build reaches `main`. That happened three times in one session before it was
+written down here. `npm test` does not typecheck; only `npm run build` does.
+
 **Check with `npm run format:check`, not `prettier --check src`.** CI runs
 `prettier --check .`, which covers `supabase/functions/` and the config
 files as well. Checking only `src` passes locally and fails CI the moment

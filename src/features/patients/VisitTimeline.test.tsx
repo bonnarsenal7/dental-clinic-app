@@ -1,6 +1,5 @@
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import VisitTimeline from './VisitTimeline'
 
@@ -29,7 +28,6 @@ vi.mock('../auth/AuthContext', () => ({
 
 const api = await import('./api')
 const billing = await import('../billing/api')
-const NOTE = 'Distal caries on 16, deep. Discussed options with patient.'
 
 // VisitBilling links to the invoice, so the tree needs a router.
 const renderTimeline = () =>
