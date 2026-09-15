@@ -1,35 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPayByDentist,
+  buildReportPayTable,
   commissionLabel,
-  groupSalariesByDentist,
   normaliseReport,
   pdfMoney,
 } from './reportSections'
 import type { ClinicDayReport } from './types'
-
-describe('groupSalariesByDentist', () => {
-  it('itemises salary per dentist, dentists by name, each with a subtotal', () => {
-    const groups = groupSalariesByDentist([
-      { dentist_id: 'd-2', dentist_name: 'Dr Reyes', description: 'Day rate', amount: 3000 },
-      { dentist_id: 'd-1', dentist_name: 'Dr Cruz', description: 'Morning', amount: 1500 },
-      { dentist_id: 'd-1', dentist_name: 'Dr Cruz', description: 'Afternoon', amount: '1500.00' },
-    ])
-    expect(groups.map((g) => g.dentistName)).toEqual(['Dr Cruz', 'Dr Reyes'])
-    expect(groups[0]).toMatchObject({
-      subtotal: 3000,
-      entries: [{ description: 'Morning' }, { description: 'Afternoon' }],
-    })
-    expect(groups[1].subtotal).toBe(3000)
-  })
-
-  it('names a dentist it cannot resolve rather than leaving a blank heading', () => {
-    const [group] = groupSalariesByDentist([
-      { dentist_id: 'd-9', dentist_name: null, description: 'x', amount: 1 },
-    ])
-    expect(group.dentistName).toBe('Unknown dentist')
-  })
-})
 
 describe('normaliseReport', () => {
   it('turns every figure into a number', () => {
@@ -166,5 +143,73 @@ describe('buildPayByDentist', () => {
       [commission('d-1', 'Dr Cruz', '250.00')],
     )
     expect(row.total).toBe(1750)
+  })
+})
+
+describe('buildReportPayTable', () => {
+  const report = (extra: object = {}) =>
+    normaliseReport({
+      business_date: '2026-09-15',
+      closed_at: '2026-09-15T10:00:00Z',
+      closed_by_name: 'Ana',
+      revenue_total: '9000.00',
+      expense_total: '0',
+      salary_total: '3000.00',
+      commission_total: '850.00',
+      net_total: '6000.00',
+      expenses: [],
+      salaries: [
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', description: 'Morning', amount: '1500.00' },
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', description: 'Afternoon', amount: '1500.00' },
+      ],
+      ...extra,
+    } as unknown as ClinicDayReport)
+
+  it("prints the dashboard's table: a row per dentist, and the column totals", () => {
+    const table = buildReportPayTable(
+      report({
+        commission_by_dentist: [
+          { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: '500.00' },
+          { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: '250.00' },
+          { dentist_id: null, dentist_name: null, commission_total: '100.00' },
+        ],
+      }),
+    )
+    expect(table.rows).toEqual([
+      { label: 'Dr Cruz', salary: 'PHP 3,000.00', commission: 'PHP 500.00', total: 'PHP 3,500.00' },
+      { label: 'Dr Reyes', salary: 'PHP 0.00', commission: 'PHP 250.00', total: 'PHP 250.00' },
+      { label: 'No dentist recorded', salary: 'PHP 0.00', commission: 'PHP 100.00', total: 'PHP 100.00' },
+    ])
+    expect(table.footer).toEqual({
+      label: 'Total',
+      salary: 'PHP 3,000.00',
+      commission: 'PHP 850.00',
+      total: 'PHP 3,850.00',
+    })
+    expect(table.commissionByDentistRecorded).toBe(true)
+  })
+
+  // Matches the dashboard: the per-dentist table only, no itemised entries.
+  it('carries no itemised salary entries', () => {
+    const table = buildReportPayTable(report({ commission_by_dentist: [] }))
+    expect(Object.keys(table).sort()).toEqual(['commissionByDentistRecorded', 'footer', 'rows'])
+    expect(JSON.stringify(table)).not.toContain('Morning')
+  })
+
+  // A day closed before 0022 froze no breakdown. Per-dentist commission is
+  // unknown, not zero — but the column total is still the frozen figure.
+  it('shows per-dentist commission as unknown on a day closed before it was frozen', () => {
+    const table = buildReportPayTable(report())
+    expect(table.rows).toEqual([{ label: 'Dr Cruz', salary: 'PHP 3,000.00', commission: '-', total: '-' }])
+    expect(table.footer.commission).toBe('PHP 850.00')
+    expect(table.commissionByDentistRecorded).toBe(false)
+  })
+
+  // jsPDF's built-in font cannot draw the peso sign or the em dash reliably.
+  it('uses only characters the PDF font can draw', () => {
+    const table = buildReportPayTable(report())
+    const text = JSON.stringify(table)
+    expect(text).not.toContain('₱')
+    expect(text).not.toContain('—')
   })
 })

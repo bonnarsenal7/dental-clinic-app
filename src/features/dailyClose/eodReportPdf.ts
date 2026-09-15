@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { CLINIC_NAME } from '../../core/branding'
-import { commissionLabel, groupSalariesByDentist, pdfMoney } from './reportSections'
+import { buildReportPayTable, pdfMoney } from './reportSections'
 import type { ClinicDayReport } from './types'
 
 const MARGIN = 48
@@ -101,35 +101,58 @@ function buildReport(report: ClinicDayReport, clinicName: string | null): jsPDF 
   for (const e of report.expenses) row(e.description, e.amount)
   row('Total expenses', report.expense_total, { bold: true })
 
-  // --- Salary, per dentist
-  heading('Salary')
-  const groups = groupSalariesByDentist(report.salaries)
-  if (groups.length === 0) note('No salary recorded.')
-  for (const group of groups) {
-    ensure(28)
-    doc.setFont('helvetica', 'bold').setFontSize(10)
-    doc.text(group.dentistName, MARGIN, y)
-    y += 14
-    for (const entry of group.entries) row(entry.description, entry.amount, { indent: 12 })
-    row(`Subtotal, ${group.dentistName}`, group.subtotal, { indent: 12 })
-    y += 4
-  }
-  row('Total salary', report.salary_total, { bold: true })
+  // --- Salary & commission: the dashboard's combined table on paper
+  heading('Salary & commission')
+  const pay = buildReportPayTable(report)
 
-  // --- Commission
-  // --- Commission, per dentist
-  heading('Commission')
-  const byDentist = report.commission_by_dentist
-  if (byDentist === undefined) {
+  // Three right-aligned money columns, the dentist's name wrapping in the rest.
+  const COL_TOTAL = RIGHT
+  const COL_COMMISSION = RIGHT - 95
+  const COL_SALARY = RIGHT - 190
+  const NAME_WIDTH = COL_SALARY - 95 - MARGIN
+
+  const payRow = (
+    cells: { label: string; salary: string; commission: string; total: string },
+    bold = false,
+  ) => {
+    doc
+      .setFont('helvetica', bold ? 'bold' : 'normal')
+      .setFontSize(10)
+      .setTextColor(0)
+    const lines = doc.splitTextToSize(cells.label, NAME_WIDTH) as string[]
+    ensure(lines.length * 14)
+    doc.text(lines, MARGIN, y)
+    doc.text(cells.salary, COL_SALARY, y, { align: 'right' })
+    doc.text(cells.commission, COL_COMMISSION, y, { align: 'right' })
+    doc.text(cells.total, COL_TOTAL, y, { align: 'right' })
+    y += Math.max(lines.length, 1) * 14
+  }
+
+  if (pay.rows.length === 0) {
+    note('No salary or commission recorded.')
+  } else {
+    ensure(16)
+    doc.setFont('helvetica', 'bold').setFontSize(8).setTextColor(110)
+    doc.text('DENTIST', MARGIN, y)
+    doc.text('SALARY', COL_SALARY, y, { align: 'right' })
+    doc.text('COMMISSION', COL_COMMISSION, y, { align: 'right' })
+    doc.text('TOTAL', COL_TOTAL, y, { align: 'right' })
+    y += 14
+
+    for (const r of pay.rows) payRow(r)
+
+    ensure(20)
+    doc.setDrawColor(220).line(MARGIN, y - 9, RIGHT, y - 9)
+    y += 4
+    payRow(pay.footer, true)
+  }
+
+  if (!pay.commissionByDentistRecorded) {
     // Closed before the breakdown was frozen into reports (0022). Not
     // reconstructed: the report is what was closed.
-    note('Per-dentist breakdown not recorded for this day.')
-  } else if (byDentist.length === 0) {
-    note('No commission entered.')
-  } else {
-    for (const c of byDentist) row(commissionLabel(c), c.commission_total)
+    note('Per-dentist commission not recorded for this day; commission is shown as a total only.')
   }
-  row('Total commission for the day', report.commission_total, { bold: true })
+
   note("Commission on the day's invoices, by the dentist who treated the patient.")
 
   y += 12

@@ -1,38 +1,5 @@
 import type { ClinicDayReport } from './types'
 
-export interface SalaryGroup {
-  dentistId: string
-  dentistName: string
-  entries: { description: string; amount: number }[]
-  subtotal: number
-}
-
-/** Salary itemised per dentist, dentists by name, each with a subtotal —
- *  how the report and the screen both present it. */
-export function groupSalariesByDentist(
-  salaries: {
-    dentist_id: string
-    dentist_name: string | null
-    description: string
-    amount: number | string
-  }[],
-): SalaryGroup[] {
-  const groups = new Map<string, SalaryGroup>()
-  for (const s of salaries) {
-    const amount = Number(s.amount)
-    const group = groups.get(s.dentist_id) ?? {
-      dentistId: s.dentist_id,
-      dentistName: s.dentist_name ?? 'Unknown dentist',
-      entries: [],
-      subtotal: 0,
-    }
-    group.entries.push({ description: s.description, amount })
-    group.subtotal += amount
-    groups.set(s.dentist_id, group)
-  }
-  return [...groups.values()].sort((a, b) => a.dentistName.localeCompare(b.dentistName))
-}
-
 /** The report as it arrives from jsonb, with every figure a number.
  *  PostgREST and jsonb both hand numeric back as a string often enough that
  *  adding them uncoerced would concatenate. */
@@ -135,4 +102,38 @@ export function pdfMoney(amount: number): string {
     maximumFractionDigits: 2,
   })
   return `${amount < 0 ? '-' : ''}PHP ${figure}`
+}
+
+/** The "Salary & commission" section of the PDF, as text ready to draw — the
+ *  dashboard's combined table on paper. Kept apart from the jsPDF drawing so
+ *  what the report *says* can be tested; only the layout cannot. */
+export interface ReportPayTable {
+  rows: { label: string; salary: string; commission: string; total: string }[]
+  footer: { label: string; salary: string; commission: string; total: string }
+  /** False for a day closed before per-dentist commission was frozen (0022). */
+  commissionByDentistRecorded: boolean
+}
+
+export function buildReportPayTable(report: ClinicDayReport): ReportPayTable {
+  // A plain hyphen, not an em dash: safe in jsPDF's built-in font.
+  const figure = (v: number | null) => (v === null ? '-' : pdfMoney(v))
+  const pay = buildPayByDentist(report.salaries, report.commission_by_dentist ?? null)
+
+  return {
+    rows: pay.map((r) => ({
+      label: r.label,
+      salary: pdfMoney(r.salary),
+      commission: figure(r.commission),
+      total: figure(r.total),
+    })),
+    // The column totals are the frozen day's figures, known even where the
+    // per-dentist commission is not.
+    footer: {
+      label: 'Total',
+      salary: pdfMoney(report.salary_total),
+      commission: pdfMoney(report.commission_total),
+      total: pdfMoney(report.salary_total + report.commission_total),
+    },
+    commissionByDentistRecorded: report.commission_by_dentist !== undefined,
+  }
 }

@@ -55,6 +55,7 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
   const [clinicName, setClinicName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmingClose, setConfirmingClose] = useState(false)
+  const [showSalaryEntries, setShowSalaryEntries] = useState(false)
   // undefined: not loaded yet. null: could not be loaded.
   const [byDentist, setByDentist] = useState<CommissionByDentist[] | null | undefined>(undefined)
 
@@ -180,8 +181,8 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
       </section>
 
       {/* Salary and commission together: what each dentist is owed for the
-          day, on one row. The salary entries that make up the Salary column
-          are itemised underneath, where an admin edits them. */}
+          day, on one row. The individual salary entries are not listed; an
+          admin opens them from the toggle below to correct one. */}
       <section
         aria-labelledby="daily-pay-heading"
         className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4"
@@ -257,23 +258,42 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
           </p>
         )}
 
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Salary entries</h3>
-          <DailyEntryList
-            noun="salary entry"
-            canManage={canManage}
-            emptyText="No salary recorded today."
-            entries={salaryRows.map((s) => ({ ...s, detail: s.dentist_name ?? 'Dentist no longer listed' }))}
-            onSave={async (id, patch) => {
-              await updateSalaryEntry(id, patch)
-              await refresh()
-            }}
-            onDelete={async (id) => {
-              await deleteSalaryEntry(id)
-              await refresh()
-            }}
-          />
-        </div>
+        {/* The individual salary entries are not listed (clinic's choice). An
+            admin can still open them to correct or delete one until the day
+            is closed — the only way to fix a mistyped salary in the app, so
+            keep this unless admins are given another. */}
+        {canManage && (
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="subtle"
+              size="sm"
+              className="self-start"
+              aria-expanded={showSalaryEntries}
+              onClick={() => setShowSalaryEntries((open) => !open)}
+            >
+              {showSalaryEntries ? 'Hide salary entries' : 'Edit salary entries'}
+            </Button>
+            {showSalaryEntries && (
+              <DailyEntryList
+                noun="salary entry"
+                canManage={canManage}
+                emptyText="No salary recorded today."
+                entries={salaryRows.map((s) => ({
+                  ...s,
+                  detail: s.dentist_name ?? 'Dentist no longer listed',
+                }))}
+                onSave={async (id, patch) => {
+                  await updateSalaryEntry(id, patch)
+                  await refresh()
+                }}
+                onDelete={async (id) => {
+                  await deleteSalaryEntry(id)
+                  await refresh()
+                }}
+              />
+            )}
+          </div>
+        )}
         {!closed && <SalaryForm dentists={dentists} onAdded={refresh} />}
       </section>
 

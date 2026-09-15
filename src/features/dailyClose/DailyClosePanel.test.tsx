@@ -167,14 +167,42 @@ describe('DailyClosePanel', () => {
       )
     })
 
-    it('itemises each salary entry with its dentist', async () => {
+    // The individual entries are not listed (clinic's choice): reception sees
+    // the per-dentist table and nothing to open.
+    it('does not list the individual salary entries for reception', async () => {
       vi.mocked(api.listSalaryEntries).mockResolvedValue([
         { ...expense({ id: 's-1', description: 'Morning', amount: 1500 }), dentist_id: 'd-1' },
         { ...expense({ id: 's-2', description: 'Afternoon', amount: 1500 }), dentist_id: 'd-1' },
       ])
-      renderPanel()
+      renderPanel('receptionist')
       const salary = within(await screen.findByRole('region', { name: /daily salary/i }))
-      await waitFor(() => expect(within(salary.getByRole('list')).getAllByText('Dr Cruz')).toHaveLength(2))
+      await salary.findByRole('table', { name: /salary and commission per dentist/i })
+      expect(salary.queryByText('Morning')).not.toBeInTheDocument()
+      expect(salary.queryByRole('list')).not.toBeInTheDocument()
+      expect(salary.queryByRole('button', { name: /salary entries/i })).not.toBeInTheDocument()
+    })
+
+    // Hidden, not gone: it is the only way to fix a mistyped salary in the app.
+    it('lets an admin open the salary entries to correct one', async () => {
+      const user = userEvent.setup()
+      vi.mocked(api.listSalaryEntries).mockResolvedValue([
+        { ...expense({ id: 's-1', description: 'Morning', amount: 1500 }), dentist_id: 'd-1' },
+        { ...expense({ id: 's-2', description: 'Afternoon', amount: 1500 }), dentist_id: 'd-1' },
+      ])
+      renderPanel('admin')
+      const salary = within(await screen.findByRole('region', { name: /daily salary/i }))
+      const toggle = await salary.findByRole('button', { name: /edit salary entries/i })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(salary.queryByText('Morning')).not.toBeInTheDocument()
+
+      await user.click(toggle)
+      expect(salary.getByRole('button', { name: /hide salary entries/i })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+      expect(salary.getByText('Morning')).toBeInTheDocument()
+      expect(salary.getByRole('button', { name: /edit morning/i })).toBeInTheDocument()
+      expect(salary.getByRole('button', { name: /delete afternoon/i })).toBeInTheDocument()
     })
   })
 
@@ -395,6 +423,7 @@ describe('DailyClosePanel', () => {
       expect(screen.queryByRole('button', { name: /^add$/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /edit gloves/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /delete gloves/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /salary entries/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /close clinic/i })).not.toBeInTheDocument()
     })
 

@@ -1691,7 +1691,7 @@ PDF, and locks the day.
 `src/features/dailyClose/` — `DailyClosePanel` (two sections — Daily
 expenses, and Daily salary & commission — then the Close Clinic button),
 `DailyEntryList` (rows, with admin edit/delete), `api.ts`,
-`reportSections.ts` (per-dentist pay merge, salary grouping, the shared
+`reportSections.ts` (per-dentist pay merge, the PDF's pay table, the shared
 commission label, money for the PDF), `eodReportPdf.ts`.
 
 ### What had to be built, because none of it existed
@@ -1782,14 +1782,23 @@ unverified, since nobody has put a receipt through a printer yet.
 ### Commission per dentist (0021)
 Salary and commission are **one section, "Daily salary & commission"**: a
 table with a row per dentist — Dentist / Salary / Commission / Total — and a
-totals row, with the salary entries itemised underneath (where an admin
-edits them) and the add-salary form below. `buildPayByDentist()` merges the
+totals row, and the add-salary form below. **The individual salary entries
+are not listed** (clinic's choice): reception sees only the table. An admin
+gets an "Edit salary entries" toggle that opens the list to correct or
+delete one — only until the day is closed, since after that nobody can. The
+toggle is the only way to fix a mistyped salary in the app, so don't remove
+it without giving admins another. `buildPayByDentist()` merges the
 two sources: a dentist with only salary, or only commission, still gets a
 row; unattributed commission is its own row, last; and if the breakdown did
 not load, commission and total show "—" rather than 0, with the column's
 total still taken from the day's figures. The Total column is salary +
 commission per dentist; the report's net is unchanged (revenue − expenses −
-salary). The PDF still prints salary and commission as separate sections.
+salary). **The PDF prints the same table**, as one "Salary & commission"
+section: a row per dentist and the column totals — no itemised salary
+entries, matching the dashboard. `buildReportPayTable()` turns the frozen report into the text to
+draw, so what the report says is tested even though jsPDF's layout is not;
+it writes "-" for unknown commission (a day closed before 0022), since
+jsPDF's built-in font cannot be relied on for the em dash or the peso sign.
 
 The per-dentist commission comes from `clinic_day_commission_by_dentist()`. Commission is one number on an
 invoice and names nobody, so the dentist is found through the visit it
@@ -1813,7 +1822,8 @@ on that line and leaves expenses, salary and Close Clinic working.
 
 **Frozen into the report, and printed (0022).** `close_clinic_day()` saves
 the breakdown as `report.commission_by_dentist`, from the same function the
-dashboard uses, and the PDF lists it under Commission above the day's total.
+dashboard uses, and the PDF's "Salary & commission" table prints it per
+dentist.
 It has to be frozen: reception can still reassign a finished appointment's
 dentist (0015), which would move a share between names on a report already
 printed. 0022 adds `appointments` to the SHARE locks for the same reason the
