@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { supabase } from '../../core/supabaseClient'
 import { getPatient } from '../patients/api'
 import { getInvoice, recordPayment, setInvoiceCommission, voidInvoice } from './api'
+import { completeAwaitingForVisit } from '../scheduling/api'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import { downloadReceipt, receiptNumber } from './receiptPdf'
 import { toastSaved } from '../../core/components/ui/toast'
@@ -17,6 +18,13 @@ interface PaymentForm {
   amount: string
   method: PaymentMethod
   reference: string
+}
+
+/** The balance as the amount box's starting text, or empty when nothing is
+ *  owed — a pre-filled zero would invite a payment of nothing. */
+function owedText(invoice: InvoiceWithDetail): string {
+  const owed = invoiceBalance(invoice)
+  return owed > 0 ? String(Math.round(owed * 100) / 100) : ''
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -38,6 +46,7 @@ export default function InvoiceDetailPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { isSubmitting, errors },
   } = useForm<PaymentForm>({
     defaultValues: { amount: '', method: 'cash', reference: '' },
@@ -54,6 +63,10 @@ export default function InvoiceDetailPage() {
     getInvoice(id)
       .then(async (inv) => {
         setInvoice(inv)
+        // Pre-filled with what is owed: reception usually takes the whole
+        // balance, and arriving from the payment queue they should not have
+        // to read a figure off one part of the screen and type it into another.
+        setValue('amount', owedText(inv))
         const [patient, settings] = await Promise.all([
           getPatient(inv.patient_id),
           supabase.from('clinic_settings').select('clinic_name, operating_hours').eq('id', 1).maybeSingle(),
@@ -62,7 +75,7 @@ export default function InvoiceDetailPage() {
         if (settings.data) setClinic(settings.data)
       })
       .catch((e) => setError(toMessage(e)))
-  }, [id])
+  }, [id, setValue])
 
   async function onRecordPayment(values: PaymentForm) {
     if (!invoice || !staff) return
@@ -84,7 +97,20 @@ export default function InvoiceDetailPage() {
       // Totals and status are recalculated by database triggers, so the
       // refetch is what tells us the real state — not local arithmetic.
       const fresh = await refresh(invoice.id)
+      setValue('amount', owedText(fresh))
       toastSaved(`${formatMoney(amount)} recorded`, `Balance now ${formatMoney(invoiceBalance(fresh))}.`)
+
+      // Settled: check the patient out, so reception does not also have to
+      // press Complete on the schedule. The money is in either way — if this
+      // fails, the queue still shows the bill as paid, and says so here.
+      const settled = invoiceTotal(fresh) > 0 && invoiceBalance(fresh) <= 0
+      if (settled && fresh.visit_id && (staff.role === 'receptionist' || staff.role === 'admin')) {
+        try {
+          await completeAwaitingForVisit(fresh.visit_id)
+        } catch (e) {
+          setError(`Payment recorded, but the patient could not be checked out: ${toMessage(e)}`)
+        }
+      }
     } catch (e) {
       setError(toMessage(e))
     }

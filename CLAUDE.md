@@ -1448,6 +1448,8 @@ clinic ever opens elsewhere.
   them they are plain figures, not links: the schedule and recalls routes
   refuse a dentist, so a link would bounce them straight back to `/`.
 - **Open schedule** button — reception and admin. Hidden from a dentist.
+- **Awaiting payment** queue — reception and admin, first on the page, live.
+  See "Awaiting payment queue (0019)".
 
 This is a presentation split, not a security boundary: RLS already governs
 what each role can fetch. It is still tested, and mutation-tested — making
@@ -1554,6 +1556,107 @@ a draft.
 It is its own form with its own Save, not part of Record payment: payments
 are append-only, and commission is one figure per invoice that may need
 correcting. 0006's audit trigger already records every change to it.
+
+## Awaiting payment queue (0019)
+
+A dentist finishing treatment puts the patient on every receptionist's
+dashboard at once; tapping the entry opens that visit's invoice, where
+payment and commission are taken; once the bill is settled the entry greys
+out as **Paid** and stays for the day. Nothing is routed to one
+receptionist — every front-desk dashboard shows the same list.
+
+`src/features/dashboard/` — `paymentQueueState.ts` (the rules),
+`PaymentQueue.tsx` (the list), `listPaymentQueue()` in `api.ts`.
+`src/core/useRealtimeRefresh.ts` (the subscription).
+
+**The status was already there.** Finish treatment has set
+`appointments.status = 'pending_payment'` since 0013, and the app already
+labelled it "Awaiting payment". Nothing new was stored.
+
+### The first real-time sync in the app
+Before this every screen fetched on load and polled. 0019 adds
+`appointments`, `invoices` and `payments` to Supabase's `supabase_realtime`
+publication, and the dashboard subscribes to postgres changes on them.
+
+- **An event means "refetch", never "here is the data".** The list is
+  always rebuilt from its normal query, so a missed or duplicated event makes
+  it late, never wrong — and RLS decides what the refetch returns, as on
+  first load. Realtime itself only delivers rows the subscriber's SELECT
+  policy admits, so the publication widens nobody's access.
+- **Debounced.** One payment is three row changes; they become one refetch.
+- **A reconnect refetches.** Events during a Wi-Fi drop are not replayed, so
+  the second `SUBSCRIBED` catches up. The first does not — the page just
+  loaded.
+- **The minute poll stays** as the floor for a channel that fails outright.
+- **Only the front desk subscribes.** A dentist's dashboard opens no
+  channel.
+
+It observes and refetches; nothing is queued or retried, per the project
+constraint. Use `useRealtimeRefresh` for any future live screen rather than
+opening channels ad hoc, and add the table to the publication in a
+migration.
+
+### What shows, and for how long (`buildPaymentQueue`)
+    awaiting    finished, not paid           until paid, whatever day
+    owing       checked out, money still owed  until paid
+    paid        bill settled                 (greyed) the day it was settled
+    no_charge   nothing billed, checked out  (greyed) the day it happened
+
+**An unpaid bill carries forward.** "Only today" would have dropped a patient
+who left without paying off the list overnight while the money was still
+owed; the clinic chose to keep it until paid. A carried entry shows its day.
+Settled entries are what clear at the start of a day.
+
+**Paid is decided by the bill, not the appointment.** Settling also checks
+the patient out, but if that second write failed the money is still in, and
+the entry must not go on asking for it. A bill totalling nothing is treated
+as nothing billed — it cannot be paid, only checked out.
+
+"Today" is the device's local day, like the rest of the dashboard. The
+query asks for every `pending_payment` plus `completed` since local
+midnight; the rules decide the rest.
+
+### Settling a bill checks the patient out
+When a payment brings the balance to zero, `InvoiceDetailPage` calls
+`completeAwaitingForVisit()`, so reception does not also have to press
+Complete on the schedule. It is **client-side, not a trigger**, on purpose:
+0002 lets a dentist insert a payment too, and 0015's guard refuses a dentist
+the `pending_payment → completed` move — a trigger firing as the dentist
+would have failed the payment itself. Only reception or admin makes the
+call. If it fails, the screen says the payment went through and the checkout
+did not.
+
+The amount box is **pre-filled with the balance**, and left empty — not
+zero — on a settled bill.
+
+### Nothing billed: Check out
+A dentist can finish a visit with no bill (`FinishTreatmentButton` moves it
+to `pending_payment` regardless). There is no invoice to open, so the entry
+offers **Check out**, confirmed first, which completes the appointment and
+greys it as "No charge". `checkOutWithoutCharge` only moves a row still
+`pending_payment`, so two receptionists tapping it change nothing twice.
+
+### Commission is not a condition of Paid
+Commission defaults to 0, so "entered as 0" and "never entered" look the
+same; requiring it would have needed a new column. Paid means the bill is
+settled; commission is entered on the same screen, before or after.
+
+### Deploy order: either
+0019 is additive. Without it the subscription receives nothing and the list
+still updates on the minute poll; with it, within about a second.
+
+### Don't name two files apart only by case
+The rules module was first `paymentQueue.ts` beside the component
+`PaymentQueue.tsx`. macOS's filesystem is case-insensitive, so
+`import PaymentQueue from './PaymentQueue'` resolved to the rules module:
+`tsc` failed and every dashboard test broke with nothing rendered. It is
+`paymentQueueState.ts` now. On Linux CI the two names are distinct and the
+import would have worked — so the break shows only on a Mac, which is the
+worst place for a bug to be invisible from.
+
+Mutation-checked: deciding Paid by the appointment, skipping the daily
+reset of settled entries, checking out before the balance is zero, dropping
+the reconnect refetch, and subscribing for a dentist each fail a test.
 
 ## Test environment gotchas
 

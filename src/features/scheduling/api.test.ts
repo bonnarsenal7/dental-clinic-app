@@ -65,6 +65,27 @@ describe('scheduling api', () => {
     expect(q.calls).toContainEqual({ method: 'eq', args: ['status', 'in_chair'] })
   })
 
+  // Both only move an appointment still awaiting payment: a second tap from
+  // another receptionist's tablet must change nothing.
+  it('checks out a no-charge visit only while it is awaiting payment', async () => {
+    sb.current!.queue('appointments', { data: null })
+    await api.checkOutWithoutCharge('a-1')
+    const q = sb.current!.query('appointments')!
+    expect(q.payload).toMatchObject({ status: 'completed' })
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['id', 'a-1'] })
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['status', 'pending_payment'] })
+  })
+
+  it("completes the visit's awaiting appointment once its bill is settled", async () => {
+    sb.current!.queue('appointments', { data: null })
+    await api.completeAwaitingForVisit('v-1')
+    const q = sb.current!.query('appointments')!
+    expect(q.payload).toMatchObject({ status: 'completed' })
+    expect((q.payload as { completed_at: string }).completed_at).toBeTruthy()
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['visit_id', 'v-1'] })
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['status', 'pending_payment'] })
+  })
+
   // 0018 dropped interval_months. Writing it would fail against the live
   // table, so the insert must carry the date and nothing interval-shaped.
   it('saves a recall as its date alone', async () => {

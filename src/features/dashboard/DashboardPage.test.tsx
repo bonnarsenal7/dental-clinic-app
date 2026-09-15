@@ -5,7 +5,14 @@ import DashboardPage from './DashboardPage'
 import type { DailySummary } from './types'
 import type { MedicalHistory } from '../patients/types'
 
-vi.mock('./api', () => ({ getDailySummary: vi.fn(), listTodaysPatients: vi.fn(), listDentistDay: vi.fn() }))
+vi.mock('./api', () => ({
+  getDailySummary: vi.fn(),
+  listTodaysPatients: vi.fn(),
+  listDentistDay: vi.fn(),
+  listPaymentQueue: vi.fn(),
+}))
+vi.mock('../../core/useRealtimeRefresh', () => ({ useRealtimeRefresh: vi.fn() }))
+vi.mock('../scheduling/api', () => ({ checkOutWithoutCharge: vi.fn() }))
 
 const role = { current: 'admin' as 'admin' | 'dentist' | 'receptionist' }
 vi.mock('../auth/AuthContext', () => ({
@@ -13,6 +20,7 @@ vi.mock('../auth/AuthContext', () => ({
 }))
 
 const api = await import('./api')
+const realtime = await import('../../core/useRealtimeRefresh')
 
 function summary(partial: Partial<DailySummary> = {}): DailySummary {
   return {
@@ -74,6 +82,65 @@ describe('DashboardPage', () => {
     vi.mocked(api.getDailySummary).mockResolvedValue(summary())
     vi.mocked(api.listTodaysPatients).mockResolvedValue([])
     vi.mocked(api.listDentistDay).mockResolvedValue([])
+    vi.mocked(api.listPaymentQueue).mockReset().mockResolvedValue([])
+    vi.mocked(realtime.useRealtimeRefresh).mockClear()
+  })
+
+  describe('awaiting payment', () => {
+    const waiting = {
+      appointmentId: 'a-1',
+      patientId: 'p-1',
+      patientName: 'Maria Clara Santos',
+      treatment: 'Composite filling',
+      scheduledAt: '2026-09-11T01:30:00Z',
+      state: 'awaiting' as const,
+      invoiceId: 'inv-1',
+      balance: 1800,
+      carriedOver: false,
+    }
+
+    it('shows reception the queue, each entry opening its invoice', async () => {
+      role.current = 'receptionist'
+      vi.mocked(api.listPaymentQueue).mockResolvedValue([waiting])
+      renderPage()
+      expect(await screen.findByRole('heading', { name: /awaiting payment/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /maria clara santos/i })).toHaveAttribute(
+        'href',
+        '/invoices/inv-1',
+      )
+    })
+
+    // Every receptionist's dashboard, live — the same subscription for all.
+    it('keeps it live for reception over the realtime channel', async () => {
+      role.current = 'receptionist'
+      renderPage()
+      await screen.findByRole('heading', { name: /awaiting payment/i })
+      const calls = vi.mocked(realtime.useRealtimeRefresh).mock.calls
+      const [, tables, , enabled] = calls[calls.length - 1]
+      expect(tables).toEqual(['appointments', 'invoices', 'payments'])
+      expect(enabled).toBe(true)
+    })
+
+    it('refreshes when the channel reports a change', async () => {
+      role.current = 'receptionist'
+      renderPage()
+      await screen.findByRole('heading', { name: /awaiting payment/i })
+      const calls = vi.mocked(realtime.useRealtimeRefresh).mock.calls
+      const onChange = calls[calls.length - 1][2]
+      vi.mocked(api.listPaymentQueue).mockResolvedValue([waiting])
+      onChange()
+      expect(await screen.findByRole('link', { name: /maria clara santos/i })).toBeInTheDocument()
+    })
+
+    it('is not on the dentist’s dashboard, and does not subscribe for them', async () => {
+      role.current = 'dentist'
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      expect(screen.queryByRole('heading', { name: /awaiting payment/i })).not.toBeInTheDocument()
+      expect(api.listPaymentQueue).not.toHaveBeenCalled()
+      const calls = vi.mocked(realtime.useRealtimeRefresh).mock.calls
+      expect(calls[calls.length - 1][3]).toBe(false)
+    })
   })
 
   describe("the dentist's own day", () => {

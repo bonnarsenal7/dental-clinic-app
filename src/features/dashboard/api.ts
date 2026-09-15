@@ -1,6 +1,8 @@
 import { supabase } from '../../core/supabaseClient'
 import type { MedicalHistory } from '../patients/types'
 import type { AppointmentStatus } from '../scheduling/types'
+import { buildPaymentQueue } from './paymentQueueState'
+import type { PaymentQueueEntry, QueueAppointment, QueueInvoice } from './paymentQueueState'
 import type { DailySummary } from './types'
 
 export async function getDailySummary(): Promise<DailySummary> {
@@ -122,4 +124,42 @@ export async function listDentistDay(dentistId: string): Promise<DentistDayRow[]
       commission: invoice ? Number(invoice.commission_amount ?? 0) : 0,
     }
   })
+}
+
+/** Reception's "Awaiting payment" queue — every finished treatment still to
+ *  pay, whatever day it was finished, plus today's checkouts.
+ *
+ *  Two queries, not one per row: the appointments, then the live bills for
+ *  their visits. `buildPaymentQueue` decides what shows and how. */
+export async function listPaymentQueue(now: Date = new Date()): Promise<PaymentQueueEntry[]> {
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select(
+      'id, patient_id, scheduled_at, status, reason, visit_id, completed_at, procedures(name), patients(name)',
+    )
+    // Awaiting payment from any day — an unpaid bill carries forward — and
+    // anything checked out since local midnight.
+    .or(`status.eq.pending_payment,and(status.eq.completed,completed_at.gte."${start.toISOString()}")`)
+    .order('scheduled_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  const appointments = (data ?? []) as unknown as QueueAppointment[]
+
+  const visitIds = appointments.map((a) => a.visit_id).filter((v): v is string => !!v)
+  let invoices: QueueInvoice[] = []
+  if (visitIds.length > 0) {
+    const { data: bills, error: billsError } = await supabase
+      .from('invoices')
+      .select('id, visit_id, invoice_items(amount), payments(amount, paid_at)')
+      .in('visit_id', visitIds)
+      // Neither is a bill anybody can be asked to pay.
+      .not('status', 'in', '("void","draft")')
+      .order('created_at', { ascending: false })
+    if (billsError) throw new Error(billsError.message)
+    invoices = (bills ?? []) as unknown as QueueInvoice[]
+  }
+
+  return buildPaymentQueue(appointments, invoices, now)
 }

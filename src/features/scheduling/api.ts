@@ -202,6 +202,31 @@ export async function finishTreatment(params: {
   return updated
 }
 
+/** Checks out a patient who had nothing billed — the "No charge" path from
+ *  reception's queue. Only moves an appointment still awaiting payment, so a
+ *  second tap from another tablet changes nothing. */
+export async function checkOutWithoutCharge(appointmentId: string) {
+  const { error } = await supabase
+    .from('appointments')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('id', appointmentId)
+    .eq('status', 'pending_payment')
+  if (error) throw new Error(error.message)
+}
+
+/** Checks the patient out once their bill is settled, so reception does not
+ *  also have to press Complete on the schedule. Only appointments still
+ *  awaiting payment for this visit move; 0015 lets reception and admin make
+ *  that move and nobody else. */
+export async function completeAwaitingForVisit(visitId: string) {
+  const { error } = await supabase
+    .from('appointments')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('visit_id', visitId)
+    .eq('status', 'pending_payment')
+  if (error) throw new Error(error.message)
+}
+
 export async function listDentists(): Promise<{ id: string; name: string }[]> {
   const { data, error } = await supabase.rpc('bookable_dentists')
   if (error) throw new Error(error.message)

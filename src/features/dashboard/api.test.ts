@@ -140,6 +140,50 @@ describe('dashboard api', () => {
     expect(unbilled).toMatchObject({ treatment: 'Consult', amount: null, commission: 0 })
   })
 
+  // --- Awaiting payment ---------------------------------------------------
+
+  it('asks for every unpaid finish, and only today’s checkouts', async () => {
+    db().queue('appointments', { data: [] })
+    const now = new Date('2026-09-15T15:00:00')
+    await api.listPaymentQueue(now)
+    const filter = db().query('appointments')!.arg('or') as string
+    const midnight = new Date('2026-09-15T00:00:00').toISOString()
+    expect(filter).toBe(`status.eq.pending_payment,and(status.eq.completed,completed_at.gte."${midnight}")`)
+    // Nothing to bill, so no second round trip.
+    expect(db().query('invoices')).toBeUndefined()
+  })
+
+  it('reads the live bills for those visits, never a void or a draft', async () => {
+    db().queue('appointments', {
+      data: [
+        {
+          id: 'a-1',
+          patient_id: 'p-1',
+          scheduled_at: new Date('2026-09-15T09:00:00').toISOString(),
+          status: 'pending_payment',
+          reason: 'Cleaning',
+          visit_id: 'v-1',
+          completed_at: null,
+          procedures: null,
+          patients: { name: 'Maria' },
+        },
+      ],
+    })
+    db().queue('invoices', {
+      data: [{ id: 'inv-1', visit_id: 'v-1', invoice_items: [{ amount: '1200.00' }], payments: [] }],
+    })
+    const [entry] = await api.listPaymentQueue(new Date('2026-09-15T15:00:00'))
+    const q = db().query('invoices')!
+    expect(q.arg('in', 1)).toEqual(['v-1'])
+    expect(q.calls).toContainEqual({ method: 'not', args: ['status', 'in', '("void","draft")'] })
+    expect(entry).toMatchObject({
+      patientName: 'Maria',
+      state: 'awaiting',
+      invoiceId: 'inv-1',
+      balance: 1200,
+    })
+  })
+
   it('names a patient it could not resolve rather than rendering blank', async () => {
     db().queue('appointments', {
       data: [

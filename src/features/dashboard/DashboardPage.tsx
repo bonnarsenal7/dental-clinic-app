@@ -6,10 +6,16 @@ import { ErrorState, LoadingState } from '../../core/components/states'
 import { formatMoney } from '../billing/ledger'
 import { collectAlerts } from '../patients/MedicalAlerts'
 import { STATUS_LABELS, STATUS_STYLES } from '../scheduling/appointmentStatus'
-import { getDailySummary, listDentistDay, listTodaysPatients } from './api'
+import { useRealtimeRefresh } from '../../core/useRealtimeRefresh'
+import { getDailySummary, listDentistDay, listPaymentQueue, listTodaysPatients } from './api'
 import type { DentistDayRow, TodaysPatient } from './api'
+import PaymentQueue from './PaymentQueue'
+import type { PaymentQueueEntry } from './paymentQueueState'
 import StatTile from './StatTile'
 import type { DailySummary } from './types'
+
+/** The rows that decide what the payment queue shows (0019 publishes them). */
+const PAYMENT_QUEUE_TABLES = ['appointments', 'invoices', 'payments'] as const
 
 export default function DashboardPage() {
   const { staff } = useAuth()
@@ -26,6 +32,10 @@ export default function DashboardPage() {
   const scheduleLink = isDentist ? undefined : '/schedule'
   const recallsLink = isDentist ? undefined : '/recalls'
   const seesMoney = staff?.role === 'receptionist' || staff?.role === 'admin'
+  // Taking payment is the front desk's, so the queue is too — every
+  // receptionist sees the same list; nothing is routed to one of them.
+  const seesPaymentQueue = seesMoney
+  const [paymentQueue, setPaymentQueue] = useState<PaymentQueueEntry[]>([])
 
   const refresh = useCallback(async () => {
     setError(null)
@@ -38,14 +48,24 @@ export default function DashboardPage() {
         setDentistDay(d)
         setTodays(d)
       } else {
-        const [s, t] = await Promise.all([getDailySummary(), listTodaysPatients()])
+        const [s, t, q] = await Promise.all([
+          getDailySummary(),
+          listTodaysPatients(),
+          seesPaymentQueue ? listPaymentQueue() : Promise.resolve([]),
+        ])
         setSummary(s)
         setTodays(t)
+        setPaymentQueue(q)
       }
     } catch (e) {
       setError(toMessage(e))
     }
-  }, [isDentist, staffId])
+  }, [isDentist, staffId, seesPaymentQueue])
+
+  // Live: a dentist finishing treatment, a payment landing, or a patient
+  // checked out on another tablet refreshes the dashboard within a moment.
+  // The minute poll below stays as the floor for a channel that fails.
+  useRealtimeRefresh('dashboard-payment-queue', PAYMENT_QUEUE_TABLES, refresh, seesPaymentQueue)
 
   useEffect(() => {
     void refresh()
@@ -143,6 +163,10 @@ export default function DashboardPage() {
           </ul>
         </section>
       )}
+
+      {/* First for the front desk: the patient standing at the counter is
+          the thing to act on before any figure. */}
+      {seesPaymentQueue && <PaymentQueue entries={paymentQueue} onChanged={() => void refresh()} />}
 
       {/* The day, at a glance. */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
