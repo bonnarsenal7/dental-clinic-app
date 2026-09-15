@@ -44,18 +44,17 @@ describe('PaymentQueue', () => {
     expect(link).toHaveTextContent('₱1,800.00 to pay')
   })
 
-  it('counts who is still waiting', () => {
-    renderQueue([entry(), entry({ appointmentId: 'a-2', state: 'paid', balance: 0 })])
-    expect(screen.getByText('1 waiting')).toBeInTheDocument()
+  it('counts who is waiting', () => {
+    renderQueue([entry(), entry({ appointmentId: 'a-2', patientName: 'Jose Rizal' })])
+    expect(screen.getByText('2 waiting')).toBeInTheDocument()
   })
 
-  // Greyed and kept, not removed.
-  it('greys a paid entry and keeps it on the list, marked Paid', () => {
-    renderQueue([entry({ state: 'paid', balance: 0 })])
+  // Nothing on the list is settled: the paid have already left it.
+  it('shows no greyed or paid rows', () => {
+    renderQueue([entry()])
     const row = screen.getByRole('link', { name: /maria clara santos/i })
-    expect(row).toHaveAttribute('data-state', 'paid')
-    expect(row).toHaveTextContent(/paid/i)
-    expect(row.className).toContain('bg-slate-50')
+    expect(row.className).not.toContain('bg-slate-50')
+    expect(row).not.toHaveTextContent(/paid$/i)
   })
 
   it('says which day a carried-over entry is from', () => {
@@ -66,11 +65,11 @@ describe('PaymentQueue', () => {
     expect(screen.getByRole('link', { name: /maria/i })).toHaveTextContent(weekday)
   })
 
-  it('shows money still owed after a checkout in red, not grey', () => {
+  it('shows money still owed after a checkout in red', () => {
     renderQueue([entry({ state: 'owing', balance: 1300 })])
     const row = screen.getByRole('link', { name: /maria/i })
     expect(row).toHaveTextContent('₱1,300.00 unpaid')
-    expect(row.className).not.toContain('bg-slate-50')
+    expect(row.querySelector('.text-red-700')).not.toBeNull()
   })
 
   describe('nothing billed', () => {
@@ -91,16 +90,11 @@ describe('PaymentQueue', () => {
       await waitFor(() => expect(scheduling.checkOutWithoutCharge).toHaveBeenCalledWith('a-1'))
       expect(onChanged).toHaveBeenCalled()
     })
-
-    it('greys a no-charge checkout', () => {
-      renderQueue([entry({ state: 'no_charge', invoiceId: null, balance: null })])
-      expect(screen.getByText(/no charge/i)).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /check out/i })).not.toBeInTheDocument()
-    })
   })
 
-  it('says so when nothing has been finished yet today', () => {
+  it('says so when nobody is waiting to pay', () => {
     renderQueue([])
-    expect(screen.getByText(/no finished treatments yet today/i)).toBeInTheDocument()
+    expect(screen.getByText(/nobody is waiting to pay/i)).toBeInTheDocument()
+    expect(screen.getByText('nobody waiting')).toBeInTheDocument()
   })
 })

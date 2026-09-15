@@ -38,7 +38,7 @@ describe('buildPaymentQueue', () => {
     expect(e).toMatchObject({ state: 'awaiting', invoiceId: 'inv-v-a', balance: 1800, carriedOver: false })
   })
 
-  it('counts part payments against what is owed', () => {
+  it('keeps a part-paid bill on the list, with what is left', () => {
     const [e] = buildPaymentQueue([appt('a')], [bill('v-a', 1800, [[500, TODAY_2PM]])], NOW)
     expect(e).toMatchObject({ state: 'awaiting', balance: 1300 })
   })
@@ -53,41 +53,26 @@ describe('buildPaymentQueue', () => {
     expect(e.balance).toBe(1300)
   })
 
-  it('marks a settled bill paid', () => {
-    const [e] = buildPaymentQueue(
+  // The list is who still has to pay. A settled entry leaves at once rather
+  // than staying greyed for the rest of the day.
+  it('removes a bill as soon as it is paid in full', () => {
+    const entries = buildPaymentQueue(
       [appt('a', { status: 'completed', completed_at: TODAY_2PM })],
       [bill('v-a', 1800, [[1800, TODAY_2PM]])],
       NOW,
     )
-    expect(e).toMatchObject({ state: 'paid', balance: 0 })
+    expect(entries).toEqual([])
   })
 
   // Settling also checks the patient out, but if that second write failed the
   // money is still in, and the entry must not go on asking for it.
-  it('decides paid by the bill, even if the appointment was never checked out', () => {
-    const [e] = buildPaymentQueue([appt('a')], [bill('v-a', 1800, [[1800, TODAY_2PM]])], NOW)
-    expect(e.state).toBe('paid')
+  it('removes a paid bill even if the appointment was never checked out', () => {
+    const entries = buildPaymentQueue([appt('a')], [bill('v-a', 1800, [[1800, TODAY_2PM]])], NOW)
+    expect(entries).toEqual([])
   })
 
-  it('keeps a paid entry on the list for the rest of the day', () => {
-    const entries = buildPaymentQueue(
-      [appt('a', { status: 'completed', completed_at: TODAY_2PM })],
-      [bill('v-a', 1800, [[1800, TODAY_2PM]])],
-      NOW,
-    )
-    expect(entries).toHaveLength(1)
-  })
-
-  // The daily reset.
-  it('clears what was settled on an earlier day', () => {
-    const entries = buildPaymentQueue(
-      [
-        appt('paid', { scheduled_at: YESTERDAY, status: 'completed', completed_at: YESTERDAY }),
-        appt('free', { scheduled_at: YESTERDAY, status: 'completed', completed_at: YESTERDAY }),
-      ],
-      [bill('v-paid', 1800, [[1800, YESTERDAY]])],
-      NOW,
-    )
+  it('removes a visit with nothing billed once it has been checked out', () => {
+    const entries = buildPaymentQueue([appt('a', { status: 'completed', completed_at: TODAY_2PM })], [], NOW)
     expect(entries).toEqual([])
   })
 
@@ -95,15 +80,6 @@ describe('buildPaymentQueue', () => {
   it('carries an unpaid bill forward to the next day, flagged', () => {
     const [e] = buildPaymentQueue([appt('a', { scheduled_at: YESTERDAY })], [bill('v-a', 1800)], NOW)
     expect(e).toMatchObject({ state: 'awaiting', carriedOver: true })
-  })
-
-  it('keeps a bill paid today on the list even when the treatment was yesterday', () => {
-    const [e] = buildPaymentQueue(
-      [appt('a', { scheduled_at: YESTERDAY, status: 'completed', completed_at: TODAY_2PM })],
-      [bill('v-a', 1800, [[1800, TODAY_2PM]])],
-      NOW,
-    )
-    expect(e).toMatchObject({ state: 'paid', carriedOver: true })
   })
 
   it('offers checkout for a visit with nothing billed', () => {
@@ -116,12 +92,7 @@ describe('buildPaymentQueue', () => {
     expect(e).toMatchObject({ state: 'awaiting', invoiceId: null })
   })
 
-  it('greys a no-charge checkout for the day it happened', () => {
-    const [e] = buildPaymentQueue([appt('a', { status: 'completed', completed_at: TODAY_2PM })], [], NOW)
-    expect(e.state).toBe('no_charge')
-  })
-
-  it('does not grey a checkout that still owes money', () => {
+  it('keeps a checkout that still owes money, as owing', () => {
     const [e] = buildPaymentQueue(
       [appt('a', { status: 'completed', completed_at: TODAY_2PM })],
       [bill('v-a', 1800, [[500, TODAY_2PM]])],
@@ -130,7 +101,7 @@ describe('buildPaymentQueue', () => {
     expect(e).toMatchObject({ state: 'owing', balance: 1300 })
   })
 
-  it('puts what is still to pay first, oldest first, and the settled after', () => {
+  it('lists who is still to pay oldest first, with the paid gone', () => {
     const entries = buildPaymentQueue(
       [
         appt('paid-early', {
@@ -144,7 +115,7 @@ describe('buildPaymentQueue', () => {
       [bill('v-paid-early', 900, [[900, TODAY_2PM]]), bill('v-late', 500), bill('v-early', 700)],
       NOW,
     )
-    expect(entries.map((e) => e.appointmentId)).toEqual(['early', 'late', 'paid-early'])
+    expect(entries.map((e) => e.appointmentId)).toEqual(['early', 'late'])
   })
 
   it('names the treatment from the booked procedure, else the reason', () => {

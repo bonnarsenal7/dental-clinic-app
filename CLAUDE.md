@@ -142,9 +142,10 @@ Exit criteria: The clinic runs entirely on the new system for one full month wit
 ## Phase 1 — Auth & Data Model (done)
 
 ### Schema
-SQL migrations live in `supabase/migrations/` (run in order). All of
-0001-0004 are applied to the live project — check with
-`supabase migration list`.
+SQL migrations live in `supabase/migrations/` (run in order). Every
+migration in the folder is applied to the live project, currently 0001-0022
+— but trust `supabase migration list`, not this number, which goes stale
+the moment the next one lands.
 - `0001_schema.sql` — all tables: staff, patients, medical_histories,
   dental_histories, consents, visits, visit_notes, tooth_records, invoices,
   invoice_items, payments, audit_log, clinic_settings.
@@ -647,7 +648,9 @@ has not had legal review. Don't treat Phase 5 as done because the code is.
 
 ### Audit logging is done with triggers, not app code
 `0006_audit.sql` attaches an `AFTER INSERT OR UPDATE OR DELETE` trigger to
-all 13 tables holding patient data, money, or access control. **Never add
+every table holding patient data, money, or access control — 13 in 0006,
+plus `daily_expenses`, `salary_entries` and `clinic_days` from 0020. A new
+table in that category gets the same trigger in its own migration. **Never add
 app-side write logging** — the point is that the log fires regardless of
 what wrote the row, including the SQL editor and psql. A client-written
 audit log is worthless: the client that skips the entry is the one you
@@ -1450,8 +1453,8 @@ clinic ever opens elsewhere.
 - **Open schedule** button — reception and admin. Hidden from a dentist.
 - **Awaiting payment** queue — reception and admin, first on the page, live.
   See "Awaiting payment queue (0019)".
-- **End of day** — daily expenses, daily salary, the commission line and
-  Close Clinic — reception and admin, last on the page. Not the dentist:
+- **End of day** — daily expenses, daily salary & commission (one section)
+  and Close Clinic — reception and admin, last on the page. Not the dentist:
   colleagues' pay is not theirs to read. See "Daily close (0020)".
 
 This is a presentation split, not a security boundary: RLS already governs
@@ -1560,13 +1563,26 @@ It is its own form with its own Save, not part of Record payment: payments
 are append-only, and commission is one figure per invoice that may need
 correcting. 0006's audit trigger already records every change to it.
 
+**Later changes that build on this — read them before changing commission:**
+- **It belongs to a day: the invoice's `created_at`, in Manila.** Closing
+  that day locks it for everyone, admin included — the check is in
+  `invoices_guard_commission` (0020), and the invoice screen shows the box
+  as locked. A commission not entered before its day closes cannot be
+  entered at all. See "Daily close (0020)".
+- **It is attributed to a dentist through the invoice's visit**, not stored
+  against one: the appointment's dentist, else the visit's `staff_id` if
+  that person is a dentist, else "No dentist recorded" (0021). That split is
+  frozen into the end-of-day report at closing (0022).
+- **It is not a condition of Paid** on the payment queue — see "Awaiting
+  payment queue (0019)".
+
 ## Awaiting payment queue (0019)
 
 A dentist finishing treatment puts the patient on every receptionist's
 dashboard at once; tapping the entry opens that visit's invoice, where
-payment and commission are taken; once the bill is settled the entry greys
-out as **Paid** and stays for the day. Nothing is routed to one
-receptionist — every front-desk dashboard shows the same list.
+payment and commission are taken; **once the bill is settled the entry
+leaves the list.** Nothing is routed to one receptionist — every front-desk
+dashboard shows the same list.
 
 `src/features/dashboard/` — `paymentQueueState.ts` (the rules),
 `PaymentQueue.tsx` (the list), `listPaymentQueue()` in `api.ts`.
@@ -1599,25 +1615,30 @@ constraint. Use `useRealtimeRefresh` for any future live screen rather than
 opening channels ad hoc, and add the table to the publication in a
 migration.
 
-### What shows, and for how long (`buildPaymentQueue`)
+### What shows (`buildPaymentQueue`)
     awaiting    finished, not paid           until paid, whatever day
     owing       checked out, money still owed  until paid
-    paid        bill settled                 (greyed) the day it was settled
-    no_charge   nothing billed, checked out  (greyed) the day it happened
+
+**The list is who still has to pay, and nothing else.** A bill paid in full,
+or a visit with nothing billed that has been checked out, leaves the list at
+once. It used to stay greyed as "Paid" / "No charge" for the rest of the
+day; the clinic asked for it removed instead — a to-do, not a record of the
+day. The day's record is the ledger, the dashboard's "Collected today", and
+the end-of-day report.
 
 **An unpaid bill carries forward.** "Only today" would have dropped a patient
 who left without paying off the list overnight while the money was still
 owed; the clinic chose to keep it until paid. A carried entry shows its day.
-Settled entries are what clear at the start of a day.
 
-**Paid is decided by the bill, not the appointment.** Settling also checks
+**Settled is decided by the bill, not the appointment.** Settling also checks
 the patient out, but if that second write failed the money is still in, and
 the entry must not go on asking for it. A bill totalling nothing is treated
 as nothing billed — it cannot be paid, only checked out.
 
-"Today" is the device's local day, like the rest of the dashboard. The
-query asks for every `pending_payment` plus `completed` since local
-midnight; the rules decide the rest.
+The query asks for every `pending_payment` plus `completed` since local
+midnight. The completed ones are needed only for **owing** — checked out on
+the schedule with money still owed; anything completed and settled is
+dropped by the rules.
 
 ### Settling a bill checks the patient out
 When a payment brings the balance to zero, `InvoiceDetailPage` calls
@@ -1636,7 +1657,7 @@ zero — on a settled bill.
 A dentist can finish a visit with no bill (`FinishTreatmentButton` moves it
 to `pending_payment` regardless). There is no invoice to open, so the entry
 offers **Check out**, confirmed first, which completes the appointment and
-greys it as "No charge". `checkOutWithoutCharge` only moves a row still
+takes it off the list. `checkOutWithoutCharge` only moves a row still
 `pending_payment`, so two receptionists tapping it change nothing twice.
 
 ### Commission is not a condition of Paid
@@ -1657,9 +1678,9 @@ The rules module was first `paymentQueue.ts` beside the component
 import would have worked — so the break shows only on a Mac, which is the
 worst place for a bug to be invisible from.
 
-Mutation-checked: deciding Paid by the appointment, skipping the daily
-reset of settled entries, checking out before the balance is zero, dropping
-the reconnect refetch, and subscribing for a dentist each fail a test.
+Mutation-checked: deciding settled by the appointment, keeping a settled
+entry on the list, checking out before the balance is zero, dropping the
+reconnect refetch, and subscribing for a dentist each fail a test.
 
 ## Daily close (0020)
 
@@ -1757,8 +1778,18 @@ U+20B1 and draws stray characters in its place. `receiptPdf.ts` still uses
 unverified, since nobody has put a receipt through a printer yet.
 
 ### Commission per dentist (0021)
-Under the day's commission total, the panel lists each dentist's share,
-from `clinic_day_commission_by_dentist()`. Commission is one number on an
+Salary and commission are **one section, "Daily salary & commission"**: a
+table with a row per dentist — Dentist / Salary / Commission / Total — and a
+totals row, with the salary entries itemised underneath (where an admin
+edits them) and the add-salary form below. `buildPayByDentist()` merges the
+two sources: a dentist with only salary, or only commission, still gets a
+row; unattributed commission is its own row, last; and if the breakdown did
+not load, commission and total show "—" rather than 0, with the column's
+total still taken from the day's figures. The Total column is salary +
+commission per dentist; the report's net is unchanged (revenue − expenses −
+salary). The PDF still prints salary and commission as separate sections.
+
+The per-dentist commission comes from `clinic_day_commission_by_dentist()`. Commission is one number on an
 invoice and names nobody, so the dentist is found through the visit it
 bills:
 
@@ -1808,10 +1839,20 @@ now gives the live totals a different commission and asserts the frozen one
 wins — worth copying for any "shows X rather than Y" test.
 
 ### Not verified
-The SQL is checked by a dry run only — no session has database credentials
-to execute it before `supabase db push`. The lock, the SHARE-mode race
-guard and the close function are exercised for the first time on the live
-project; test them there with two tablets before relying on them.
+**0020, 0021 and 0022 are applied to the live project** and applied
+cleanly — which proves the SQL parses and the objects exist, nothing more.
+No session has database credentials to execute it beforehand, so a dry run
+was the only check before each push.
+
+**None of the behaviour has been exercised against real data:** the
+closed-day lock refusing an admin, the SHARE-mode race guard, a second close
+being refused, the per-dentist attribution, and the frozen breakdown on the
+PDF. The unit tests mock the database. Test them on the live project with
+two tablets before relying on them — and close a real day only when it is
+really over, because nothing in the app reopens one.
+
+The PDF's layout, including the peso-sign workaround, has not been looked
+at on paper either.
 
 ## Test environment gotchas
 

@@ -6,12 +6,13 @@ import { formatMoney } from '../billing/ledger'
 import { checkOutWithoutCharge } from '../scheduling/api'
 import type { PaymentQueueEntry } from './paymentQueueState'
 
-/** Reception's "Awaiting payment" list.
+/** Reception's "Awaiting payment" list: who still has to pay.
  *
  *  Kept live by the dashboard's realtime subscription — no popup, sound or
  *  badge, only the list changing. Tapping an entry opens that visit's
- *  invoice, where payment and commission are entered. Settled entries grey
- *  out and stay for the day; see buildPaymentQueue for what shows when. */
+ *  invoice, where payment and commission are entered. An entry leaves the
+ *  list as soon as it is paid, or checked out with nothing billed; see
+ *  buildPaymentQueue for what shows when. */
 export default function PaymentQueue({
   entries,
   onChanged,
@@ -20,7 +21,6 @@ export default function PaymentQueue({
   onChanged: () => void
 }) {
   const [checkingOut, setCheckingOut] = useState<PaymentQueueEntry | null>(null)
-  const waiting = entries.filter((e) => e.state === 'awaiting' || e.state === 'owing').length
 
   return (
     <section
@@ -32,12 +32,12 @@ export default function PaymentQueue({
           Awaiting payment
         </h2>
         <span className="text-xs text-slate-500">
-          {waiting === 0 ? 'nobody waiting' : `${waiting} waiting`}
+          {entries.length === 0 ? 'nobody waiting' : `${entries.length} waiting`}
         </span>
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-slate-400">No finished treatments yet today.</p>
+        <p className="text-sm text-slate-400">Nobody is waiting to pay.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {entries.map((entry) => (
@@ -68,7 +68,6 @@ export default function PaymentQueue({
 }
 
 function QueueRow({ entry, onCheckOut }: { entry: PaymentQueueEntry; onCheckOut: () => void }) {
-  const done = entry.state === 'paid' || entry.state === 'no_charge'
   const time = new Date(entry.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   // A carried-over entry says which day, or it reads as today's patient.
   const day = entry.carriedOver
@@ -77,23 +76,19 @@ function QueueRow({ entry, onCheckOut }: { entry: PaymentQueueEntry; onCheckOut:
 
   const body = (
     <div className="min-w-0">
-      <p className={`text-sm font-medium ${done ? 'text-slate-400' : 'text-slate-800'}`}>
-        {entry.patientName}
-      </p>
-      <p className={`text-xs ${done ? 'text-slate-400' : 'text-slate-500'}`}>
+      <p className="text-sm font-medium text-slate-800">{entry.patientName}</p>
+      <p className="text-xs text-slate-500">
         {entry.treatment ?? 'Treatment'} · {time}
         {day}
       </p>
     </div>
   )
 
-  const rowClass = `flex items-center justify-between gap-3 flex-wrap rounded-lg border px-3 py-2 ${
-    done ? 'border-slate-100 bg-slate-50' : 'border-slate-200 bg-white'
-  }`
+  const rowClass =
+    'flex items-center justify-between gap-3 flex-wrap rounded-lg border border-slate-200 bg-white px-3 py-2'
 
-  // Nothing billed and not yet gone: no invoice to open, so the action is
-  // checking them out.
-  if (entry.state === 'awaiting' && !entry.invoiceId) {
+  // Nothing billed: no invoice to open, so the action is checking them out.
+  if (!entry.invoiceId) {
     return (
       <div className={rowClass} data-state={entry.state}>
         {body}
@@ -107,38 +102,22 @@ function QueueRow({ entry, onCheckOut }: { entry: PaymentQueueEntry; onCheckOut:
     )
   }
 
-  const status =
-    entry.state === 'paid' ? (
-      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Paid</span>
-    ) : entry.state === 'no_charge' ? (
-      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">No charge</span>
-    ) : entry.state === 'owing' ? (
-      <span className="text-sm font-medium tabular-nums text-red-700">
-        {formatMoney(entry.balance ?? 0)} unpaid
-      </span>
-    ) : (
-      <span className="text-sm font-medium tabular-nums text-slate-800">
-        {formatMoney(entry.balance ?? 0)} to pay
-      </span>
-    )
-
-  if (!entry.invoiceId) {
-    return (
-      <div className={rowClass} data-state={entry.state}>
-        {body}
-        {status}
-      </div>
-    )
-  }
-
   return (
     <Link
       to={`/invoices/${entry.invoiceId}`}
       data-state={entry.state}
-      className={`${rowClass} ${done ? '' : 'hover:border-gold-500'}`}
+      className={`${rowClass} hover:border-gold-500`}
     >
       {body}
-      {status}
+      {entry.state === 'owing' ? (
+        <span className="text-sm font-medium tabular-nums text-red-700">
+          {formatMoney(entry.balance ?? 0)} unpaid
+        </span>
+      ) : (
+        <span className="text-sm font-medium tabular-nums text-slate-800">
+          {formatMoney(entry.balance ?? 0)} to pay
+        </span>
+      )}
     </Link>
   )
 }

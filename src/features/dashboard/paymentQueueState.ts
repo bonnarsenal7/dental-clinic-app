@@ -22,9 +22,9 @@ export interface QueueInvoice {
 
 /**   awaiting    finished, not paid — the bill, or nothing billed yet
  *    owing       checked out on the schedule with money still owed
- *    paid        the bill is settled                      (greyed)
- *    no_charge   nothing was billed and they have left    (greyed) */
-export type QueueState = 'awaiting' | 'owing' | 'paid' | 'no_charge'
+ *
+ *  There is no settled state: a paid or no-charge entry leaves the list. */
+export type QueueState = 'awaiting' | 'owing'
 
 export interface PaymentQueueEntry {
   appointmentId: string
@@ -44,22 +44,21 @@ export interface PaymentQueueEntry {
 
 const sum = (xs: { amount: number | string }[]) => xs.reduce((s, x) => s + Number(x.amount), 0)
 
-/** The queue, as reception should see it right now.
+/** The queue, as reception should see it right now: who still has to pay.
  *
- *  **What stays, and for how long:**
- *  - awaiting / owing — until paid, **whatever day it was finished**. An
- *    unpaid bill must not drop out of sight overnight.
- *  - paid — for the day it was settled (its last payment, else checkout).
- *  - no_charge — for the day they were checked out.
+ *  **An entry leaves as soon as it is settled.** A bill paid in full, or a
+ *  visit with nothing billed that has been checked out, is gone from the list
+ *  at once — it does not stay greyed for the rest of the day (clinic's
+ *  choice; the list is a to-do, not a record of the day).
  *
- *  So at the start of a day the settled entries clear and only what is still
- *  owed carries over.
+ *  **What is still owed stays, whatever day it was finished.** An unpaid bill
+ *  must not drop out of sight overnight; a carried-over entry is flagged.
  *
- *  **Paid is decided by the bill, not the appointment.** Settling the bill
+ *  **Settled is decided by the bill, not the appointment.** Settling the bill
  *  also checks the patient out, but if that second write failed the money is
  *  still in, and the entry must not go on asking for it.
  *
- *  Order: still to pay first, oldest first — then the settled, greyed. */
+ *  Order: oldest first. */
 export function buildPaymentQueue(
   appointments: QueueAppointment[],
   invoices: QueueInvoice[],
@@ -67,7 +66,7 @@ export function buildPaymentQueue(
 ): PaymentQueueEntry[] {
   const start = new Date(now)
   start.setHours(0, 0, 0, 0)
-  const today = (iso: string | null | undefined) => !!iso && new Date(iso).getTime() >= start.getTime()
+  const today = (iso: string) => new Date(iso).getTime() >= start.getTime()
 
   // The query orders invoices newest first, so the first seen per visit wins.
   const byVisit = new Map<string, QueueInvoice>()
@@ -83,19 +82,10 @@ export function buildPaymentQueue(
     const billed = invoice && total > 0 ? invoice : undefined
     const balance = billed ? total - sum(billed.payments) : null
 
-    let state: QueueState
-    if (!billed) state = a.status === 'completed' ? 'no_charge' : 'awaiting'
-    else if (balance !== null && balance <= 0) state = 'paid'
-    else state = a.status === 'completed' ? 'owing' : 'awaiting'
-
-    if (state === 'paid') {
-      const lastPayment = billed!.payments
-        .map((p) => p.paid_at)
-        .sort()
-        .at(-1)
-      if (!today(lastPayment ?? a.completed_at)) continue
-    }
-    if (state === 'no_charge' && !today(a.completed_at)) continue
+    // Paid in full: off the list, checked out or not.
+    if (billed && balance !== null && balance <= 0) continue
+    // Nothing billed and already checked out: nothing left to do.
+    if (!billed && a.status === 'completed') continue
 
     entries.push({
       appointmentId: a.id,
@@ -103,15 +93,12 @@ export function buildPaymentQueue(
       patientName: a.patients?.name ?? 'Unknown patient',
       treatment: a.procedures?.name ?? a.reason,
       scheduledAt: a.scheduled_at,
-      state,
+      state: a.status === 'completed' ? 'owing' : 'awaiting',
       invoiceId: billed?.id ?? null,
       balance,
       carriedOver: !today(a.scheduled_at),
     })
   }
 
-  const open = (e: PaymentQueueEntry) => e.state === 'awaiting' || e.state === 'owing'
-  return entries.sort(
-    (x, y) => Number(open(y)) - Number(open(x)) || x.scheduledAt.localeCompare(y.scheduledAt),
-  )
+  return entries.sort((x, y) => x.scheduledAt.localeCompare(y.scheduledAt))
 }
