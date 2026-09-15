@@ -17,6 +17,7 @@ vi.mock('./receiptPdf', () => ({
 }))
 vi.mock('../patients/api', () => ({ getPatient: vi.fn() }))
 vi.mock('../scheduling/api', () => ({ completeAwaitingForVisit: vi.fn() }))
+vi.mock('../dailyClose/api', () => ({ getClinicDay: vi.fn() }))
 vi.mock('../../core/components/ui/toast', () => ({ toastSaved: vi.fn() }))
 vi.mock('../../core/supabaseClient', () => ({
   supabase: {
@@ -42,6 +43,7 @@ const patients = await import('../patients/api')
 const receipt = await import('./receiptPdf')
 const toast = await import('../../core/components/ui/toast')
 const scheduling = await import('../scheduling/api')
+const dailyClose = await import('../dailyClose/api')
 
 /** The amount box arrives pre-filled with the balance; typing appends to it. */
 async function enterAmount(user: ReturnType<typeof userEvent.setup>, value: string) {
@@ -117,6 +119,28 @@ describe('InvoiceDetailPage', () => {
     vi.mocked(api.recordPayment).mockResolvedValue(undefined)
     vi.mocked(api.voidInvoice).mockResolvedValue(undefined)
     vi.mocked(scheduling.completeAwaitingForVisit).mockReset().mockResolvedValue(undefined)
+    vi.mocked(dailyClose.getClinicDay).mockReset().mockResolvedValue(null)
+  })
+
+  // Commission counts toward the invoice's day, and closing that day locks
+  // it for everyone (0020) — admin included.
+  it.each(['receptionist', 'admin'] as const)(
+    'locks commission for a %s once the clinic is closed for the invoice’s day',
+    async (r) => {
+      role.current = r
+      vi.mocked(dailyClose.getClinicDay).mockResolvedValue({ id: 'c-1' } as never)
+      renderPage()
+      await screen.findByText(/composite filling/i)
+      expect(await screen.findByText(/locked — the clinic has been closed/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /save commission/i })).not.toBeInTheDocument()
+    },
+  )
+
+  it("asks about the invoice's own day, not today", async () => {
+    renderPage()
+    await screen.findByText(/composite filling/i)
+    // created_at 2026-09-11T01:00:00Z is 11 Sept in Manila.
+    await waitFor(() => expect(dailyClose.getClinicDay).toHaveBeenCalledWith('2026-09-11'))
   })
 
   // Arriving from the payment queue, the figure to take is already there.

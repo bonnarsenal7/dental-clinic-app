@@ -1450,6 +1450,9 @@ clinic ever opens elsewhere.
 - **Open schedule** button — reception and admin. Hidden from a dentist.
 - **Awaiting payment** queue — reception and admin, first on the page, live.
   See "Awaiting payment queue (0019)".
+- **End of day** — daily expenses, daily salary, the commission line and
+  Close Clinic — reception and admin, last on the page. Not the dentist:
+  colleagues' pay is not theirs to read. See "Daily close (0020)".
 
 This is a presentation split, not a security boundary: RLS already governs
 what each role can fetch. It is still tested, and mutation-tested — making
@@ -1657,6 +1660,118 @@ worst place for a bug to be invisible from.
 Mutation-checked: deciding Paid by the appointment, skipping the daily
 reset of settled entries, checking out before the balance is zero, dropping
 the reconnect refetch, and subscribing for a dentist each fail a test.
+
+## Daily close (0020)
+
+The front desk records the day's expenses and salary; at close of business
+**Close Clinic** freezes the day's figures into a report, downloads it as a
+PDF, and locks the day.
+
+`src/features/dailyClose/` — `DailyClosePanel` (the three sections and the
+button), `DailyEntryList` (rows, with admin edit/delete), `api.ts`,
+`reportSections.ts` (grouping, money for the PDF), `eodReportPdf.ts`.
+
+### What had to be built, because none of it existed
+- **No salary, expense or payroll data anywhere.** `staff` has no pay field.
+  `salary_entries` is new, and **a dentist's salary record is their rows
+  there** — a log of what was paid per day rather than a rate on the staff
+  row, because staffing and pay vary daily.
+- **No closed-day concept.** `clinic_days` is new: one row per closed day,
+  its existence the lock, its `report` jsonb the frozen figures.
+- **Commission had no date.** It is one number on the invoice. The clinic
+  chose to count it toward **the day of the visit — the invoice's
+  `created_at` in Manila**. So no column was added.
+
+### The dentist dropdown is `bookable_dentists()`
+Reception cannot read `staff` (0002 — own row only). The salary form uses
+the same function the booking and seating dialogs do (0011): active dentists
+and admins who treat, id and name only. A salary row for a dentist later
+deactivated still resolves by name in the report, which is built with the
+close function's own rights.
+
+### The day is decided by the database
+`daily_entries_guard` sets `business_date`, `created_by` and `created_at` on
+insert and refuses to change them on update. **A client never sends a
+date** — that is what stops an entry being backdated onto a closed day.
+"Today" is `clinic_today()`, Asia/Manila.
+
+### Who may do what, and the lock that overrides it
+    receptionist   read, add            never edit or delete
+    admin          read, add, edit, delete — until the day is closed
+    dentist        nothing
+
+RLS gives the roles; **the trigger gives the lock, for every role, admin
+included.** That is stricter than anywhere else in the app on purpose:
+elsewhere an admin overrides and the audit log records it, but a closed day
+is the reconciliation, and a figure an admin could still move would make the
+printed report a draft.
+
+**There is no reopen in the app.** A day closed by mistake can only be
+reopened by deleting its `clinic_days` row from the SQL editor — which the
+audit trigger on `clinic_days` records. Don't add a reopen button without
+the clinic asking; it would undo what the lock is for.
+
+`DailyEntryList`'s `canManage` mirrors the rules so the screen does not
+offer what the database refuses.
+
+### Commission is locked with its day
+The check lives in 0017's `invoices_guard_commission`, which every path to
+the column passes through, `set_invoice_commission()` included. **Known
+consequence, accepted:** a commission not entered before its day was closed
+cannot be entered at all. The invoice screen reads `clinic_days` for the
+invoice's day and shows the box as locked, so it does not offer a save the
+database will refuse.
+
+### Close Clinic
+`close_clinic_day()` — SECURITY DEFINER, reception or admin.
+
+- **The arithmetic is in SQL** (`clinic_day_totals()`), as with the
+  dashboard view: revenue is payments on the day (refunds negative),
+  commission is the day's non-void invoices.
+- **Net = revenue − expenses − salary**, as specified. Commission is shown
+  but not subtracted.
+- **It locks the three tables in SHARE mode first.** Without that, an expense
+  or a commission saved in the same instant could land after the figures
+  were read and before the lock row was visible — locked, and missing from
+  the report. Writers wait a moment and then meet the lock.
+- **It cannot close a day twice**, including two receptionists pressing at
+  once (the unique `business_date` is caught and reworded).
+- **The report is frozen.** Payments are still taken after close — a late
+  patient must be able to pay — and they show in the dashboard's "Collected
+  today", but the report and every re-download are rebuilt from the saved
+  `report`, never recomputed. The PDF says figures are as at closing.
+
+The dashboard's confirmation shows the live totals and says plainly that
+nobody, admin included, can change the day afterwards.
+
+### The PDF
+jsPDF, as for receipts, loaded **on demand** — it is the heaviest thing in
+the app and needed once a day. `doc.save()`, for the same tablet reasons.
+If the close succeeds and only the download fails, the panel says so and
+**Download report** stays available; the close is not repeated.
+
+**Amounts are written `PHP 1,234.00`, not with the peso sign** —
+`pdfMoney()`, not `formatMoney()`. jsPDF's built-in Helvetica cannot encode
+U+20B1 and draws stray characters in its place. `receiptPdf.ts` still uses
+`formatMoney` and so very likely has this bug on printed receipts; it is
+unverified, since nobody has put a receipt through a printer yet.
+
+### Mutation-checked
+Letting an admin edit a closed day, offering reception edit or delete,
+sending a date from the client, leaving commission editable on a closed
+day, and showing live figures on a closed day each fail a test.
+
+The last one passed at first for the wrong reason: the closed-day fixture
+used the same commission for the live totals and the frozen report, and the
+expense row repeated the figure the section total should have supplied. It
+now gives the live totals a different commission and asserts the frozen one
+wins — worth copying for any "shows X rather than Y" test.
+
+### Not verified
+The SQL is checked by a dry run only — no session has database credentials
+to execute it before `supabase db push`. The lock, the SHARE-mode race
+guard and the close function are exercised for the first time on the live
+project; test them there with two tablets before relying on them.
 
 ## Test environment gotchas
 

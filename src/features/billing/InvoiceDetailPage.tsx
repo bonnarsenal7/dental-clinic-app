@@ -6,6 +6,8 @@ import { supabase } from '../../core/supabaseClient'
 import { getPatient } from '../patients/api'
 import { getInvoice, recordPayment, setInvoiceCommission, voidInvoice } from './api'
 import { completeAwaitingForVisit } from '../scheduling/api'
+import { getClinicDay } from '../dailyClose/api'
+import { toLocalDateString } from '../../core/localDate'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import { downloadReceipt, receiptNumber } from './receiptPdf'
 import { toastSaved } from '../../core/components/ui/toast'
@@ -41,6 +43,10 @@ export default function InvoiceDetailPage() {
   const [patientName, setPatientName] = useState('')
   const [clinic, setClinic] = useState({ clinic_name: '', operating_hours: '' })
   const [error, setError] = useState<string | null>(null)
+  // Commission counts toward the day the invoice was raised, and closing
+  // that day locks it (0020). Mirrored here so the box is not offered for a
+  // save the database will refuse.
+  const [commissionLocked, setCommissionLocked] = useState(false)
 
   const {
     register,
@@ -67,6 +73,11 @@ export default function InvoiceDetailPage() {
         // balance, and arriving from the payment queue they should not have
         // to read a figure off one part of the screen and type it into another.
         setValue('amount', owedText(inv))
+        // Not awaited with the rest: if this cannot be read the box stays
+        // offered, and the database still refuses a closed day's commission.
+        getClinicDay(toLocalDateString(new Date(inv.created_at)))
+          .then((day) => setCommissionLocked(day !== null))
+          .catch(() => {})
         const [patient, settings] = await Promise.all([
           getPatient(inv.patient_id),
           supabase.from('clinic_settings').select('clinic_name, operating_hours').eq('id', 1).maybeSingle(),
@@ -284,7 +295,8 @@ export default function InvoiceDetailPage() {
 
       <CommissionSection
         invoice={invoice}
-        canEdit={!isVoid && (staff?.role === 'receptionist' || staff?.role === 'admin')}
+        canEdit={!isVoid && !commissionLocked && (staff?.role === 'receptionist' || staff?.role === 'admin')}
+        locked={commissionLocked}
         onSaved={() => refresh(invoice.id)}
       />
 
@@ -308,10 +320,13 @@ export default function InvoiceDetailPage() {
 function CommissionSection({
   invoice,
   canEdit,
+  locked = false,
   onSaved,
 }: {
   invoice: InvoiceWithDetail
   canEdit: boolean
+  /** The clinic has been closed for the invoice's day. */
+  locked?: boolean
   onSaved: () => Promise<unknown>
 }) {
   const current = Number(invoice.commission_amount ?? 0)
@@ -367,7 +382,14 @@ function CommissionSection({
           </button>
         </form>
       ) : (
-        <p className="text-sm text-slate-700">{formatMoney(current)}</p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-slate-700">{formatMoney(current)}</p>
+          {locked && (
+            <p className="text-xs text-slate-500">
+              Locked — the clinic has been closed for this invoice's day.
+            </p>
+          )}
+        </div>
       )}
     </section>
   )

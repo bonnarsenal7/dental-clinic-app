@@ -13,6 +13,9 @@ vi.mock('./api', () => ({
 }))
 vi.mock('../../core/useRealtimeRefresh', () => ({ useRealtimeRefresh: vi.fn() }))
 vi.mock('../scheduling/api', () => ({ checkOutWithoutCharge: vi.fn() }))
+vi.mock('../dailyClose/DailyClosePanel', () => ({
+  default: () => <section aria-label="End of day">end of day</section>,
+}))
 
 const role = { current: 'admin' as 'admin' | 'dentist' | 'receptionist' }
 vi.mock('../auth/AuthContext', () => ({
@@ -84,6 +87,32 @@ describe('DashboardPage', () => {
     vi.mocked(api.listDentistDay).mockResolvedValue([])
     vi.mocked(api.listPaymentQueue).mockReset().mockResolvedValue([])
     vi.mocked(realtime.useRealtimeRefresh).mockClear()
+  })
+
+  describe('end of day', () => {
+    it.each(['receptionist', 'admin'] as const)(
+      'gives %s the expenses, salary and Close Clinic panel',
+      async (r) => {
+        role.current = r
+        renderPage()
+        expect(await screen.findByRole('region', { name: /end of day/i })).toBeInTheDocument()
+      },
+    )
+
+    // Colleagues' pay and the day's takings are not a dentist's to see.
+    it('keeps it off the dentist’s dashboard', async () => {
+      role.current = 'dentist'
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      expect(screen.queryByRole('region', { name: /end of day/i })).not.toBeInTheDocument()
+    })
+
+    it('sits below everything else on the dashboard', async () => {
+      role.current = 'receptionist'
+      renderPage()
+      const panel = await screen.findByRole('region', { name: /end of day/i })
+      expect(panel.parentElement!.lastElementChild).toBe(panel)
+    })
   })
 
   describe('awaiting payment', () => {

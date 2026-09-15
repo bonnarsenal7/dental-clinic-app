@@ -9,6 +9,7 @@ import { STATUS_LABELS, STATUS_STYLES } from '../scheduling/appointmentStatus'
 import { useRealtimeRefresh } from '../../core/useRealtimeRefresh'
 import { getDailySummary, listDentistDay, listPaymentQueue, listTodaysPatients } from './api'
 import type { DentistDayRow, TodaysPatient } from './api'
+import DailyClosePanel from '../dailyClose/DailyClosePanel'
 import PaymentQueue from './PaymentQueue'
 import type { PaymentQueueEntry } from './paymentQueueState'
 import StatTile from './StatTile'
@@ -334,6 +335,11 @@ export default function DashboardPage() {
           ))}
         </section>
       )}
+
+      {/* Below everything else: closing the day is the last thing the front
+          desk does, and its button should not sit anywhere a tap meant for
+          the queue could land. */}
+      {seesMoney && staff && <DailyClosePanel staff={staff} />}
     </div>
   )
 }
