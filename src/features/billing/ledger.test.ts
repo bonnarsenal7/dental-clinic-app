@@ -20,6 +20,7 @@ function invoice(partial: InvoiceFixture = {}): InvoiceWithDetail {
     visit_id: null,
     status: partial.status ?? 'unpaid',
     total_amount: 0,
+    commission_amount: 0,
     created_by: null,
     created_at: created,
     invoice_items: (partial.items ?? []).map(([amount, at], i) => ({

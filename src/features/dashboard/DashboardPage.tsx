@@ -6,8 +6,8 @@ import { ErrorState, LoadingState } from '../../core/components/states'
 import { formatMoney } from '../billing/ledger'
 import { collectAlerts } from '../patients/MedicalAlerts'
 import { STATUS_LABELS, STATUS_STYLES } from '../scheduling/appointmentStatus'
-import { getDailySummary, listTodaysPatients } from './api'
-import type { TodaysPatient } from './api'
+import { getDailySummary, listDentistDay, listTodaysPatients } from './api'
+import type { DentistDayRow, TodaysPatient } from './api'
 import StatTile from './StatTile'
 import type { DailySummary } from './types'
 
@@ -15,21 +15,33 @@ export default function DashboardPage() {
   const { staff } = useAuth()
   const [summary, setSummary] = useState<DailySummary | null>(null)
   const [todays, setTodays] = useState<TodaysPatient[]>([])
+  const [dentistDay, setDentistDay] = useState<DentistDayRow[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const isClinical = staff?.role === 'dentist' || staff?.role === 'admin'
+  const isDentist = staff?.role === 'dentist'
+  const staffId = staff?.id
+  const isClinical = isDentist || staff?.role === 'admin'
   const seesMoney = staff?.role === 'receptionist' || staff?.role === 'admin'
 
   const refresh = useCallback(async () => {
     setError(null)
     try {
-      const [s, t] = await Promise.all([getDailySummary(), listTodaysPatients()])
-      setSummary(s)
-      setTodays(t)
+      // A dentist sees only the patients booked with them; everyone else
+      // sees the clinic's whole day.
+      if (isDentist && staffId) {
+        const [s, d] = await Promise.all([getDailySummary(), listDentistDay(staffId)])
+        setSummary(s)
+        setDentistDay(d)
+        setTodays(d)
+      } else {
+        const [s, t] = await Promise.all([getDailySummary(), listTodaysPatients()])
+        setSummary(s)
+        setTodays(t)
+      }
     } catch (e) {
       setError(toMessage(e))
     }
-  }, [])
+  }, [isDentist, staffId])
 
   useEffect(() => {
     void refresh()
@@ -75,12 +87,14 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <Link
-          to="/schedule"
-          className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
-        >
-          Open schedule
-        </Link>
+        {!isDentist && (
+          <Link
+            to="/schedule"
+            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
+          >
+            Open schedule
+          </Link>
+        )}
       </div>
 
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
@@ -212,34 +226,81 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-700">Today's list</h2>
-        {todays.length === 0 && <p className="text-sm text-slate-400">Nothing booked today.</p>}
-        {todays.map((p) => (
-          <div
-            key={p.appointment_id}
-            className="flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-2"
-          >
-            <span className="text-sm text-slate-700">
-              <span className="tabular-nums text-slate-500">
-                {new Date(p.scheduled_at).toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </span>{' '}
-              <Link to={`/patients/${p.patient_id}`} className="hover:underline">
-                {p.name}
-              </Link>
-              {p.reason && <span className="text-slate-400"> · {p.reason}</span>}
-            </span>
-            <span
-              className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[p.status]}`}
+      {isDentist ? (
+        <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-slate-700">Today's Patient</h2>
+          {dentistDay.length === 0 ? (
+            <p className="text-sm text-slate-400">Nobody booked with you today.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-slate-500 text-xs uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left py-2 pr-3">Time</th>
+                    <th className="text-left py-2 pr-3">Patient Name</th>
+                    <th className="text-left py-2 pr-3">Treatment</th>
+                    <th className="text-right py-2 pr-3">Amount</th>
+                    <th className="text-right py-2">Commission</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dentistDay.map((p) => (
+                    <tr key={p.appointment_id} className="border-t border-slate-100">
+                      <td className="py-2 pr-3 tabular-nums text-slate-500">
+                        {new Date(p.scheduled_at).toLocaleTimeString([], {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-2 pr-3 text-slate-700">
+                        <Link to={`/patients/${p.patient_id}`} className="hover:underline">
+                          {p.name}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-3 text-slate-600">{p.treatment ?? '—'}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
+                        {p.amount === null ? '—' : formatMoney(p.amount)}
+                      </td>
+                      <td className="py-2 text-right tabular-nums text-slate-700">
+                        {formatMoney(p.commission)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-slate-700">Today's list</h2>
+          {todays.length === 0 && <p className="text-sm text-slate-400">Nothing booked today.</p>}
+          {todays.map((p) => (
+            <div
+              key={p.appointment_id}
+              className="flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-2"
             >
-              {STATUS_LABELS[p.status]}
-            </span>
-          </div>
-        ))}
-      </section>
+              <span className="text-sm text-slate-700">
+                <span className="tabular-nums text-slate-500">
+                  {new Date(p.scheduled_at).toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </span>{' '}
+                <Link to={`/patients/${p.patient_id}`} className="hover:underline">
+                  {p.name}
+                </Link>
+                {p.reason && <span className="text-slate-400"> · {p.reason}</span>}
+              </span>
+              <span
+                className={`text-xs uppercase tracking-wide border rounded-full px-2 py-0.5 ${STATUS_STYLES[p.status]}`}
+              >
+                {STATUS_LABELS[p.status]}
+              </span>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   )
 }

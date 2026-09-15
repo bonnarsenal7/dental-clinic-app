@@ -52,6 +52,9 @@ export interface Invoice {
   visit_id: string | null
   status: InvoiceStatus
   total_amount: number
+  /** The dentist's commission. Entered by reception through
+   *  `setInvoiceCommission` (0017) — no other role or path may change it. */
+  commission_amount: number
   created_by: string | null
   created_at: string
 }

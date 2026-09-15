@@ -95,6 +95,51 @@ describe('dashboard api', () => {
     expect(row.medical).toBeNull()
   })
 
+  it("scopes the dentist's day to their own bookings, without filtering by status", async () => {
+    db().queue('appointments', { data: [] })
+    await api.listDentistDay('d-1')
+    const q = db().query('appointments')!
+    expect(q.calls.filter((c) => c.method === 'eq')).toEqual([{ method: 'eq', args: ['dentist_id', 'd-1'] }])
+    expect(db().methods('appointments')).not.toContain('in')
+    expect(db().methods('appointments')).not.toContain('neq')
+    // Nothing billed yet, so no second round trip.
+    expect(db().query('invoices')).toBeUndefined()
+  })
+
+  it("reads amount and commission from the visit's live invoice", async () => {
+    db().queue('appointments', {
+      data: [
+        {
+          id: 'a-1',
+          patient_id: 'p-1',
+          scheduled_at: 'x',
+          status: 'completed',
+          reason: 'Cleaning',
+          visit_id: 'v-1',
+          procedures: { name: 'Oral prophylaxis' },
+          patients: { name: 'Maria', medical_histories: null },
+        },
+        {
+          id: 'a-2',
+          patient_id: 'p-2',
+          scheduled_at: 'y',
+          status: 'booked',
+          reason: 'Consult',
+          visit_id: null,
+          procedures: null,
+          patients: { name: 'Jose', medical_histories: null },
+        },
+      ],
+    })
+    db().queue('invoices', {
+      data: [{ visit_id: 'v-1', total_amount: '1200.00', commission_amount: '300.00' }],
+    })
+    const [billed, unbilled] = await api.listDentistDay('d-1')
+    expect(db().query('invoices')!.arg('neq', 1)).toBe('void')
+    expect(billed).toMatchObject({ treatment: 'Oral prophylaxis', amount: 1200, commission: 300 })
+    expect(unbilled).toMatchObject({ treatment: 'Consult', amount: null, commission: 0 })
+  })
+
   it('names a patient it could not resolve rather than rendering blank', async () => {
     db().queue('appointments', {
       data: [

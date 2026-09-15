@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { supabase } from '../../core/supabaseClient'
 import { getPatient } from '../patients/api'
-import { getInvoice, recordPayment, voidInvoice } from './api'
+import { getInvoice, recordPayment, setInvoiceCommission, voidInvoice } from './api'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import { downloadReceipt, receiptNumber } from './receiptPdf'
 import { toastSaved } from '../../core/components/ui/toast'
@@ -256,6 +256,12 @@ export default function InvoiceDetailPage() {
         </p>
       </section>
 
+      <CommissionSection
+        invoice={invoice}
+        canEdit={!isVoid && (staff?.role === 'receptionist' || staff?.role === 'admin')}
+        onSaved={() => refresh(invoice.id)}
+      />
+
       {staff?.role === 'admin' && !isVoid && (
         <button
           type="button"
@@ -266,5 +272,77 @@ export default function InvoiceDetailPage() {
         </button>
       )}
     </div>
+  )
+}
+
+/** The dentist's commission on this invoice. Reception enters it here; the
+ *  dentist reads it on their dashboard and cannot change it (0017). Separate
+ *  from the payment form because payments are append-only and commission is
+ *  one figure per invoice that may need correcting. */
+function CommissionSection({
+  invoice,
+  canEdit,
+  onSaved,
+}: {
+  invoice: InvoiceWithDetail
+  canEdit: boolean
+  onSaved: () => Promise<unknown>
+}) {
+  const current = Number(invoice.commission_amount ?? 0)
+  const [error, setError] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<{ commission: string }>({ defaultValues: { commission: String(current) } })
+
+  // Keep the box in step with what the database now holds.
+  useEffect(() => {
+    reset({ commission: String(current) })
+  }, [current, reset])
+
+  async function onSave(values: { commission: string }) {
+    const amount = Number(values.commission)
+    if (Number.isNaN(amount) || amount < 0) {
+      setError('Enter a commission of zero or more.')
+      return
+    }
+    setError(null)
+    try {
+      await setInvoiceCommission(invoice.id, amount)
+      await onSaved()
+      toastSaved('Commission saved', formatMoney(amount))
+    } catch (e) {
+      setError(toMessage(e))
+    }
+  }
+
+  return (
+    <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-slate-700">Dentist commission</h2>
+      {error && <ErrorState message={error} />}
+      {canEdit ? (
+        <form noValidate onSubmit={handleSubmit(onSave)} className="flex items-end gap-2 flex-wrap">
+          <Field label="Commission" error={errors.commission?.message}>
+            <TextInput
+              type="text"
+              inputMode="decimal"
+              {...register('commission', { required: 'Enter a commission (0 if none)' })}
+              className="w-32 text-right"
+            />
+          </Field>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800 disabled:opacity-50"
+          >
+            {isSubmitting ? 'Saving…' : 'Save commission'}
+          </button>
+        </form>
+      ) : (
+        <p className="text-sm text-slate-700">{formatMoney(current)}</p>
+      )}
+    </section>
   )
 }

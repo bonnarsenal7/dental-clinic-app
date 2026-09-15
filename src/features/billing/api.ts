@@ -269,6 +269,20 @@ export async function recordPayment(params: {
   if (error) throw new Error(error.message)
 }
 
+/** Sets the dentist's commission on an invoice.
+ *
+ *  An RPC rather than an update: reception has no update on `invoices`
+ *  (0013), and a policy granting one would hand them the total and status
+ *  along with it. `set_invoice_commission` (0017) writes that one column and
+ *  refuses anyone but reception or an admin. */
+export async function setInvoiceCommission(invoiceId: string, amount: number) {
+  const { error } = await supabase.rpc('set_invoice_commission', {
+    p_invoice_id: invoiceId,
+    p_amount: amount,
+  })
+  if (error) throw new Error(error.message)
+}
+
 // --- Pulling charted procedures -----------------------------------------
 
 /** The procedures charted at a visit that haven't been billed yet.

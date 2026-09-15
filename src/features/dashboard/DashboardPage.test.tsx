@@ -5,7 +5,7 @@ import DashboardPage from './DashboardPage'
 import type { DailySummary } from './types'
 import type { MedicalHistory } from '../patients/types'
 
-vi.mock('./api', () => ({ getDailySummary: vi.fn(), listTodaysPatients: vi.fn() }))
+vi.mock('./api', () => ({ getDailySummary: vi.fn(), listTodaysPatients: vi.fn(), listDentistDay: vi.fn() }))
 
 const role = { current: 'admin' as 'admin' | 'dentist' | 'receptionist' }
 vi.mock('../auth/AuthContext', () => ({
@@ -73,6 +73,70 @@ describe('DashboardPage', () => {
     role.current = 'admin'
     vi.mocked(api.getDailySummary).mockResolvedValue(summary())
     vi.mocked(api.listTodaysPatients).mockResolvedValue([])
+    vi.mocked(api.listDentistDay).mockResolvedValue([])
+  })
+
+  describe("the dentist's own day", () => {
+    const row = {
+      appointment_id: 'a1',
+      patient_id: 'p1',
+      name: 'Ricardo Bautista',
+      scheduled_at: '2026-09-11T01:30:00Z',
+      status: 'completed' as const,
+      reason: null,
+      medical: medical({}),
+      treatment: 'Composite filling',
+      amount: 1800,
+      commission: 0,
+    }
+
+    beforeEach(() => {
+      role.current = 'dentist'
+    })
+
+    it("asks only for the signed-in dentist's patients", async () => {
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      expect(api.listDentistDay).toHaveBeenCalledWith('s1')
+      expect(api.listTodaysPatients).not.toHaveBeenCalled()
+    })
+
+    it("titles the list Today's Patient, with the five columns in order", async () => {
+      vi.mocked(api.listDentistDay).mockResolvedValue([row])
+      renderPage()
+      expect(await screen.findByRole('heading', { name: "Today's Patient" })).toBeInTheDocument()
+      expect(screen.queryByText("Today's list")).not.toBeInTheDocument()
+      expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+        'Time',
+        'Patient Name',
+        'Treatment',
+        'Amount',
+        'Commission',
+      ])
+    })
+
+    it('shows the treatment, its amount, and a commission of zero until reception enters one', async () => {
+      vi.mocked(api.listDentistDay).mockResolvedValue([row])
+      renderPage()
+      const cells = (await screen.findAllByRole('row'))[1].querySelectorAll('td')
+      expect(cells[2]).toHaveTextContent('Composite filling')
+      expect(cells[3]).toHaveTextContent('₱1,800.00')
+      expect(cells[4]).toHaveTextContent('₱0.00')
+      // Read-only: nothing to type into on the dentist's side.
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    })
+
+    it('does not offer the schedule button', async () => {
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      expect(screen.queryByRole('link', { name: /open schedule/i })).not.toBeInTheDocument()
+    })
+  })
+
+  it('still offers the schedule button to reception', async () => {
+    role.current = 'receptionist'
+    renderPage()
+    expect(await screen.findByRole('link', { name: /open schedule/i })).toBeInTheDocument()
   })
 
   it('leads with the queue and the day', async () => {
@@ -250,9 +314,10 @@ describe('DashboardPage', () => {
       expect(screen.queryByText(/collected today/i)).not.toBeInTheDocument()
     })
 
+    // Scoped with the list: the alerts are for the dentist's own patients.
     it('shows the dentist the clinical alerts', async () => {
       role.current = 'dentist'
-      vi.mocked(api.listTodaysPatients).mockResolvedValue([
+      vi.mocked(api.listDentistDay).mockResolvedValue([
         {
           appointment_id: 'a1',
           patient_id: 'p1',
@@ -261,6 +326,9 @@ describe('DashboardPage', () => {
           status: 'booked',
           reason: null,
           medical: medical({ allergic_to_anesthesia: true }),
+          treatment: null,
+          amount: null,
+          commission: 0,
         },
       ])
       renderPage()

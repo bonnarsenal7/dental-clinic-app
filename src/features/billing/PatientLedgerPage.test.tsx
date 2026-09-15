@@ -27,6 +27,7 @@ function invoice(
     visit_id: null,
     status: status as InvoiceWithDetail['status'],
     total_amount: items.reduce((s, [a]) => s + a, 0),
+    commission_amount: 0,
     created_by: null,
     created_at: '2026-03-01T00:00:00Z',
     invoice_items: items.map(([amount, description], i) => ({

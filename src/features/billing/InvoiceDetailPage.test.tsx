@@ -9,6 +9,7 @@ vi.mock('./api', () => ({
   getInvoice: vi.fn(),
   recordPayment: vi.fn(),
   voidInvoice: vi.fn(),
+  setInvoiceCommission: vi.fn(),
 }))
 vi.mock('./receiptPdf', () => ({
   downloadReceipt: vi.fn(),
@@ -47,6 +48,7 @@ function invoice(partial: Partial<InvoiceWithDetail> = {}): InvoiceWithDetail {
     visit_id: 'visit-1',
     status: 'partial',
     total_amount: 3000,
+    commission_amount: 0,
     created_by: null,
     created_at: '2026-09-11T01:00:00Z',
     invoice_items: [
@@ -229,6 +231,55 @@ describe('InvoiceDetailPage', () => {
     )
     renderPage()
     expect(await screen.findAllByText(/-₱250\.00/)).not.toHaveLength(0)
+  })
+
+  describe('commission', () => {
+    it('lets reception enter the commission, starting from 0', async () => {
+      const user = userEvent.setup()
+      vi.mocked(api.setInvoiceCommission).mockResolvedValue(undefined)
+      renderPage()
+      await screen.findByText(/composite filling/i)
+      const box = screen.getByLabelText(/^commission/i)
+      expect(box).toHaveValue('0')
+      await user.clear(box)
+      await user.type(box, '250')
+      await user.click(screen.getByRole('button', { name: /save commission/i }))
+      await waitFor(() => expect(api.setInvoiceCommission).toHaveBeenCalledWith('inv-1', 250))
+      // Refetched so the box shows what the database now holds.
+      expect(api.getInvoice).toHaveBeenCalledTimes(2)
+    })
+
+    it('refuses a negative commission', async () => {
+      const user = userEvent.setup()
+      renderPage()
+      await screen.findByText(/composite filling/i)
+      const box = screen.getByLabelText(/^commission/i)
+      await user.clear(box)
+      await user.type(box, '-5')
+      await user.click(screen.getByRole('button', { name: /save commission/i }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(/zero or more/i)
+      expect(api.setInvoiceCommission).not.toHaveBeenCalled()
+    })
+
+    it('keeps the typed commission on screen when the save fails', async () => {
+      const user = userEvent.setup()
+      vi.mocked(api.setInvoiceCommission).mockRejectedValue(new TypeError('Failed to fetch'))
+      renderPage()
+      await screen.findByText(/composite filling/i)
+      const box = screen.getByLabelText(/^commission/i)
+      await user.clear(box)
+      await user.type(box, '250')
+      await user.click(screen.getByRole('button', { name: /save commission/i }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(/you're offline/i)
+      expect(box).toHaveValue('250')
+    })
+
+    it('is read-only on a void invoice', async () => {
+      vi.mocked(api.getInvoice).mockResolvedValue(invoice({ status: 'void', commission_amount: 100 }))
+      renderPage()
+      await screen.findByText(/composite filling/i)
+      expect(screen.queryByRole('button', { name: /save commission/i })).not.toBeInTheDocument()
+    })
   })
 
   it('says payments cannot be edited', async () => {
