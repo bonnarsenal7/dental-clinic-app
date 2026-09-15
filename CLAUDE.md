@@ -1688,9 +1688,11 @@ The front desk records the day's expenses and salary; at close of business
 **Close Clinic** freezes the day's figures into a report, downloads it as a
 PDF, and locks the day.
 
-`src/features/dailyClose/` — `DailyClosePanel` (the three sections and the
-button), `DailyEntryList` (rows, with admin edit/delete), `api.ts`,
-`reportSections.ts` (grouping, money for the PDF), `eodReportPdf.ts`.
+`src/features/dailyClose/` — `DailyClosePanel` (two sections — Daily
+expenses, and Daily salary & commission — then the Close Clinic button),
+`DailyEntryList` (rows, with admin edit/delete), `api.ts`,
+`reportSections.ts` (per-dentist pay merge, salary grouping, the shared
+commission label, money for the PDF), `eodReportPdf.ts`.
 
 ### What had to be built, because none of it existed
 - **No salary, expense or payroll data anywhere.** `staff` has no pay field.
