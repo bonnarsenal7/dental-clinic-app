@@ -48,9 +48,6 @@ export interface Recall {
   patient_id: string
   due_on: string
   reason: string
-  /** Null means a one-off (finish this root canal) rather than a repeating
-   *  hygiene recall. */
-  interval_months: number | null
   status: RecallStatus
   appointment_id: string | null
   created_by: string | null

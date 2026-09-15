@@ -12,12 +12,17 @@ import { toLocalDateString } from '../../core/localDate'
 
 interface RecallForm {
   reason: string
-  interval_months: string
+  /** YYYY-MM-DD, straight from the calendar. */
+  due_on: string
 }
 
-function addMonths(months: number): string {
+const DEFAULT_REASON = 'Six-month check-up and cleaning'
+
+/** The first day a recall may fall on. Local, not UTC: the clinic's evening
+ *  would otherwise already be "tomorrow". */
+function tomorrow(): string {
   const d = new Date()
-  d.setMonth(d.getMonth() + months)
+  d.setDate(d.getDate() + 1)
   return toLocalDateString(d)
 }
 
@@ -32,9 +37,9 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<RecallForm>({
-    defaultValues: { reason: 'Six-month check-up and cleaning', interval_months: '6' },
+    defaultValues: { reason: DEFAULT_REASON, due_on: '' },
   })
 
   const refresh = useCallback(async () => {
@@ -56,16 +61,13 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
     if (!staff) return
     setError(null)
     try {
-      const months = Number(values.interval_months)
       await createRecall({
         patientId,
-        dueOn: addMonths(months),
+        dueOn: values.due_on,
         reason: values.reason.trim() || 'Check-up',
-        // A repeating hygiene interval, as opposed to a one-off follow-up.
-        intervalMonths: months,
         staffId: staff.id,
       })
-      reset({ reason: 'Six-month check-up and cleaning', interval_months: '6' })
+      reset({ reason: DEFAULT_REASON, due_on: '' })
       await refresh()
     } catch (e) {
       setError(toMessage(e))
@@ -96,7 +98,7 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
 
       {booking && staff && canManageBookings(staff.role) && (
         <BookAppointmentForm
-          defaultDate={addMonths(0)}
+          defaultDate={toLocalDateString(new Date())}
           defaultPatientId={patientId}
           staffId={staff.id}
           onBooked={() => {
@@ -167,12 +169,24 @@ export default function PatientScheduling({ patientId }: { patientId: string }) 
 
         {/* Set at the end of an appointment, which is the only moment anyone
             reliably remembers to. */}
-        <form onSubmit={handleSubmit(onAddRecall)} className="flex items-end gap-2 flex-wrap mt-2">
+        <form noValidate onSubmit={handleSubmit(onAddRecall)} className="flex items-end gap-2 flex-wrap mt-2">
           <Field label="Set a recall" className="flex-1 min-w-[180px]">
             <TextInput {...register('reason')} />
           </Field>
-          <Field label="In months">
-            <TextInput type="number" min="1" max="60" {...register('interval_months')} className="w-24" />
+          {/* A native date input: on a tablet it opens the OS calendar, the
+              better touch target, and `min` greys out today and every day
+              before it. The rule below catches a date typed past the
+              calendar, and 0018 refuses one in the database. */}
+          <Field label="Recall date" error={errors.due_on?.message}>
+            <TextInput
+              type="date"
+              min={tomorrow()}
+              {...register('due_on', {
+                required: 'Choose a recall date.',
+                // YYYY-MM-DD compares correctly as a string.
+                validate: (v) => v >= tomorrow() || 'A recall date must be after today.',
+              })}
+            />
           </Field>
           <button
             type="submit"

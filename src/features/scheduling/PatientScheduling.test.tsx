@@ -1,7 +1,20 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { anAppointment } from '../../test/fixtures'
+import { toLocalDateString } from '../../core/localDate'
+
+/** A local calendar date `n` days from today. */
+function inDays(n: number) {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return toLocalDateString(d)
+}
+
+// user.type does not drive a date input; a change event is what the
+// calendar produces.
+const pickRecallDate = (value: string) =>
+  fireEvent.change(screen.getByLabelText(/recall date/i), { target: { value } })
 
 const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }))
 vi.mock('../auth/AuthContext', () => ({
@@ -79,22 +92,54 @@ describe('PatientScheduling', () => {
 
   // Recalls are set at the end of an appointment, which is the only moment
   // anyone reliably remembers to.
-  it('sets a repeating recall a whole number of months out', async () => {
+  it('saves the date picked on the calendar as the recall date', async () => {
     const user = userEvent.setup()
     render(<PatientScheduling patientId="p-1" />)
     await screen.findByText(/no recall set/i)
+    pickRecallDate(inDays(30))
     await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => expect(api.createRecall).toHaveBeenCalled())
     const call = vi.mocked(api.createRecall).mock.calls[0][0]
-    expect(call).toMatchObject({ patientId: 'p-1', intervalMonths: 6, staffId: 's-1' })
-    // A local calendar date, not a UTC one.
-    expect(call.dueOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    const expected = new Date()
-    expected.setMonth(expected.getMonth() + 6)
-    expect(call.dueOn.slice(0, 7)).toBe(
-      `${expected.getFullYear()}-${String(expected.getMonth() + 1).padStart(2, '0')}`,
-    )
+    expect(call).toEqual({
+      patientId: 'p-1',
+      dueOn: inDays(30),
+      reason: 'Six-month check-up and cleaning',
+      staffId: 's-1',
+    })
+  })
+
+  // `min` is what greys out today and the past in the calendar itself.
+  it('offers a calendar that starts tomorrow', async () => {
+    render(<PatientScheduling patientId="p-1" />)
+    await screen.findByText(/no recall set/i)
+    const input = screen.getByLabelText(/recall date/i)
+    expect(input).toHaveAttribute('type', 'date')
+    expect(input).toHaveAttribute('min', inDays(1))
+    expect(screen.queryByLabelText(/months/i)).not.toBeInTheDocument()
+  })
+
+  // A date can be typed past the calendar; today is not a recall.
+  it.each([
+    ['today', 0],
+    ['a past date', -7],
+  ])('refuses %s', async (_label, days) => {
+    const user = userEvent.setup()
+    render(<PatientScheduling patientId="p-1" />)
+    await screen.findByText(/no recall set/i)
+    pickRecallDate(inDays(days))
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
+    expect(await screen.findByText(/must be after today/i)).toBeInTheDocument()
+    expect(api.createRecall).not.toHaveBeenCalled()
+  })
+
+  it('asks for a date rather than saving a recall with none', async () => {
+    const user = userEvent.setup()
+    render(<PatientScheduling patientId="p-1" />)
+    await screen.findByText(/no recall set/i)
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
+    expect(await screen.findByText(/choose a recall date/i)).toBeInTheDocument()
+    expect(api.createRecall).not.toHaveBeenCalled()
   })
 
   // A recall with no reason is one nobody can action when it comes up.
@@ -103,6 +148,7 @@ describe('PatientScheduling', () => {
     render(<PatientScheduling patientId="p-1" />)
     await screen.findByText(/no recall set/i)
     await user.clear(screen.getByLabelText(/set a recall/i))
+    pickRecallDate(inDays(30))
     await user.click(screen.getByRole('button', { name: /^add$/i }))
     await waitFor(() => expect(api.createRecall).toHaveBeenCalled())
     expect(vi.mocked(api.createRecall).mock.calls[0][0].reason).toBe('Check-up')
@@ -133,6 +179,7 @@ describe('PatientScheduling', () => {
     vi.mocked(api.createRecall).mockRejectedValue(new Error('permission denied'))
     render(<PatientScheduling patientId="p-1" />)
     await screen.findByText(/no recall set/i)
+    pickRecallDate(inDays(30))
     await user.click(screen.getByRole('button', { name: /^add$/i }))
     expect(await screen.findByText(/permission denied/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument()

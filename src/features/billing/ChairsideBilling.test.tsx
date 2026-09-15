@@ -185,6 +185,19 @@ describe('ChairsideBilling', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/row-level security/i)
   })
 
+  it('puts the finish action directly beside Add to bill', async () => {
+    render(
+      <ChairsideBilling
+        patientId="p-1"
+        visitId="v-1"
+        staffId="s-1"
+        finishAction={<button type="button">Finish treatment</button>}
+      />,
+    )
+    const add = await screen.findByRole('button', { name: /add to bill/i })
+    expect(add.nextElementSibling).toBe(screen.getByRole('button', { name: /finish treatment/i }))
+  })
+
   // Whoever is billing needs to know the window closes.
   it('says the amounts are fixed once treatment is finished', async () => {
     renderPanel()

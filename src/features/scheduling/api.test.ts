@@ -65,6 +65,19 @@ describe('scheduling api', () => {
     expect(q.calls).toContainEqual({ method: 'eq', args: ['status', 'in_chair'] })
   })
 
+  // 0018 dropped interval_months. Writing it would fail against the live
+  // table, so the insert must carry the date and nothing interval-shaped.
+  it('saves a recall as its date alone', async () => {
+    sb.current!.queue('recalls', { data: { id: 'r-1' } })
+    await api.createRecall({ patientId: 'p-1', dueOn: '2027-03-01', reason: 'Check-up', staffId: 's-1' })
+    expect(sb.current!.query('recalls')!.payload).toEqual({
+      patient_id: 'p-1',
+      due_on: '2027-03-01',
+      reason: 'Check-up',
+      created_by: 's-1',
+    })
+  })
+
   it('embeds the patient, or the day sheet shows uuids', async () => {
     sb.current!.queue('appointments', { data: [] })
     await api.listAppointmentsForDay(new Date('2026-09-12T09:00:00'))

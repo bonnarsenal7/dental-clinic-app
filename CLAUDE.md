@@ -282,8 +282,9 @@ while the header said "ToothCo".
 ### Navigation shell
 Top nav bar (not a side rail) — chosen because a side rail eats
 horizontal space on a portrait-orientation tablet, which is how staff
-mostly hold them. Nav items are role-aware: `Staff` and `Clinic Settings`
-only render for `admin`.
+mostly hold them. Nav items are role-aware: `Staff`, `Clinic Settings`,
+`Audit Log` and `Charting` only render for `admin`, and a dentist's nav is
+`Dashboard` and `Patients` alone — see "The dentist's view" below.
 
 ### Folder structure additions
 ```
@@ -438,10 +439,11 @@ condition palette), `chartState.ts` (the fold), `types.ts`, `api.ts`,
 `ToothGlyph.tsx`, `Odontogram.tsx`, `ChartLegend.tsx`,
 `ToothDetailPanel.tsx`, `PatientChartPage.tsx`, `ChartingPage.tsx`.
 
-Routes: `/charting` (patient picker) and `/patients/:id/chart` (the chart),
-both wrapped in `ProtectedRoute allow={['dentist','admin']}` to match the
-RLS boundary on `tooth_records` — a receptionist never sees the nav item,
-the profile button, or the route.
+Routes: `/patients/:id/chart` (the chart) is wrapped in
+`ProtectedRoute allow={['dentist','admin']}` to match the RLS boundary on
+`tooth_records` — a receptionist never sees the profile button or the route.
+`/charting` (the every-patient picker) is **admin-only**: a dentist opens a
+chart from their own patient's record instead (see "The dentist's view").
 
 ### The chart is an append-only log, not a current-state table
 `tooth_records` is never updated in place: re-charting a tooth writes a new
@@ -1173,8 +1175,10 @@ change that.
 
 ## Billing lives in the patient's history, never in the chart
 
-`VisitBilling` renders inside `VisitTimeline`, under the visit it belongs
-to. A tooth chart records findings — what is there and what was done to it.
+`VisitTimeline` on the patient profile renders two sections: **Current
+visit** (the chairside panel, for any visit still open) and **Visit
+History** (the table of every visit and what it came to). A tooth chart
+records findings — what is there and what was done to it.
 What anybody was charged is a different question, and the chart does not
 raise it: **no section, no summary, no "view invoice" link, no import.**
 
@@ -1184,24 +1188,69 @@ test rather than a behavioural one because the thing being protected is an
 coming back. It fails on an import from billing, on the words invoice /
 billing / billable anywhere in the feature, and on an `/invoices/` path.
 
-### The panel is chosen by the invoice, not the role
-    no invoice, visit is today   the dentist's line-item entry
-    a draft                      the same, still editable
-    anything else                the bill, read-only, with what is owed
+### Current visit: open is decided by the invoice, not the role
+`isVisitOpen()` in `billing/visitHistory.ts`:
 
-Role only decides who may act, mirroring 0013: a dentist edits a draft and
-nobody else; reception takes payment and never edits. Reception is told a
-draft "is still being added to" rather than shown a total that may move.
+    no invoice, visit is today   open — the dentist's line-item entry
+    a draft                      open — the same, still editable
+    anything else                closed — the visit lives in the table only
+
+Role only decides who may act, mirroring 0013: a dentist or admin gets the
+panel; reception never does, and takes payment from the table instead.
 
 **Line entry is offered only on a visit dated today.** Offering it on a
 visit from six months ago would create a draft nothing can finish — "finish
 treatment" exists only on an appointment that is in the chair.
 
+**The panel waits for billing to load.** Until the invoices arrive an
+existing draft reads as "no invoice", and the panel would offer entry
+against a bill it cannot see — so it is not shown until they do.
+
+### Visit History is one row per visit
+Date / Treatment/Procedure / Amount / Paid / Balance, newest first, built by
+`buildVisitHistory()` and drawn by `VisitHistoryTable`.
+
+**Per visit, not per procedure, because payments are per invoice.** A
+payment is recorded against a whole invoice, never a line, so a per-line
+Paid or Balance does not exist to show. The visit's procedures share its
+Treatment cell, with the tooth where one was charted.
+
+- **Balance = Amount − Paid**, derived, never stored.
+- **A draft shows no money** — "still being billed", and no invoice link. A
+  total that may still move is not presented as what is owed, and reception
+  must not take money against it.
+- **A voided bill owes nothing** and says "voided". Where a visit has both,
+  the live invoice speaks for it, not a newer void (`invoicesByVisit()`).
+- **Never billed** reads "Nothing billed" with blank money, not ₱0.00 owed.
+
+Ten rows a page; **List all** grows the same table in place — no page, no
+modal — and folds back. Paging only appears past ten rows, and the page is
+clamped at render so a refresh that shortens the history cannot strand it.
+
+**The note is one tap away, not inline.** Tapping a row's date opens it: the
+dentist's note, Open invoice, and — for reception on a bill still owing —
+Accept payment. Five columns have no room for a note, and dropping past
+notes from the profile was not an option.
+
 **Visits and invoices are fetched separately, and must stay that way.**
 They were briefly loaded with one `Promise.all`, which meant a failed
-invoice query hid every clinical note the dentist had written. The history
-is the clinical record and renders whether or not billing loads; a test
-covers exactly that.
+invoice query hid every clinical note the dentist had written. The table
+still lists every visit, and opens onto its note, when billing fails — it
+says the amounts could not be loaded. A test covers exactly that.
+
+### `refresh` must be a stable callback
+`ChairsideBilling` reports its total from an effect that depends on
+`onTotalChange`, and that report refreshes `VisitTimeline`. The old
+`onChanged={() => void refresh()}` was a new function every render, so the
+effect re-ran every render: refresh, re-render, refresh — **a refetch loop
+for as long as a visit was open**, over clinic Wi-Fi. `refresh` is now a
+`useCallback` passed as-is.
+
+**The test for it has to return a fresh array per call.** With
+`mockResolvedValue`, every fetch resolved to the same array, React skipped
+the identical state update, and the loop never started — the test passed
+with the inline callback put back. It uses `mockImplementation` now, which
+is what a real network does, and fails when the callback is inlined.
 
 ## Chairside billing (0012, 0013)
 
@@ -1229,6 +1278,27 @@ app, so the buttons are a convenience and 0013 is the rule:
 
 `canRoleTransition()` mirrors that trigger so the UI does not offer a button
 the database is about to reject. **If one changes, change both.**
+
+### Finishing treatment lives on the patient's record
+`FinishTreatmentButton` (`src/features/scheduling/`) renders **directly
+beside Add to bill** in the Current visit panel, whenever that visit's
+appointment is `in_chair` and the role may finish it. `ChairsideBilling`
+takes it as a `finishAction` slot, so billing does not import scheduling.
+Beside a routine action it is one tap from a mis-tap, so it is styled
+`secondary` against Add to bill's primary and confirms before anything
+locks. It sits inside the line-entry form and is `type="button"`, so it
+never submits a line. It exists because dentists no longer see the
+schedule, which was the only place the action lived — and 0015 lets a
+dentist make **exactly one move**, `in_chair → pending_payment`. Without it
+a dentist could bill a visit and never lock it, and reception could never
+take the money. It confirms first, because it locks the bill and the note.
+
+**An unbilled visit goes to `pending_payment`, not `completed`.**
+`finishTreatment()` sends a visit with no draft straight to `completed`,
+which 0015 refuses a dentist. The button takes the one move they have, and
+reception checks the patient out from the counter. The schedule's own
+handler still calls `finishTreatment()` and so still has that bug; only an
+admin reaches it now, and an admin is allowed the move.
 
 ### Two things that look like details and are not
 **`refresh_invoice_totals` is SECURITY DEFINER.** Reception records a
@@ -1305,10 +1375,36 @@ separate field from `visit_notes`, which reception cannot see at all
 
 ### Recalls
 Their own table, because a patient can owe more than one return at once: a
-six-month hygiene recall *and* the second half of a root canal.
-`interval_months` null means a one-off follow-up rather than a repeating
-recall. Set from the patient profile at the end of an appointment, which is
-the only moment anyone reliably remembers to.
+six-month hygiene recall *and* the second half of a root canal. Set from the
+patient profile at the end of an appointment, which is the only moment
+anyone reliably remembers to.
+
+**A recall is a date, picked on a calendar (0018).** The profile used to
+ask "in how many months" and store both the computed `due_on` and
+`interval_months`. Nothing ever read the interval back, so it was a second
+copy of a decision that could only drift from the date; 0018 dropped the
+column at the clinic's request. Lost knowingly: whether an old recall was a
+repeating check-up or a one-off. No due date changed.
+
+**Only a day after today.** Three layers, each with a job:
+- the native `<input type="date" min={tomorrow}>` greys out today and the
+  past in the OS calendar — the better touch target on a tablet;
+- the form rule refuses a date typed past the calendar;
+- `recalls_future_due_on` refuses it in the database, for anything that is
+  not the form. Today is Asia/Manila's today.
+
+**A trigger, not a CHECK.** A check would be re-evaluated on every update,
+and overdue recalls are exactly the ones reception is working through —
+marking one `scheduled` or `completed` must not fail because its date has
+passed. The trigger only fires on an insert or a changed `due_on`.
+
+`scripts/seed-pilot-patients.sql` inserts overdue recalls on purpose, so it
+disables that trigger for its one insert, inside its transaction.
+
+**Deploy order: code before migration.** The previous build writes
+`interval_months` when a recall is saved; dropping the column under it
+breaks recall saving until the new code is live. The new code never writes
+it, so it works against the table either side of 0018.
 
 ### Dates are local, never UTC
 Day bounds and booking times are built from local date/time fields. Using
@@ -1347,11 +1443,36 @@ clinic ever opens elsewhere.
   and admin. Not the dentist.
 - **Clinical alerts for today's patients** — dentist and admin. Not
   reception, whose job is flow rather than clinical judgement.
-- Queue, schedule counts, and recalls — everyone.
+- Queue, schedule counts, and recalls — everyone. The tiles stay
+  **clinic-wide** for a dentist too (the view is not per-dentist), but for
+  them they are plain figures, not links: the schedule and recalls routes
+  refuse a dentist, so a link would bounce them straight back to `/`.
+- **Open schedule** button — reception and admin. Hidden from a dentist.
 
 This is a presentation split, not a security boundary: RLS already governs
 what each role can fetch. It is still tested, and mutation-tested — making
 `seesMoney` always true fails "does not show takings to the dentist".
+
+### A dentist's list is their own day
+Reception and admin see "Today's list" — the whole clinic, with status
+pills. A dentist sees **"Today's Patient"** instead: `listDentistDay()`
+filters today's appointments by `dentist_id`, in **every** status (finished
+and cancelled included — it is their record of the day, not a queue), as a
+table of Time, Patient Name, Treatment, Amount, Commission.
+
+- **Treatment** is the booked procedure's name, else the booking's reason.
+- **Amount** is the visit's invoice total, void excluded, fetched in one
+  second query rather than one per row. `—` until an invoice exists.
+- **Commission** is `invoices.commission_amount`, read-only here and `0`
+  until reception enters it (see "The dentist's view").
+
+The medical alerts panel reads the same list, so a dentist is warned about
+**their own** patients only. A dentist covering for a colleague will not
+see that colleague's patients flagged here.
+
+The dentist filter is a presentation scope — a dentist can still read every
+appointment (0015: they must see the whole diary to tell who is waiting).
+Removing the `dentist_id` filter fails a test; that was mutation-checked.
 
 ### The alerts panel repeats the chart's warning on purpose
 The chart warns the dentist who is already treating someone. The dashboard
@@ -1362,6 +1483,77 @@ that makes the real warnings easier to skip past.
 Numeric columns are coerced with `Number()` everywhere: PostgREST returns
 Postgres `numeric` as a string often enough that naive arithmetic would
 render `NaN` or concatenate two totals.
+
+## The dentist's view
+
+A dentist works from the dashboard and their own patients' records. The
+diary, billing and registration are the front desk's.
+
+### Screens and routes
+A dentist's nav is `Dashboard` and `Patients`. Hiding a link is not enough
+on its own, so `App.tsx` refuses them too:
+
+    receptionist, admin   /schedule  /recalls  /billing  /patients/new
+    admin                 /charting  /billing/prices  /admin/*
+    dentist, admin        /patients/:id/chart
+
+A refused route sends them to `/`. `AppShell.test.tsx` pins the nav per
+role; `AppShell` and `App.tsx` must agree, or a dentist gets a link that
+bounces.
+
+### A dentist sees only their own patients — on screen
+"Their own" means **the patient has at least one appointment booked with
+them, past or future**. The same rule is applied in two places:
+
+- `searchPatients(query, dentistId)` — an `appointments!inner(dentist_id)`
+  embed filtered by `appointments.dentist_id`. **`!inner` is the filter**:
+  without it the embed only attaches appointments and every patient still
+  comes back, so the list looks scoped and is not. The join column is
+  stripped from what is returned.
+- `AssignedPatientRoute` — a layout route around every `/patients/:id/…`
+  screen (profile, edit, chart, ledger, new invoice). For a dentist it asks
+  `isAssignedToDentist()` first and renders "This patient isn't assigned to
+  you" rather than the screen. **The screen does not mount until the check
+  answers**, so another dentist's patient is never fetched by it or logged
+  as viewed. Other roles pass straight through.
+
+**This is a screen scope, not RLS — by the clinic's choice.** Row-level
+security would have hidden the records from a dentist covering for a
+colleague, and from a walk-in charted before reception booked them. So the
+database still lets a dentist read any patient. Don't describe it as a
+security boundary, and don't "fix" it with a policy without asking.
+
+Two consequences, both known:
+- **A walk-in** with no booking against the dentist does not appear in their
+  list until reception books them.
+- **`/invoices/:id` is not scoped** — its URL does not name the patient.
+
+**Register patient is hidden from a dentist** and the route refuses them.
+A patient a dentist registered would have no booking with them, so it would
+vanish from their own list the moment it was saved.
+
+Mutation-checked: letting an unassigned patient through, and dropping the
+`dentist_id` filter from the search, each fail a test.
+
+### Commission (0017)
+`invoices.commission_amount`, `numeric(12,2)`, `>= 0`, default `0`.
+Reception enters it on the invoice screen (`InvoiceDetailPage`, the
+"Dentist commission" box); a dentist reads it on their dashboard and cannot
+change it.
+
+It lives on the invoice because that is the one row per visit already
+carrying the amount it is a share of. **Reception writes it through
+`set_invoice_commission()`, never an update.** Reception has no update on
+`invoices` (0013), and a policy granting one would hand them the total and
+the status along with it. The function is `SECURITY DEFINER`, sets that one
+column, allows only receptionist/admin, and refuses a negative amount or a
+void invoice. A guard trigger (`invoices_guard_commission`) stops any other
+role changing the column by the ordinary update path a dentist still has on
+a draft.
+
+It is its own form with its own Save, not part of Record payment: payments
+are append-only, and commission is one figure per invoice that may need
+correcting. 0006's audit trigger already records every change to it.
 
 ## Test environment gotchas
 
@@ -1636,7 +1828,8 @@ shell warms the handful of routes that role opens first — five at most.
 Warming everything would put the bundle back on the wire and undo the
 split. Reception gets the invoice screen warmed because it drags in the PDF
 stack, the worst thing to wait for with a patient at the desk; a dentist
-does not, and gets the chart instead.
+does not, and gets the chart instead. A dentist does not warm the schedule
+either — their nav does not offer it and the route refuses them.
 
 It skips entirely when `navigator.connection.saveData` is set: these
 tablets sometimes fall back to a phone hotspot, and speculatively pulling

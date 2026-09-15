@@ -104,9 +104,11 @@ A PDF with the clinic's name and hours, the procedures and teeth treated,
 the total, what has been paid, and the balance outstanding.
 
 ### 11. Set the recall — *reception or dentist*
-Set the next due date before the patient leaves — the only moment anyone
-reliably remembers. Six months for a hygiene recall, or a one-off date to
-finish a root canal. A patient can carry more than one at a time.
+Pick the next due date on the calendar before the patient leaves — the only
+moment anyone reliably remembers. Six months out for a hygiene recall, or
+whichever day the root canal should be finished. Only days after today can
+be picked, and the database refuses anything else. A patient can carry more
+than one at a time.
 
 **Automatic:** recalls surface on the Recalls list and the Dashboard once
 due. Booking from there returns to step 3 with the patient already chosen,

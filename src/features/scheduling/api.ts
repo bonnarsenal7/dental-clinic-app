@@ -233,11 +233,13 @@ export async function listPatientRecalls(patientId: string): Promise<Recall[]> {
   return data as Recall[]
 }
 
+/** A recall is the date chosen on the profile's calendar — nothing else.
+ *  0018 dropped the interval that used to travel with it, and refuses a date
+ *  that is not after today. */
 export async function createRecall(params: {
   patientId: string
   dueOn: string
   reason: string
-  intervalMonths: number | null
   staffId: string
 }): Promise<Recall> {
   const { data, error } = await supabase
@@ -246,7 +248,6 @@ export async function createRecall(params: {
       patient_id: params.patientId,
       due_on: params.dueOn,
       reason: params.reason,
-      interval_months: params.intervalMonths,
       created_by: params.staffId,
     })
     .select()

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
@@ -38,12 +39,18 @@ export default function ChairsideBilling({
   visitId,
   staffId,
   onTotalChange,
+  finishAction,
 }: {
   patientId: string
   visitId: string
   staffId: string
-  /** So the "finish treatment" action knows whether there is a bill. */
+  /** So the "finish treatment" action knows whether there is a bill. Must be
+   *  a stable function: it is an effect dependency below, and a new one each
+   *  render re-reports on every render. */
   onTotalChange?: (invoice: DraftInvoice | null) => void
+  /** Rendered directly beside Add to bill. A slot rather than an import, so
+   *  billing does not reach into scheduling for the action. */
+  finishAction?: ReactNode
 }) {
   const [invoice, setInvoice] = useState<DraftInvoice | null>(null)
   const [procedures, setProcedures] = useState<Procedure[]>([])
@@ -168,7 +175,7 @@ export default function ChairsideBilling({
   return (
     <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
       <div>
-        <h2 className="text-sm font-semibold text-slate-700">Billing for this visit</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Current visit</h2>
         <p className="text-xs text-slate-400 mt-1">
           Add what you do as you do it. Nothing is charged until you finish treatment — after that the amounts
           are fixed, and only an admin can change them.
@@ -275,9 +282,15 @@ export default function ChairsideBilling({
           </Field>
         </div>
 
-        <Button type="submit" disabled={busy} className="self-start">
-          {busy ? 'Adding…' : 'Add to bill'}
-        </Button>
+        {/* Finish treatment sits directly beside Add to bill, at the
+            clinic's request. It is irreversible and one tap away from a
+            routine action, so it is styled apart and confirms first. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button type="submit" disabled={busy}>
+            {busy ? 'Adding…' : 'Add to bill'}
+          </Button>
+          {finishAction}
+        </div>
       </form>
     </section>
   )

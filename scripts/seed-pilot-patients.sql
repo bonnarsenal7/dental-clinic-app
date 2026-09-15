@@ -298,15 +298,24 @@ from sched_actors, (values
 ) as v(pid, at, mins, reason);
 
 -- A mix of overdue and upcoming, so the recall horizons all show something.
-insert into recalls (patient_id, due_on, reason, interval_months, created_by)
-select v.pid::uuid, (current_date + v.days)::date, v.reason, v.months, sched_actors.dentist
+--
+-- 0018 refuses a recall dated today or earlier, which is right for anything
+-- the clinic writes — but overdue recalls are exactly what this fixture has
+-- to produce. The guard is switched off for this one insert, inside this
+-- transaction, and back on before it commits.
+alter table recalls disable trigger recalls_future_due_on;
+
+insert into recalls (patient_id, due_on, reason, created_by)
+select v.pid::uuid, (current_date + v.days)::date, v.reason, sched_actors.dentist
 from sched_actors, (values
-  ('5eed0001-0000-4000-8000-000000000001', -45,'Six-month check-up and cleaning', 6),
-  ('5eed0004-0000-4000-8000-000000000004', -12,'Review healing after extraction', null),
-  ('5eed0009-0000-4000-8000-000000000009',  -3,'Six-month check-up and cleaning', 6),
-  ('5eed0006-0000-4000-8000-000000000006',  14,'Nightguard review',               null),
-  ('5eed0003-0000-4000-8000-000000000003',  60,'Six-month check-up and cleaning', 6)
-) as v(pid, days, reason, months);
+  ('5eed0001-0000-4000-8000-000000000001', -45,'Six-month check-up and cleaning'),
+  ('5eed0004-0000-4000-8000-000000000004', -12,'Review healing after extraction'),
+  ('5eed0009-0000-4000-8000-000000000009',  -3,'Six-month check-up and cleaning'),
+  ('5eed0006-0000-4000-8000-000000000006',  14,'Nightguard review'),
+  ('5eed0003-0000-4000-8000-000000000003',  60,'Six-month check-up and cleaning')
+) as v(pid, days, reason);
+
+alter table recalls enable trigger recalls_future_due_on;
 
 commit;
 

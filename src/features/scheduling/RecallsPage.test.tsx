@@ -19,7 +19,6 @@ function recall(id: string, dueOffsetDays: number, name = 'Maria Clara Santos') 
     patient_id: `pat-${id}`,
     due_on: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
     reason: 'Six-month check-up and cleaning',
-    interval_months: 6,
     status: 'due' as const,
     appointment_id: null,
     created_by: null,

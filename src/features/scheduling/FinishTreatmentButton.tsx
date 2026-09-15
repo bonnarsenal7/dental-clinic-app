@@ -10,13 +10,15 @@ import { canRoleTransition } from './appointmentStatus'
 import { findInChairAppointmentForVisit, finishTreatment, setAppointmentStatus } from './api'
 import type { Appointment } from './types'
 
-/** "Finish treatment", on the patient's own record.
+/** "Finish treatment", on the patient's own record, beside Add to bill.
  *
  *  It used to exist only on the schedule, which dentists no longer see. The
  *  database lets a dentist make exactly one move on an appointment —
  *  in_chair to pending_payment (0015) — so without this a dentist could bill
  *  a visit and never lock it, and reception could never take the money.
  *
+ *  Just the button and its confirmation: it sits inside the line-entry form,
+ *  so it is `type="button"` (Button's default) and never submits a line.
  *  Renders nothing unless this visit's appointment is actually in the chair
  *  and the signed-in role may finish it. */
 export default function FinishTreatmentButton({
@@ -74,19 +76,20 @@ export default function FinishTreatmentButton({
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-slate-200 bg-white px-6 py-4">
-      <p className="text-sm text-slate-600">
-        This patient is in the chair. Finishing sends them to reception.
-      </p>
-      <Button onClick={() => setOpen(true)}>Finish treatment</Button>
+    <>
+      {/* Secondary, beside the primary Add to bill: the two do very
+          different things, and should not look like the same control. */}
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Finish treatment
+      </Button>
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
         title="Finish treatment?"
-        description="The bill and the note for this visit lock once you finish. Only an admin can change them afterwards."
+        description="The patient goes to reception, and the bill and the note for this visit lock. Only an admin can change them afterwards."
         confirmLabel="Finish treatment"
         onConfirm={onConfirm}
       />
-    </div>
+    </>
   )
 }
