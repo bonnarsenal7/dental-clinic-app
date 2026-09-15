@@ -78,6 +78,44 @@ describe('patients api', () => {
     expect(db().query('patients')!.arg('or')).toContain('%santos%')
   })
 
+  // --- A dentist's own patients -------------------------------------------
+
+  // Without !inner the embed only attaches appointments and every patient
+  // still comes back — the list would look scoped and not be.
+  it("scopes a dentist's search through an inner join on their bookings", async () => {
+    db().queue('patients', { data: [] })
+    await api.searchPatients('', 'd-1')
+    const q = db().query('patients')!
+    expect(q.arg('select')).toBe('*, appointments!inner(dentist_id)')
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['appointments.dentist_id', 'd-1'] })
+  })
+
+  it('leaves the clinic-wide search unjoined', async () => {
+    db().queue('patients', { data: [] })
+    await api.searchPatients('')
+    expect(db().query('patients')!.arg('select')).toBe('*')
+    expect(db().methods('patients')).not.toContain('eq')
+  })
+
+  it('strips the join column from the patients it returns', async () => {
+    db().queue('patients', { data: [{ id: 'p-1', name: 'Maria', appointments: [{ dentist_id: 'd-1' }] }] })
+    const [patient] = await api.searchPatients('', 'd-1')
+    expect(patient).toEqual({ id: 'p-1', name: 'Maria' })
+  })
+
+  it('counts a patient as assigned when any booking names the dentist', async () => {
+    db().queue('appointments', { data: [{ id: 'a-1' }] })
+    expect(await api.isAssignedToDentist('p-1', 'd-1')).toBe(true)
+    const q = db().query('appointments')!
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['patient_id', 'p-1'] })
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['dentist_id', 'd-1'] })
+  })
+
+  it('does not count a patient never booked with the dentist', async () => {
+    db().queue('appointments', { data: [] })
+    expect(await api.isAssignedToDentist('p-1', 'd-1')).toBe(false)
+  })
+
   // --- Blank fields are null, not "" --------------------------------------
 
   // The intake form is mostly optional and every field arrives as a string.

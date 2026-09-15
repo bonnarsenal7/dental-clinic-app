@@ -36,7 +36,8 @@ export const routeChunks = {
  *  for with a patient standing at the desk. */
 const WARM_BY_ROLE: Record<StaffRole, (keyof typeof routeChunks)[]> = {
   receptionist: ['schedule', 'patients', 'patientProfile', 'patientLedger', 'invoiceDetail'],
-  dentist: ['schedule', 'patients', 'patientProfile', 'patientChart'],
+  // No schedule: a dentist's nav does not offer it, and the route refuses them.
+  dentist: ['patients', 'patientProfile', 'patientChart'],
   admin: ['schedule', 'patients', 'patientProfile', 'patientChart', 'patientLedger'],
 }
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { StaffRole } from '../auth/types'
+import FinishTreatmentButton from '../scheduling/FinishTreatmentButton'
 import ChairsideBilling from './ChairsideBilling'
 import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
 import type { InvoiceWithDetail } from './types'
@@ -63,7 +64,17 @@ export default function VisitBilling({
 
   if (canBill && stillOpen) {
     return (
-      <ChairsideBilling patientId={patientId} visitId={visitId} staffId={staffId} onTotalChange={onChanged} />
+      <>
+        <ChairsideBilling
+          patientId={patientId}
+          visitId={visitId}
+          staffId={staffId}
+          onTotalChange={onChanged}
+        />
+        {/* Beside the bill it locks. Dentists no longer see the schedule,
+            which is where this used to be the only way to finish. */}
+        <FinishTreatmentButton visitId={visitId} staffId={staffId} role={role} onFinished={onChanged} />
+      </>
     )
   }
 

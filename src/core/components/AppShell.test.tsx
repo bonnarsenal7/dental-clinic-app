@@ -148,8 +148,20 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: /charting/i })).not.toBeInTheDocument()
   })
 
-  it('shows charting to a dentist', () => {
+  // A dentist works from the dashboard and their own patients' records. The
+  // diary and billing are the front desk's, and a chart is opened from the
+  // patient rather than picked from the whole clinic.
+  it('hides schedule, charting and billing from a dentist', () => {
     renderShell('dentist')
+    for (const name of [/schedule/i, /charting/i, /billing/i]) {
+      expect(screen.queryByRole('link', { name })).not.toBeInTheDocument()
+    }
+    expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /patients/i })).toBeInTheDocument()
+  })
+
+  it('still shows charting to an admin', () => {
+    renderShell('admin')
     expect(screen.getByRole('link', { name: /charting/i })).toBeInTheDocument()
   })
 
@@ -167,15 +179,12 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: /audit log/i })).toBeInTheDocument()
   })
 
-  it.each(['receptionist', 'dentist', 'admin'] as const)(
-    'gives every role the day-to-day screens (%s)',
-    (role) => {
-      renderShell(role)
-      for (const name of [/dashboard/i, /schedule/i, /patients/i, /billing/i]) {
-        expect(screen.getByRole('link', { name })).toBeInTheDocument()
-      }
-    },
-  )
+  it.each(['receptionist', 'admin'] as const)('gives the front desk the day-to-day screens (%s)', (role) => {
+    renderShell(role)
+    for (const name of [/dashboard/i, /schedule/i, /patients/i, /billing/i]) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument()
+    }
+  })
 
   it('renders nothing at all when nobody is signed in', () => {
     auth.staff = null

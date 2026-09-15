@@ -21,6 +21,10 @@ export default function DashboardPage() {
   const isDentist = staff?.role === 'dentist'
   const staffId = staff?.id
   const isClinical = isDentist || staff?.role === 'admin'
+  // The schedule and recalls refuse a dentist (App.tsx), so their tiles stay
+  // plain figures rather than links that bounce straight back here.
+  const scheduleLink = isDentist ? undefined : '/schedule'
+  const recallsLink = isDentist ? undefined : '/recalls'
   const seesMoney = staff?.role === 'receptionist' || staff?.role === 'admin'
 
   const refresh = useCallback(async () => {
@@ -150,21 +154,26 @@ export default function DashboardPage() {
               ? `longest wait ${n(summary.longest_wait_minutes)} min`
               : 'nobody waiting'
           }
-          to="/schedule"
+          to={scheduleLink}
           tone={n(summary.longest_wait_minutes) >= 20 ? 'attention' : 'neutral'}
         />
         <StatTile
           label="Still to come"
           value={n(summary.still_to_come)}
           hint={`${n(summary.appointments_today)} booked today`}
-          to="/schedule"
+          to={scheduleLink}
         />
-        <StatTile label="Completed" value={n(summary.completed_today)} hint="treated today" to="/schedule" />
+        <StatTile
+          label="Completed"
+          value={n(summary.completed_today)}
+          hint="treated today"
+          to={scheduleLink}
+        />
         <StatTile
           label="No-shows"
           value={n(summary.no_shows_today)}
           hint={n(summary.cancelled_today) > 0 ? `${n(summary.cancelled_today)} cancelled` : 'none today'}
-          to="/schedule"
+          to={scheduleLink}
           tone={n(summary.no_shows_today) > 0 ? 'attention' : 'neutral'}
         />
       </section>
@@ -214,14 +223,14 @@ export default function DashboardPage() {
             label="Overdue"
             value={n(summary.recalls_overdue)}
             hint="patients past due to come back"
-            to="/recalls"
+            to={recallsLink}
             tone={n(summary.recalls_overdue) > 0 ? 'attention' : 'neutral'}
           />
           <StatTile
             label="Due within 30 days"
             value={n(summary.recalls_due_soon)}
             hint="worth booking now"
-            to="/recalls"
+            to={recallsLink}
           />
         </div>
       </section>

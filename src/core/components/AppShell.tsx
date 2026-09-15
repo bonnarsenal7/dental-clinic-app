@@ -87,20 +87,28 @@ export default function AppShell() {
             <NavLink to="/" end className={navLinkClass}>
               Dashboard
             </NavLink>
-            <NavLink to="/schedule" className={navLinkClass}>
-              Schedule
-            </NavLink>
+            {/* A dentist works from the dashboard and their own patients'
+                records: the diary and billing are the front desk's, and a
+                chart is opened from the patient rather than picked from
+                everyone. The routes refuse them too (App.tsx). */}
+            {staff.role !== 'dentist' && (
+              <NavLink to="/schedule" className={navLinkClass}>
+                Schedule
+              </NavLink>
+            )}
             <NavLink to="/patients" className={navLinkClass}>
               Patients
             </NavLink>
-            {staff.role !== 'receptionist' && (
+            {staff.role === 'admin' && (
               <NavLink to="/charting" className={navLinkClass}>
                 Charting
               </NavLink>
             )}
-            <NavLink to="/billing" className={navLinkClass}>
-              Billing
-            </NavLink>
+            {staff.role !== 'dentist' && (
+              <NavLink to="/billing" className={navLinkClass}>
+                Billing
+              </NavLink>
+            )}
             {staff.role === 'admin' && (
               <>
                 <NavLink to="/admin/staff" className={navLinkClass}>

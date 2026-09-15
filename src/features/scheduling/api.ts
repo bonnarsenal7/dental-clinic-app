@@ -36,6 +36,20 @@ export async function getAppointment(id: string): Promise<Appointment> {
   return data as Appointment
 }
 
+/** The appointment for a visit that is in the chair right now, if any —
+ *  what "Finish treatment" on the patient's record acts on. */
+export async function findInChairAppointmentForVisit(visitId: string): Promise<Appointment | null> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('visit_id', visitId)
+    .eq('status', 'in_chair')
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Appointment | null) ?? null
+}
+
 export async function listPatientAppointments(patientId: string): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')

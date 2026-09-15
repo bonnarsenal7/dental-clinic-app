@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PatientsPage from './PatientsPage'
 
 vi.mock('./api', () => ({ searchPatients: vi.fn() }))
+const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }))
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ staff: { id: 's-1', name: 'Test', role: auth.role } }),
+}))
 const api = await import('./api')
 
 const PATIENTS = [
@@ -33,7 +37,33 @@ const renderPage = () =>
 
 describe('PatientsPage', () => {
   beforeEach(() => {
-    vi.mocked(api.searchPatients).mockResolvedValue(PATIENTS as never)
+    auth.role = 'receptionist'
+    vi.mocked(api.searchPatients)
+      .mockReset()
+      .mockResolvedValue(PATIENTS as never)
+  })
+
+  it('searches the whole clinic for reception', async () => {
+    renderPage()
+    await screen.findByRole('link', { name: /angelica/i })
+    expect(api.searchPatients).toHaveBeenCalledWith('', undefined)
+  })
+
+  // A dentist's list is their own patients — anyone booked with them.
+  it("scopes a dentist's list to their own patients", async () => {
+    auth.role = 'dentist'
+    renderPage()
+    await screen.findByRole('link', { name: /angelica/i })
+    expect(api.searchPatients).toHaveBeenCalledWith('', 's-1')
+  })
+
+  // Registration is the front desk's, and a patient a dentist registered
+  // would not be booked with them — so it would vanish from their own list.
+  it('does not offer registration to a dentist', async () => {
+    auth.role = 'dentist'
+    renderPage()
+    await screen.findByRole('link', { name: /angelica/i })
+    expect(screen.queryByRole('link', { name: /register patient/i })).not.toBeInTheDocument()
   })
 
   it('lists patients with a link into each record', async () => {
@@ -50,7 +80,7 @@ describe('PatientsPage', () => {
     await screen.findByRole('link', { name: /angelica/i })
     vi.mocked(api.searchPatients).mockClear()
     await user.type(screen.getByPlaceholderText(/search name or contact/i), 'dela')
-    await waitFor(() => expect(api.searchPatients).toHaveBeenCalledWith('dela'))
+    await waitFor(() => expect(api.searchPatients).toHaveBeenCalledWith('dela', undefined))
     expect(vi.mocked(api.searchPatients).mock.calls.length).toBeLessThan(4)
   })
 

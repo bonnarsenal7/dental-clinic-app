@@ -131,6 +131,16 @@ describe('DashboardPage', () => {
       await screen.findByText(/in the clinic/i)
       expect(screen.queryByRole('link', { name: /open schedule/i })).not.toBeInTheDocument()
     })
+
+    // The schedule and recalls routes refuse a dentist, so a tile linking
+    // there would bounce them straight back to this page.
+    it('keeps the tiles as figures rather than links into screens a dentist cannot open', async () => {
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      const hrefs = screen.queryAllByRole('link').map((a) => a.getAttribute('href'))
+      expect(hrefs).not.toContain('/schedule')
+      expect(hrefs).not.toContain('/recalls')
+    })
   })
 
   it('still offers the schedule button to reception', async () => {

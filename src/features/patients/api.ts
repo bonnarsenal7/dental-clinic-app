@@ -19,15 +19,43 @@ function toNullableString(v: string): string | null {
   return v.trim() === '' ? null : v
 }
 
-export async function searchPatients(query: string): Promise<Patient[]> {
-  let q = supabase.from('patients').select('*').order('created_at', { ascending: false })
+/** `dentistId` narrows the list to that dentist's patients: anyone with at
+ *  least one appointment booked with them, past or future.
+ *
+ *  A screen scope, not a security boundary — RLS still lets a dentist read
+ *  every patient. The inner join makes the embed a filter rather than an
+ *  attachment, and PostgREST still returns each patient once. */
+export async function searchPatients(query: string, dentistId?: string): Promise<Patient[]> {
+  let q = supabase
+    .from('patients')
+    .select(dentistId ? '*, appointments!inner(dentist_id)' : '*')
+    .order('created_at', { ascending: false })
+  if (dentistId) q = q.eq('appointments.dentist_id', dentistId)
   if (query.trim()) {
     const term = query.trim()
     q = q.or(`name.ilike.%${term}%,cell_number.ilike.%${term}%,phone_number.ilike.%${term}%`)
   }
   const { data, error } = await q.limit(100)
   if (error) throw new Error(error.message)
-  return data as Patient[]
+  // The join column is how the filter works, not part of a patient.
+  return ((data ?? []) as unknown as (Patient & { appointments?: unknown })[]).map((row) => {
+    const patient = { ...row }
+    delete patient.appointments
+    return patient as Patient
+  })
+}
+
+/** Whether a patient has ever been booked with this dentist — the same rule
+ *  `searchPatients` scopes a dentist's list by. */
+export async function isAssignedToDentist(patientId: string, dentistId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id')
+    .eq('patient_id', patientId)
+    .eq('dentist_id', dentistId)
+    .limit(1)
+  if (error) throw new Error(error.message)
+  return (data ?? []).length > 0
 }
 
 export async function getPatient(id: string): Promise<Patient> {

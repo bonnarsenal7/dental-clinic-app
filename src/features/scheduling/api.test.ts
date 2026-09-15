@@ -55,6 +55,16 @@ describe('scheduling api', () => {
     expect(sb.current!.query('appointments')!.arg('order', 1)).toEqual({ ascending: true })
   })
 
+  // "Finish treatment" on the patient's record acts on this. An appointment
+  // for the visit that is not in the chair must not be offered as finishable.
+  it('finds the visit appointment only while it is in the chair', async () => {
+    sb.current!.queue('appointments', { data: null })
+    expect(await api.findInChairAppointmentForVisit('v-1')).toBeNull()
+    const q = sb.current!.query('appointments')!
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['visit_id', 'v-1'] })
+    expect(q.calls).toContainEqual({ method: 'eq', args: ['status', 'in_chair'] })
+  })
+
   it('embeds the patient, or the day sheet shows uuids', async () => {
     sb.current!.queue('appointments', { data: [] })
     await api.listAppointmentsForDay(new Date('2026-09-12T09:00:00'))

@@ -20,6 +20,13 @@ vi.mock('./api', () => ({
   listVisits: vi.fn(),
   addVisitWithNote: vi.fn(),
 }))
+// The chairside panel carries "Finish treatment", which looks up the visit's
+// appointment. Nobody is in the chair here.
+vi.mock('../scheduling/api', () => ({
+  findInChairAppointmentForVisit: vi.fn(async () => null),
+  finishTreatment: vi.fn(),
+  setAppointmentStatus: vi.fn(),
+}))
 
 const auth = vi.hoisted(() => ({ role: 'dentist' as 'receptionist' | 'dentist' | 'admin' }))
 vi.mock('../auth/AuthContext', () => ({

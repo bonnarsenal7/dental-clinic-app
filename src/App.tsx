@@ -6,6 +6,7 @@ import LoginPage from './features/auth/LoginPage'
 import ForgotPasswordPage from './features/auth/ForgotPasswordPage'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import AppShell from './core/components/AppShell'
+import AssignedPatientRoute from './features/patients/AssignedPatientRoute'
 import { routeChunks } from './core/routes'
 
 // Everything behind the login is loaded on demand.
@@ -52,26 +53,41 @@ function App() {
 
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/schedule" element={<SchedulePage />} />
-              <Route path="/recalls" element={<RecallsPage />} />
               <Route path="/patients" element={<PatientsPage />} />
-              <Route path="/patients/new" element={<PatientRegisterPage />} />
-              <Route path="/patients/:id" element={<PatientProfilePage />} />
-              <Route path="/patients/:id/edit" element={<PatientEditPage />} />
-              <Route path="/billing" element={<BillingPage />} />
-              <Route path="/patients/:id/billing" element={<PatientLedgerPage />} />
-              <Route path="/patients/:id/invoices/new" element={<InvoiceBuilderPage />} />
               <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
 
-              {/* tooth_records are dentist/admin-only at the RLS level
-                  (0002_rls.sql), so the chart screens are guarded to match
-                  rather than showing a receptionist a chart that can't load. */}
-              <Route element={<ProtectedRoute allow={['dentist', 'admin']} />}>
-                <Route path="/charting" element={<ChartingPage />} />
-                <Route path="/patients/:id/chart" element={<PatientChartPage />} />
+              {/* The diary, recalls, billing and registration are the front
+                  desk's. A dentist's nav does not offer them, and a URL
+                  typed by hand sends them home rather than onto a screen
+                  their toolbar says they do not have. */}
+              <Route element={<ProtectedRoute allow={['receptionist', 'admin']} />}>
+                <Route path="/schedule" element={<SchedulePage />} />
+                <Route path="/recalls" element={<RecallsPage />} />
+                <Route path="/billing" element={<BillingPage />} />
+                <Route path="/patients/new" element={<PatientRegisterPage />} />
+              </Route>
+
+              {/* Every screen about one patient: a dentist reaches only
+                  patients booked with them. A screen scope — RLS still
+                  lets a dentist read any patient. */}
+              <Route element={<AssignedPatientRoute />}>
+                <Route path="/patients/:id" element={<PatientProfilePage />} />
+                <Route path="/patients/:id/edit" element={<PatientEditPage />} />
+                <Route path="/patients/:id/billing" element={<PatientLedgerPage />} />
+                <Route path="/patients/:id/invoices/new" element={<InvoiceBuilderPage />} />
+
+                {/* tooth_records are dentist/admin-only at the RLS level
+                    (0002_rls.sql), so the chart is guarded to match rather
+                    than showing a receptionist a chart that can't load. */}
+                <Route element={<ProtectedRoute allow={['dentist', 'admin']} />}>
+                  <Route path="/patients/:id/chart" element={<PatientChartPage />} />
+                </Route>
               </Route>
 
               <Route element={<ProtectedRoute allow={['admin']} />}>
+                {/* The every-patient chart picker. A dentist opens a chart
+                    from their own patient's record instead. */}
+                <Route path="/charting" element={<ChartingPage />} />
                 <Route path="/billing/prices" element={<PriceListPage />} />
                 <Route path="/admin/staff" element={<StaffManagementPage />} />
                 <Route path="/admin/settings" element={<ClinicSettingsPage />} />

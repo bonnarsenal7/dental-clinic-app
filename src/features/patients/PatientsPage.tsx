@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import { searchPatients } from './api'
 import type { Patient } from './types'
 import { toMessage } from '../../core/errors'
@@ -7,29 +8,44 @@ import { ErrorState } from '../../core/components/states'
 import { PageHeader } from '../../core/components/ui/Page'
 
 export default function PatientsPage() {
+  const { staff } = useAuth()
+  // A dentist sees only patients booked with them. Everyone else, the clinic.
+  const dentistId = staff?.role === 'dentist' ? staff.id : undefined
   const [query, setQuery] = useState('')
   const [patients, setPatients] = useState<Patient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      searchPatients(query)
+      searchPatients(query, dentistId)
         .then(setPatients)
         .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
-  }, [query])
+  }, [query, dentistId])
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <PageHeader title="Patients" description="Search by name or contact number." />
-        <Link
-          to="/patients/new"
-          className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
-        >
-          + Register patient
-        </Link>
+        <PageHeader
+          title="Patients"
+          description={
+            dentistId
+              ? 'Your patients — anyone booked with you. Search by name or contact number.'
+              : 'Search by name or contact number.'
+          }
+        />
+        {/* Registration is the front desk's. A patient a dentist registered
+            would not be booked with them, so it would vanish from their own
+            list the moment it was saved. */}
+        {!dentistId && (
+          <Link
+            to="/patients/new"
+            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
+          >
+            + Register patient
+          </Link>
+        )}
       </div>
 
       <input
