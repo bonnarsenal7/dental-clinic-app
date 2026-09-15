@@ -42,6 +42,9 @@ export interface ClinicDayReport extends ClinicDayTotals {
   net_total: number
   expenses: { description: string; amount: number }[]
   salaries: { dentist_id: string; dentist_name: string | null; description: string; amount: number }[]
+  /** Frozen at closing (0022). Absent on days closed before then — those
+   *  reports never recorded it, and it is not reconstructed. */
+  commission_by_dentist?: CommissionByDentist[]
 }
 
 /** A closed day. Its existence is the lock. */

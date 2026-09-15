@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { CLINIC_NAME } from '../../core/branding'
-import { groupSalariesByDentist, pdfMoney } from './reportSections'
+import { commissionLabel, groupSalariesByDentist, pdfMoney } from './reportSections'
 import type { ClinicDayReport } from './types'
 
 const MARGIN = 48
@@ -117,9 +117,20 @@ function buildReport(report: ClinicDayReport, clinicName: string | null): jsPDF 
   row('Total salary', report.salary_total, { bold: true })
 
   // --- Commission
+  // --- Commission, per dentist
   heading('Commission')
+  const byDentist = report.commission_by_dentist
+  if (byDentist === undefined) {
+    // Closed before the breakdown was frozen into reports (0022). Not
+    // reconstructed: the report is what was closed.
+    note('Per-dentist breakdown not recorded for this day.')
+  } else if (byDentist.length === 0) {
+    note('No commission entered.')
+  } else {
+    for (const c of byDentist) row(commissionLabel(c), c.commission_total)
+  }
   row('Total commission for the day', report.commission_total, { bold: true })
-  note("Commission entered on the day's invoices.")
+  note("Commission on the day's invoices, by the dentist who treated the patient.")
 
   y += 12
   note('Figures as at closing. Payments recorded after closing are not included.')

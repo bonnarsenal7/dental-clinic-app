@@ -46,7 +46,25 @@ export function normaliseReport(raw: ClinicDayReport): ClinicDayReport {
     net_total: Number(raw.net_total),
     expenses: (raw.expenses ?? []).map((e) => ({ ...e, amount: Number(e.amount) })),
     salaries: (raw.salaries ?? []).map((s) => ({ ...s, amount: Number(s.amount) })),
+    // Only when it was frozen. A day closed before 0022 never recorded it,
+    // and an invented empty list would read as "nobody earned commission".
+    ...(raw.commission_by_dentist
+      ? {
+          commission_by_dentist: raw.commission_by_dentist.map((c) => ({
+            ...c,
+            commission_total: Number(c.commission_total),
+          })),
+        }
+      : {}),
   }
+}
+
+/** Whose commission a row is, in words — the same on screen and on paper.
+ *  A row with no dentist is commission whose visit named nobody (0021); it
+ *  is listed so the rows add up to the total. */
+export function commissionLabel(row: { dentist_id: string | null; dentist_name: string | null }): string {
+  if (!row.dentist_id) return 'No dentist recorded'
+  return row.dentist_name ?? 'Former staff'
 }
 
 /** Money for the PDF. Not formatMoney: jsPDF's built-in fonts cannot draw

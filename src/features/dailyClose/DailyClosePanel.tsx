@@ -25,7 +25,7 @@ import {
   updateSalaryEntry,
 } from './api'
 import DailyEntryList from './DailyEntryList'
-import { groupSalariesByDentist } from './reportSections'
+import { commissionLabel, groupSalariesByDentist } from './reportSections'
 import type {
   ClinicDay,
   ClinicDayReport,
@@ -120,6 +120,11 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
   const canManage = staff.role === 'admin' && !closed
   const figures = closed ? data.day!.report : data.totals
   const salaryRows = data.salaries.map((s) => ({ ...s, dentist_name: dentistName.get(s.dentist_id) ?? null }))
+  // A closed day shows the breakdown frozen into its report, so the screen
+  // and the PDF say the same thing. A day closed before 0022 has none frozen
+  // and falls back to the live one.
+  const commissionRows =
+    closed && data.day!.report.commission_by_dentist ? data.day!.report.commission_by_dentist : byDentist
 
   return (
     <div className="flex flex-col gap-6" aria-label="End of day">
@@ -221,9 +226,9 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
           </span>
         </div>
 
-        {byDentist && byDentist.length > 0 && (
+        {commissionRows && commissionRows.length > 0 && (
           <ul aria-label="Commission per dentist" className="flex flex-col">
-            {byDentist.map((row) => (
+            {commissionRows.map((row) => (
               <li
                 key={row.dentist_id ?? 'unattributed'}
                 className="flex items-center justify-between gap-3 border-t border-slate-100 py-2"
@@ -231,7 +236,7 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
                 {/* A commission whose visit names no dentist is still listed,
                     so the rows always add up to the total above. */}
                 <span className={`text-sm ${row.dentist_id ? 'text-slate-700' : 'text-slate-500'}`}>
-                  {row.dentist_id ? (row.dentist_name ?? 'Former staff') : 'No dentist recorded'}
+                  {commissionLabel(row)}
                 </span>
                 <span className="text-sm tabular-nums text-slate-800">
                   {formatMoney(row.commission_total)}
@@ -240,7 +245,7 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
             ))}
           </ul>
         )}
-        {byDentist === null && (
+        {commissionRows === null && (
           <p className="text-xs text-slate-500">The breakdown per dentist could not be loaded.</p>
         )}
       </section>

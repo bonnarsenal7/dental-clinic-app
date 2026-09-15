@@ -316,6 +316,42 @@ describe('DailyClosePanel', () => {
       vi.mocked(api.listDailyExpenses).mockResolvedValue([expense()])
     })
 
+    // The screen and the PDF must say the same thing: a closed day shows the
+    // breakdown frozen at closing, even if the live attribution has moved.
+    it('shows the per-dentist commission frozen at closing, not the live one', async () => {
+      vi.mocked(api.getClinicDay).mockResolvedValue({
+        id: 'c-1',
+        business_date: '2026-09-15',
+        closed_at: REPORT.closed_at,
+        closed_by: 's-1',
+        report: {
+          ...REPORT,
+          commission_by_dentist: [{ dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 750 }],
+        },
+      })
+      vi.mocked(api.listCommissionByDentist).mockResolvedValue([
+        { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: 750 },
+      ])
+      renderPanel()
+      const list = await screen.findByRole('list', { name: /commission per dentist/i })
+      // Let the live breakdown arrive, so this cannot pass by asserting early.
+      await waitFor(() => expect(api.listCommissionByDentist).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(list).toHaveTextContent('Dr Cruz')
+      expect(list).not.toHaveTextContent('Dr Reyes')
+    })
+
+    // A day closed before 0022 never froze one, so the live list stands in.
+    it('falls back to the live breakdown for a day closed before it was frozen', async () => {
+      vi.mocked(api.listCommissionByDentist).mockResolvedValue([
+        { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: 750 },
+      ])
+      renderPanel()
+      expect(await screen.findByRole('list', { name: /commission per dentist/i })).toHaveTextContent(
+        'Dr Reyes',
+      )
+    })
+
     it('takes nothing more, from anyone — admin included', async () => {
       renderPanel('admin')
       await screen.findByRole('region', { name: /clinic closed/i })

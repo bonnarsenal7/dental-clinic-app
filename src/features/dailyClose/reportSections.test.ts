@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupSalariesByDentist, normaliseReport, pdfMoney } from './reportSections'
+import { commissionLabel, groupSalariesByDentist, normaliseReport, pdfMoney } from './reportSections'
 import type { ClinicDayReport } from './types'
 
 describe('groupSalariesByDentist', () => {
@@ -55,5 +55,48 @@ describe('pdfMoney', () => {
 
   it('puts the sign in front of a negative net', () => {
     expect(pdfMoney(-800)).toBe('-PHP 800.00')
+  })
+})
+
+describe('the per-dentist commission in a report', () => {
+  const closed = (extra: object = {}) =>
+    ({
+      business_date: '2026-09-15',
+      closed_at: '2026-09-15T10:00:00Z',
+      closed_by_name: 'Ana',
+      revenue_total: '5000.00',
+      expense_total: '0',
+      salary_total: '0',
+      commission_total: '750.00',
+      net_total: '5000.00',
+      expenses: [],
+      salaries: [],
+      ...extra,
+    }) as unknown as ClinicDayReport
+
+  it("coerces each dentist's frozen commission to a number", () => {
+    const report = normaliseReport(
+      closed({
+        commission_by_dentist: [
+          { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: '500.00' },
+          { dentist_id: null, dentist_name: null, commission_total: '250.00' },
+        ],
+      }),
+    )
+    const rows = report.commission_by_dentist!
+    expect(rows[0].commission_total + rows[1].commission_total).toBe(750)
+  })
+
+  // A day closed before 0022 never recorded it. An empty list would read as
+  // "nobody earned commission" on a day somebody did.
+  it('leaves it absent on a day closed before it was frozen, rather than inventing an empty one', () => {
+    const report = normaliseReport(closed())
+    expect('commission_by_dentist' in report).toBe(false)
+  })
+
+  it('labels commission with no dentist, and a dentist no longer on the list', () => {
+    expect(commissionLabel({ dentist_id: 'd-1', dentist_name: 'Dr Cruz' })).toBe('Dr Cruz')
+    expect(commissionLabel({ dentist_id: null, dentist_name: null })).toBe('No dentist recorded')
+    expect(commissionLabel({ dentist_id: 'd-9', dentist_name: null })).toBe('Former staff')
   })
 })

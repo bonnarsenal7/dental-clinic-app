@@ -1778,11 +1778,23 @@ admin, and only a name, like `bookable_dentists()`.
 Fetched separately from the rest of the panel: a failed breakdown says so
 on that line and leaves expenses, salary and Close Clinic working.
 
-**Not in the frozen report or the PDF.** On a closed day the breakdown is
-still live. Commission amounts are locked by then, but reception can still
-reassign a finished appointment's dentist (0015), which would move a share
-between names without changing the total. If the clinic needs the split on
-paper, freeze it into `report` in `close_clinic_day()`.
+**Frozen into the report, and printed (0022).** `close_clinic_day()` saves
+the breakdown as `report.commission_by_dentist`, from the same function the
+dashboard uses, and the PDF lists it under Commission above the day's total.
+It has to be frozen: reception can still reassign a finished appointment's
+dentist (0015), which would move a share between names on a report already
+printed. 0022 adds `appointments` to the SHARE locks for the same reason the
+other tables are there — a reassignment in the same instant must not split
+the printed rows from the saved total.
+
+A closed day's panel shows the frozen breakdown, so screen and paper agree.
+
+**Days closed before 0022 have no breakdown frozen, and it is not
+backfilled** — those reports are what was closed. `normaliseReport` keeps
+the key absent rather than inventing `[]` (which would read as "nobody
+earned commission"); the PDF says "not recorded for this day"; the panel
+falls back to the live list. `commissionLabel()` words a row the same way in
+both places.
 
 ### Mutation-checked
 Letting an admin edit a closed day, offering reception edit or delete,
