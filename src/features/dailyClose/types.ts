@@ -23,6 +23,15 @@ export interface ClinicDayTotals {
   commission_total: number
 }
 
+/** One dentist's commission for a day, from clinic_day_commission_by_dentist()
+ *  (0021). `dentist_id` is null where the visit names no dentist. The rows add
+ *  up to the day's commission total. */
+export interface CommissionByDentist {
+  dentist_id: string | null
+  dentist_name: string | null
+  commission_total: number
+}
+
 /** The frozen end-of-day report, saved when the clinic is closed. A
  *  re-download is rebuilt from this, never recomputed, so it always matches
  *  what was closed. */

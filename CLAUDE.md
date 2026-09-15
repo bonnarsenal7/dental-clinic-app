@@ -1756,6 +1756,34 @@ U+20B1 and draws stray characters in its place. `receiptPdf.ts` still uses
 `formatMoney` and so very likely has this bug on printed receipts; it is
 unverified, since nobody has put a receipt through a printer yet.
 
+### Commission per dentist (0021)
+Under the day's commission total, the panel lists each dentist's share,
+from `clinic_day_commission_by_dentist()`. Commission is one number on an
+invoice and names nobody, so the dentist is found through the visit it
+bills:
+
+1. **the appointment for that visit** — its `dentist_id` is reassigned at
+   seating, so it names who actually treated the patient;
+2. **else the visit's `staff_id`**, for a visit started from the chart with
+   no appointment — **only if that person is a dentist or admin.** Seating
+   an unassigned booking records `treating ?? staffId` (scheduling
+   `api.ts`), which is often the receptionist who seated them;
+3. **else nobody** — listed as "No dentist recorded", not dropped, so the
+   rows always add up to the total above them.
+
+Same day rule as the total (the invoice's day). SECURITY DEFINER because
+reception cannot read `staff`; it returns nothing but to reception or an
+admin, and only a name, like `bookable_dentists()`.
+
+Fetched separately from the rest of the panel: a failed breakdown says so
+on that line and leaves expenses, salary and Close Clinic working.
+
+**Not in the frozen report or the PDF.** On a closed day the breakdown is
+still live. Commission amounts are locked by then, but reception can still
+reassign a finished appointment's dentist (0015), which would move a share
+between names without changing the total. If the clinic needs the split on
+paper, freeze it into `report` in `close_clinic_day()`.
+
 ### Mutation-checked
 Letting an admin edit a closed day, offering reception edit or delete,
 sending a date from the client, leaving commission editable on a closed

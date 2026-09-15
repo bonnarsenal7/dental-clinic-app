@@ -70,6 +70,22 @@ describe('daily close api', () => {
     expect(totals.revenue_total + totals.commission_total).toBe(5750)
   })
 
+  // Grouped and named in SQL (0021): reception cannot read the staff table.
+  it("reads the day's commission per dentist, as numbers", async () => {
+    db().queueRpc('clinic_day_commission_by_dentist', {
+      data: [
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: '500.00' },
+        { dentist_id: null, dentist_name: null, commission_total: '250.00' },
+      ],
+    })
+    const rows = await api.listCommissionByDentist('2026-09-15')
+    expect(db().rpcCalls).toEqual([
+      { name: 'clinic_day_commission_by_dentist', args: { p_date: '2026-09-15' } },
+    ])
+    expect(rows[0].commission_total + rows[1].commission_total).toBe(750)
+    expect(rows[1]).toEqual({ dentist_id: null, dentist_name: null, commission_total: 250 })
+  })
+
   it('closes through close_clinic_day and hands back the frozen report', async () => {
     db().queueRpc('close_clinic_day', {
       data: {

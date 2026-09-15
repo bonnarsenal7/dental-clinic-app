@@ -1,6 +1,13 @@
 import { supabase } from '../../core/supabaseClient'
 import { normaliseReport } from './reportSections'
-import type { ClinicDay, ClinicDayReport, ClinicDayTotals, DailyExpense, SalaryEntry } from './types'
+import type {
+  ClinicDay,
+  ClinicDayReport,
+  ClinicDayTotals,
+  CommissionByDentist,
+  DailyExpense,
+  SalaryEntry,
+} from './types'
 
 // The day an entry belongs to, and who recorded it, are set by 0020's
 // trigger — never sent from here. A client cannot backdate an entry onto a
@@ -96,6 +103,18 @@ export async function getClinicDayTotals(date: string): Promise<ClinicDayTotals>
     salary_total: Number(row?.salary_total ?? 0),
     commission_total: Number(row?.commission_total ?? 0),
   }
+}
+
+/** The day's commission per dentist, attributed through each invoice's visit
+ *  (0021). Grouped and named in SQL: reception cannot read the staff table. */
+export async function listCommissionByDentist(date: string): Promise<CommissionByDentist[]> {
+  const { data, error } = await supabase.rpc('clinic_day_commission_by_dentist', { p_date: date })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as CommissionByDentist[]).map((row) => ({
+    dentist_id: row.dentist_id ?? null,
+    dentist_name: row.dentist_name ?? null,
+    commission_total: Number(row.commission_total),
+  }))
 }
 
 /** Closes today: freezes the figures into a report and locks the day for

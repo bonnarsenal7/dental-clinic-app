@@ -9,6 +9,7 @@ vi.mock('./api', () => ({
   listSalaryEntries: vi.fn(),
   getClinicDay: vi.fn(),
   getClinicDayTotals: vi.fn(),
+  listCommissionByDentist: vi.fn(),
   getClinicName: vi.fn(),
   addDailyExpense: vi.fn(),
   addSalaryEntry: vi.fn(),
@@ -65,6 +66,7 @@ describe('DailyClosePanel', () => {
       salary_total: 0,
       commission_total: 750,
     })
+    vi.mocked(api.listCommissionByDentist).mockReset().mockResolvedValue([])
     vi.mocked(api.getClinicName).mockReset().mockResolvedValue('ToothCo Dental Clinic')
     vi.mocked(api.addDailyExpense).mockReset().mockResolvedValue(undefined)
     vi.mocked(api.addSalaryEntry).mockReset().mockResolvedValue(undefined)
@@ -181,6 +183,55 @@ describe('DailyClosePanel', () => {
     renderPanel()
     const commission = await screen.findByRole('region', { name: /commission today/i })
     expect(commission).toHaveTextContent('₱750.00')
+  })
+
+  describe('commission per dentist', () => {
+    it('lists each dentist’s commission for the day', async () => {
+      vi.mocked(api.listCommissionByDentist).mockResolvedValue([
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 500 },
+        { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: 250 },
+      ])
+      renderPanel()
+      const list = await screen.findByRole('list', { name: /commission per dentist/i })
+      const rows = within(list).getAllByRole('listitem')
+      expect(rows).toHaveLength(2)
+      expect(rows[0]).toHaveTextContent('Dr Cruz')
+      expect(rows[0]).toHaveTextContent('₱500.00')
+      expect(rows[1]).toHaveTextContent('Dr Reyes')
+      expect(rows[1]).toHaveTextContent('₱250.00')
+    })
+
+    // Dropping it would leave rows that no longer add up to the total above.
+    it('lists commission no dentist is recorded against, rather than dropping it', async () => {
+      vi.mocked(api.listCommissionByDentist).mockResolvedValue([
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 500 },
+        { dentist_id: null, dentist_name: null, commission_total: 250 },
+      ])
+      renderPanel()
+      const list = await screen.findByRole('list', { name: /commission per dentist/i })
+      const unattributed = within(list).getAllByRole('listitem')[1]
+      expect(unattributed).toHaveTextContent('No dentist recorded')
+      expect(unattributed).toHaveTextContent('₱250.00')
+    })
+
+    it('asks for today’s breakdown', async () => {
+      renderPanel()
+      await screen.findByRole('region', { name: /commission today/i })
+      await waitFor(() =>
+        expect(api.listCommissionByDentist).toHaveBeenCalledWith(
+          vi.mocked(api.listDailyExpenses).mock.calls[0][0],
+        ),
+      )
+    })
+
+    // A detail of one line must not take the day's close down with it.
+    it('keeps the rest of the panel working when the breakdown cannot be loaded', async () => {
+      vi.mocked(api.listCommissionByDentist).mockRejectedValue(new Error('permission denied'))
+      renderPanel()
+      expect(await screen.findByText(/breakdown per dentist could not be loaded/i)).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: /commission today/i })).toHaveTextContent('₱750.00')
+      expect(screen.getByRole('button', { name: /close clinic/i })).toBeInTheDocument()
+    })
   })
 
   describe('who may change an entry', () => {

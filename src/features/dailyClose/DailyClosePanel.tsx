@@ -18,6 +18,7 @@ import {
   getClinicDay,
   getClinicDayTotals,
   getClinicName,
+  listCommissionByDentist,
   listDailyExpenses,
   listSalaryEntries,
   updateDailyExpense,
@@ -25,7 +26,14 @@ import {
 } from './api'
 import DailyEntryList from './DailyEntryList'
 import { groupSalariesByDentist } from './reportSections'
-import type { ClinicDay, ClinicDayReport, ClinicDayTotals, DailyExpense, SalaryEntry } from './types'
+import type {
+  ClinicDay,
+  ClinicDayReport,
+  ClinicDayTotals,
+  CommissionByDentist,
+  DailyExpense,
+  SalaryEntry,
+} from './types'
 
 interface DayData {
   date: string
@@ -44,6 +52,8 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
   const [clinicName, setClinicName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmingClose, setConfirmingClose] = useState(false)
+  // undefined: not loaded yet. null: could not be loaded.
+  const [byDentist, setByDentist] = useState<CommissionByDentist[] | null | undefined>(undefined)
 
   const refresh = useCallback(async () => {
     const date = toLocalDateString(new Date())
@@ -58,6 +68,14 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
       setError(null)
     } catch (e) {
       setError(toMessage(e))
+    }
+
+    // Fetched on its own: the breakdown is a detail of one line, and must
+    // not take the expenses, the salary and the Close button down with it.
+    try {
+      setByDentist(await listCommissionByDentist(date))
+    } catch {
+      setByDentist(null)
     }
   }, [])
 
@@ -187,17 +205,44 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
 
       <section
         aria-labelledby="daily-commission-heading"
-        className="bg-white border border-slate-200 rounded-xl px-6 py-4 flex items-center justify-between gap-3 flex-wrap"
+        className="bg-white border border-slate-200 rounded-xl px-6 py-4 flex flex-col gap-3"
       >
-        <div>
-          <h2 id="daily-commission-heading" className="text-sm font-semibold text-slate-700">
-            Commission today
-          </h2>
-          <p className="text-xs text-slate-500">Added up from the commission on today's invoices.</p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 id="daily-commission-heading" className="text-sm font-semibold text-slate-700">
+              Commission today
+            </h2>
+            <p className="text-xs text-slate-500">
+              Added up from the commission on today's invoices, by the dentist who treated the patient.
+            </p>
+          </div>
+          <span className="text-lg font-semibold tabular-nums text-slate-800">
+            {formatMoney(figures.commission_total)}
+          </span>
         </div>
-        <span className="text-lg font-semibold tabular-nums text-slate-800">
-          {formatMoney(figures.commission_total)}
-        </span>
+
+        {byDentist && byDentist.length > 0 && (
+          <ul aria-label="Commission per dentist" className="flex flex-col">
+            {byDentist.map((row) => (
+              <li
+                key={row.dentist_id ?? 'unattributed'}
+                className="flex items-center justify-between gap-3 border-t border-slate-100 py-2"
+              >
+                {/* A commission whose visit names no dentist is still listed,
+                    so the rows always add up to the total above. */}
+                <span className={`text-sm ${row.dentist_id ? 'text-slate-700' : 'text-slate-500'}`}>
+                  {row.dentist_id ? (row.dentist_name ?? 'Former staff') : 'No dentist recorded'}
+                </span>
+                <span className="text-sm tabular-nums text-slate-800">
+                  {formatMoney(row.commission_total)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {byDentist === null && (
+          <p className="text-xs text-slate-500">The breakdown per dentist could not be loaded.</p>
+        )}
       </section>
 
       {!closed && (
