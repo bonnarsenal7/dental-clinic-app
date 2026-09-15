@@ -25,7 +25,7 @@ import {
   updateSalaryEntry,
 } from './api'
 import DailyEntryList from './DailyEntryList'
-import { commissionLabel, groupSalariesByDentist } from './reportSections'
+import { buildPayByDentist } from './reportSections'
 import type {
   ClinicDay,
   ClinicDayReport,
@@ -34,6 +34,9 @@ import type {
   DailyExpense,
   SalaryEntry,
 } from './types'
+
+/** A figure that may be unknown: a dash, never a zero that reads as "none". */
+const money = (v: number | null) => (v === null ? '—' : formatMoney(v))
 
 interface DayData {
   date: string
@@ -125,6 +128,8 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
   // and falls back to the live one.
   const commissionRows =
     closed && data.day!.report.commission_by_dentist ? data.day!.report.commission_by_dentist : byDentist
+  // Not loaded yet reads the same as could-not-load: commission unknown, not 0.
+  const payRows = buildPayByDentist(salaryRows, commissionRows ?? null)
 
   return (
     <div className="flex flex-col gap-6" aria-label="End of day">
@@ -174,80 +179,102 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
         {!closed && <ExpenseForm onAdded={refresh} />}
       </section>
 
+      {/* Salary and commission together: what each dentist is owed for the
+          day, on one row. The salary entries that make up the Salary column
+          are itemised underneath, where an admin edits them. */}
       <section
-        aria-labelledby="daily-salary-heading"
-        className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3"
+        aria-labelledby="daily-pay-heading"
+        className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4"
       >
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h2 id="daily-salary-heading" className="text-sm font-semibold text-slate-700">
-            Daily salary
-          </h2>
-          <span className="text-sm tabular-nums text-slate-700">{formatMoney(figures.salary_total)}</span>
-        </div>
-        <DailyEntryList
-          noun="salary entry"
-          canManage={canManage}
-          emptyText="No salary recorded today."
-          entries={salaryRows.map((s) => ({ ...s, detail: s.dentist_name ?? 'Dentist no longer listed' }))}
-          onSave={async (id, patch) => {
-            await updateSalaryEntry(id, patch)
-            await refresh()
-          }}
-          onDelete={async (id) => {
-            await deleteSalaryEntry(id)
-            await refresh()
-          }}
-        />
-        {salaryRows.length > 0 && (
-          <p className="text-xs text-slate-500">
-            {groupSalariesByDentist(salaryRows)
-              .map((g) => `${g.dentistName} ${formatMoney(g.subtotal)}`)
-              .join(' · ')}
-          </p>
-        )}
-        {!closed && <SalaryForm dentists={dentists} onAdded={refresh} />}
-      </section>
-
-      <section
-        aria-labelledby="daily-commission-heading"
-        className="bg-white border border-slate-200 rounded-xl px-6 py-4 flex flex-col gap-3"
-      >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h2 id="daily-commission-heading" className="text-sm font-semibold text-slate-700">
-              Commission today
+            <h2 id="daily-pay-heading" className="text-sm font-semibold text-slate-700">
+              Daily salary &amp; commission
             </h2>
             <p className="text-xs text-slate-500">
-              Added up from the commission on today's invoices, by the dentist who treated the patient.
+              Per dentist. Commission is added up from today's invoices, by the dentist who treated the
+              patient.
             </p>
           </div>
-          <span className="text-lg font-semibold tabular-nums text-slate-800">
-            {formatMoney(figures.commission_total)}
+          <span className="text-sm tabular-nums text-slate-700">
+            {formatMoney(figures.salary_total + figures.commission_total)}
           </span>
         </div>
 
-        {commissionRows && commissionRows.length > 0 && (
-          <ul aria-label="Commission per dentist" className="flex flex-col">
-            {commissionRows.map((row) => (
-              <li
-                key={row.dentist_id ?? 'unattributed'}
-                className="flex items-center justify-between gap-3 border-t border-slate-100 py-2"
-              >
-                {/* A commission whose visit names no dentist is still listed,
-                    so the rows always add up to the total above. */}
-                <span className={`text-sm ${row.dentist_id ? 'text-slate-700' : 'text-slate-500'}`}>
-                  {commissionLabel(row)}
-                </span>
-                <span className="text-sm tabular-nums text-slate-800">
-                  {formatMoney(row.commission_total)}
-                </span>
-              </li>
-            ))}
-          </ul>
+        {payRows.length === 0 ? (
+          <p className="text-sm text-slate-400">No salary or commission recorded today.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" aria-label="Salary and commission per dentist">
+              <thead className="text-slate-500 text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="text-left py-2 pr-3">Dentist</th>
+                  <th className="text-right py-2 pr-3">Salary</th>
+                  <th className="text-right py-2 pr-3">Commission</th>
+                  <th className="text-right py-2">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payRows.map((row) => (
+                  <tr key={row.key} className="border-t border-slate-100">
+                    {/* A commission whose visit names no dentist is still a
+                        row, so the columns add up to the totals below. */}
+                    <td className={`py-2 pr-3 ${row.dentistId ? 'text-slate-700' : 'text-slate-500'}`}>
+                      {row.label}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
+                      {formatMoney(row.salary)}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
+                      {money(row.commission)}
+                    </td>
+                    <td className="py-2 text-right tabular-nums font-medium text-slate-800">
+                      {money(row.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-slate-200">
+                <tr>
+                  <td className="py-2 pr-3 font-medium text-slate-700">Total</td>
+                  <td className="py-2 pr-3 text-right tabular-nums font-medium text-slate-800">
+                    {formatMoney(figures.salary_total)}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums font-medium text-slate-800">
+                    {formatMoney(figures.commission_total)}
+                  </td>
+                  <td className="py-2 text-right tabular-nums font-semibold text-slate-900">
+                    {formatMoney(figures.salary_total + figures.commission_total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         )}
         {commissionRows === null && (
-          <p className="text-xs text-slate-500">The breakdown per dentist could not be loaded.</p>
+          <p className="text-xs text-slate-500">
+            The commission breakdown per dentist could not be loaded, so commission is shown as a total only.
+          </p>
         )}
+
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Salary entries</h3>
+          <DailyEntryList
+            noun="salary entry"
+            canManage={canManage}
+            emptyText="No salary recorded today."
+            entries={salaryRows.map((s) => ({ ...s, detail: s.dentist_name ?? 'Dentist no longer listed' }))}
+            onSave={async (id, patch) => {
+              await updateSalaryEntry(id, patch)
+              await refresh()
+            }}
+            onDelete={async (id) => {
+              await deleteSalaryEntry(id)
+              await refresh()
+            }}
+          />
+        </div>
+        {!closed && <SalaryForm dentists={dentists} onAdded={refresh} />}
       </section>
 
       {!closed && (

@@ -167,7 +167,7 @@ describe('DailyClosePanel', () => {
       )
     })
 
-    it('shows each salary entry with its dentist, and a subtotal per dentist', async () => {
+    it('itemises each salary entry with its dentist', async () => {
       vi.mocked(api.listSalaryEntries).mockResolvedValue([
         { ...expense({ id: 's-1', description: 'Morning', amount: 1500 }), dentist_id: 'd-1' },
         { ...expense({ id: 's-2', description: 'Afternoon', amount: 1500 }), dentist_id: 'd-1' },
@@ -175,48 +175,80 @@ describe('DailyClosePanel', () => {
       renderPanel()
       const salary = within(await screen.findByRole('region', { name: /daily salary/i }))
       await waitFor(() => expect(within(salary.getByRole('list')).getAllByText('Dr Cruz')).toHaveLength(2))
-      expect(salary.getByText(/dr cruz ₱3,000\.00/i)).toBeInTheDocument()
     })
   })
 
-  it('adds up the commission recorded today', async () => {
-    renderPanel()
-    const commission = await screen.findByRole('region', { name: /commission today/i })
-    expect(commission).toHaveTextContent('₱750.00')
-  })
+  describe('salary and commission, together', () => {
+    /** The body rows of the per-dentist table, as [dentist, salary, commission, total]. */
+    const payTable = async () => {
+      const table = await screen.findByRole('table', { name: /salary and commission per dentist/i })
+      return {
+        table,
+        rows: () =>
+          [...table.querySelectorAll('tbody tr')].map((tr) =>
+            [...tr.querySelectorAll('td')].map((td) => td.textContent),
+          ),
+        footer: () => [...table.querySelectorAll('tfoot td')].map((td) => td.textContent),
+      }
+    }
 
-  describe('commission per dentist', () => {
-    it('lists each dentist’s commission for the day', async () => {
+    it('is one section, not a salary section and a commission section', async () => {
+      renderPanel()
+      expect(await screen.findByRole('region', { name: /daily salary & commission/i })).toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: /commission today/i })).not.toBeInTheDocument()
+    })
+
+    it("puts each dentist's salary, commission and total on one row", async () => {
+      vi.mocked(api.listSalaryEntries).mockResolvedValue([
+        { ...expense({ id: 's-1', description: 'Morning', amount: 1500 }), dentist_id: 'd-1' },
+        { ...expense({ id: 's-2', description: 'Afternoon', amount: 1500 }), dentist_id: 'd-1' },
+      ])
       vi.mocked(api.listCommissionByDentist).mockResolvedValue([
         { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 500 },
         { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: 250 },
       ])
       renderPanel()
-      const list = await screen.findByRole('list', { name: /commission per dentist/i })
-      const rows = within(list).getAllByRole('listitem')
-      expect(rows).toHaveLength(2)
-      expect(rows[0]).toHaveTextContent('Dr Cruz')
-      expect(rows[0]).toHaveTextContent('₱500.00')
-      expect(rows[1]).toHaveTextContent('Dr Reyes')
-      expect(rows[1]).toHaveTextContent('₱250.00')
+      const { rows } = await payTable()
+      await waitFor(() =>
+        expect(rows()).toEqual([
+          ['Dr Cruz', '₱3,000.00', '₱500.00', '₱3,500.00'],
+          ['Dr Reyes', '₱0.00', '₱250.00', '₱250.00'],
+        ]),
+      )
     })
 
-    // Dropping it would leave rows that no longer add up to the total above.
-    it('lists commission no dentist is recorded against, rather than dropping it', async () => {
+    // Dropping it would leave columns that no longer add up to the totals.
+    it('lists commission no dentist is recorded against, last, rather than dropping it', async () => {
       vi.mocked(api.listCommissionByDentist).mockResolvedValue([
-        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 500 },
         { dentist_id: null, dentist_name: null, commission_total: 250 },
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 500 },
       ])
       renderPanel()
-      const list = await screen.findByRole('list', { name: /commission per dentist/i })
-      const unattributed = within(list).getAllByRole('listitem')[1]
-      expect(unattributed).toHaveTextContent('No dentist recorded')
-      expect(unattributed).toHaveTextContent('₱250.00')
+      const { rows } = await payTable()
+      await waitFor(() =>
+        expect(rows().at(-1)).toEqual(['No dentist recorded', '₱0.00', '₱250.00', '₱250.00']),
+      )
+    })
+
+    it('totals each column from the day’s figures', async () => {
+      vi.mocked(api.getClinicDayTotals).mockResolvedValue({
+        business_date: '2026-09-15',
+        revenue_total: 5000,
+        expense_total: 0,
+        salary_total: 3000,
+        commission_total: 750,
+      })
+      vi.mocked(api.listCommissionByDentist).mockResolvedValue([
+        { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 750 },
+      ])
+      renderPanel()
+      const { footer } = await payTable()
+      expect(footer()).toEqual(['Total', '₱3,000.00', '₱750.00', '₱3,750.00'])
     })
 
     it('asks for today’s breakdown', async () => {
       renderPanel()
-      await screen.findByRole('region', { name: /commission today/i })
+      await screen.findByRole('region', { name: /daily salary & commission/i })
       await waitFor(() =>
         expect(api.listCommissionByDentist).toHaveBeenCalledWith(
           vi.mocked(api.listDailyExpenses).mock.calls[0][0],
@@ -224,12 +256,17 @@ describe('DailyClosePanel', () => {
       )
     })
 
-    // A detail of one line must not take the day's close down with it.
-    it('keeps the rest of the panel working when the breakdown cannot be loaded', async () => {
+    // Unknown must not read as none, and the rest of the day must keep working.
+    it('shows commission as unknown per dentist when the breakdown cannot be loaded', async () => {
       vi.mocked(api.listCommissionByDentist).mockRejectedValue(new Error('permission denied'))
+      vi.mocked(api.listSalaryEntries).mockResolvedValue([
+        { ...expense({ id: 's-1', description: 'Day rate', amount: 3000 }), dentist_id: 'd-1' },
+      ])
       renderPanel()
       expect(await screen.findByText(/breakdown per dentist could not be loaded/i)).toBeInTheDocument()
-      expect(screen.getByRole('region', { name: /commission today/i })).toHaveTextContent('₱750.00')
+      const { rows, footer } = await payTable()
+      await waitFor(() => expect(rows()).toEqual([['Dr Cruz', '₱3,000.00', '—', '—']]))
+      expect(footer()[2]).toBe('₱750.00')
       expect(screen.getByRole('button', { name: /close clinic/i })).toBeInTheDocument()
     })
   })
@@ -333,12 +370,12 @@ describe('DailyClosePanel', () => {
         { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: 750 },
       ])
       renderPanel()
-      const list = await screen.findByRole('list', { name: /commission per dentist/i })
+      const table = await screen.findByRole('table', { name: /salary and commission per dentist/i })
       // Let the live breakdown arrive, so this cannot pass by asserting early.
       await waitFor(() => expect(api.listCommissionByDentist).toHaveBeenCalled())
       await new Promise((r) => setTimeout(r, 0))
-      expect(list).toHaveTextContent('Dr Cruz')
-      expect(list).not.toHaveTextContent('Dr Reyes')
+      expect(table).toHaveTextContent('Dr Cruz')
+      expect(table).not.toHaveTextContent('Dr Reyes')
     })
 
     // A day closed before 0022 never froze one, so the live list stands in.
@@ -347,9 +384,9 @@ describe('DailyClosePanel', () => {
         { dentist_id: 'd-2', dentist_name: 'Dr Reyes', commission_total: 750 },
       ])
       renderPanel()
-      expect(await screen.findByRole('list', { name: /commission per dentist/i })).toHaveTextContent(
-        'Dr Reyes',
-      )
+      expect(
+        await screen.findByRole('table', { name: /salary and commission per dentist/i }),
+      ).toHaveTextContent('Dr Reyes')
     })
 
     it('takes nothing more, from anyone — admin included', async () => {
@@ -381,9 +418,10 @@ describe('DailyClosePanel', () => {
         commission_total: 999,
       })
       renderPanel()
-      const commission = await screen.findByRole('region', { name: /commission today/i })
-      expect(commission).toHaveTextContent('₱750.00')
-      expect(commission).not.toHaveTextContent('₱999.00')
+      const pay = await screen.findByRole('region', { name: /daily salary & commission/i })
+      // Frozen salary + commission is 3,000 + 750; live would be 0 + 999.
+      expect(pay).toHaveTextContent('₱3,750.00')
+      expect(pay).not.toHaveTextContent('₱999.00')
       // The row and the section total: the total is the frozen 1,200, not the live 0.
       expect(within(section(/daily expenses/i)).getAllByText('₱1,200.00')).toHaveLength(2)
     })

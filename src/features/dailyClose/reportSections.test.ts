@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { commissionLabel, groupSalariesByDentist, normaliseReport, pdfMoney } from './reportSections'
+import {
+  buildPayByDentist,
+  commissionLabel,
+  groupSalariesByDentist,
+  normaliseReport,
+  pdfMoney,
+} from './reportSections'
 import type { ClinicDayReport } from './types'
 
 describe('groupSalariesByDentist', () => {
@@ -98,5 +104,67 @@ describe('the per-dentist commission in a report', () => {
     expect(commissionLabel({ dentist_id: 'd-1', dentist_name: 'Dr Cruz' })).toBe('Dr Cruz')
     expect(commissionLabel({ dentist_id: null, dentist_name: null })).toBe('No dentist recorded')
     expect(commissionLabel({ dentist_id: 'd-9', dentist_name: null })).toBe('Former staff')
+  })
+})
+
+describe('buildPayByDentist', () => {
+  const salary = (dentist_id: string, dentist_name: string | null, amount: number | string) => ({
+    dentist_id,
+    dentist_name,
+    amount,
+  })
+  const commission = (
+    dentist_id: string | null,
+    dentist_name: string | null,
+    commission_total: number | string,
+  ) => ({
+    dentist_id,
+    dentist_name,
+    commission_total,
+  })
+
+  it("puts a dentist's salary entries and commission on one row, with their total", () => {
+    const [row] = buildPayByDentist(
+      [salary('d-1', 'Dr Cruz', 1500), salary('d-1', 'Dr Cruz', 1500)],
+      [commission('d-1', 'Dr Cruz', 500)],
+    )
+    expect(row).toMatchObject({ label: 'Dr Cruz', salary: 3000, commission: 500, total: 3500 })
+  })
+
+  it('gives a row to a dentist with only salary, and to one with only commission', () => {
+    const rows = buildPayByDentist([salary('d-1', 'Dr Cruz', 3000)], [commission('d-2', 'Dr Reyes', 250)])
+    expect(rows).toEqual([
+      expect.objectContaining({ label: 'Dr Cruz', salary: 3000, commission: 0, total: 3000 }),
+      expect.objectContaining({ label: 'Dr Reyes', salary: 0, commission: 250, total: 250 }),
+    ])
+  })
+
+  // So the columns still add up to the day's totals.
+  it('lists commission with no dentist last, rather than dropping it', () => {
+    const rows = buildPayByDentist(
+      [salary('d-2', 'Dr Reyes', 3000)],
+      [commission(null, null, 100), commission('d-1', 'Dr Cruz', 500)],
+    )
+    expect(rows.map((r) => r.label)).toEqual(['Dr Cruz', 'Dr Reyes', 'No dentist recorded'])
+    expect(rows[2]).toMatchObject({ dentistId: null, salary: 0, commission: 100 })
+  })
+
+  // "Unknown" must not read as "none".
+  it('leaves commission and total blank when the breakdown could not be loaded', () => {
+    const [row] = buildPayByDentist([salary('d-1', 'Dr Cruz', 3000)], null)
+    expect(row).toMatchObject({ salary: 3000, commission: null, total: null })
+  })
+
+  it('takes the name from whichever source knows it', () => {
+    const [row] = buildPayByDentist([salary('d-9', null, 3000)], [commission('d-9', 'Dr Santos', 200)])
+    expect(row.label).toBe('Dr Santos')
+  })
+
+  it('coerces numeric strings rather than concatenating them', () => {
+    const [row] = buildPayByDentist(
+      [salary('d-1', 'Dr Cruz', '1500.00')],
+      [commission('d-1', 'Dr Cruz', '250.00')],
+    )
+    expect(row.total).toBe(1750)
   })
 })
