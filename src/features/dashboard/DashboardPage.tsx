@@ -97,6 +97,10 @@ export default function DashboardPage() {
   if (!summary) return <LoadingState label="Loading today…" />
 
   const n = (v: number | string) => Number(v ?? 0)
+  // The dentist's own commission for the day, added up from the same rows
+  // their Today's Patient table shows — no extra query, and it can only ever
+  // be their own patients' invoices.
+  const commissionToday = dentistDay.reduce((sum, p) => sum + p.commission, 0)
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,8 +173,10 @@ export default function DashboardPage() {
           the thing to act on before any figure. */}
       {seesPaymentQueue && <PaymentQueue entries={paymentQueue} onChanged={() => void refresh()} />}
 
-      {/* The day, at a glance. */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* The day, at a glance. A dentist gets what they earned in place of
+          two figures about a diary they cannot open — their own commission,
+          never the clinic's takings. */}
+      <section className={`grid grid-cols-2 gap-3 ${isDentist ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
         <StatTile
           label="In the clinic"
           value={n(summary.in_clinic)}
@@ -182,25 +188,35 @@ export default function DashboardPage() {
           to={scheduleLink}
           tone={n(summary.longest_wait_minutes) >= 20 ? 'attention' : 'neutral'}
         />
-        <StatTile
-          label="Still to come"
-          value={n(summary.still_to_come)}
-          hint={`${n(summary.appointments_today)} booked today`}
-          to={scheduleLink}
-        />
+        {!isDentist && (
+          <StatTile
+            label="Still to come"
+            value={n(summary.still_to_come)}
+            hint={`${n(summary.appointments_today)} booked today`}
+            to={scheduleLink}
+          />
+        )}
         <StatTile
           label="Completed"
           value={n(summary.completed_today)}
           hint="treated today"
           to={scheduleLink}
         />
-        <StatTile
-          label="No-shows"
-          value={n(summary.no_shows_today)}
-          hint={n(summary.cancelled_today) > 0 ? `${n(summary.cancelled_today)} cancelled` : 'none today'}
-          to={scheduleLink}
-          tone={n(summary.no_shows_today) > 0 ? 'attention' : 'neutral'}
-        />
+        {isDentist ? (
+          <StatTile
+            label="Commission"
+            value={formatMoney(commissionToday)}
+            hint="yours, from today's invoices"
+          />
+        ) : (
+          <StatTile
+            label="No-shows"
+            value={n(summary.no_shows_today)}
+            hint={n(summary.cancelled_today) > 0 ? `${n(summary.cancelled_today)} cancelled` : 'none today'}
+            to={scheduleLink}
+            tone={n(summary.no_shows_today) > 0 ? 'attention' : 'neutral'}
+          />
+        )}
       </section>
 
       {seesMoney && (

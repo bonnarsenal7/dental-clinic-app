@@ -1443,7 +1443,14 @@ clinic ever opens elsewhere.
 
 ### Role split
 - **Money** (collected, billed, outstanding, cash breakdown) — receptionist
-  and admin. Not the dentist.
+  and admin. Not the dentist. **Their own commission is the exception**: a
+  dentist's tiles are In the clinic, Completed and **Commission** — what
+  they earned today, added up from their own Today's Patient rows. The
+  clinic's takings stay off their screen.
+- **Still to come** and **No-shows** — reception and admin only. They were
+  dropped from the dentist's tiles (clinic's choice): both are questions
+  about a diary a dentist can no longer open, and the commission figure took
+  their place.
 - **Clinical alerts for today's patients** — dentist and admin. Not
   reception, whose job is flow rather than clinical judgement.
 - Queue, schedule counts, and recalls — everyone. The tiles stay

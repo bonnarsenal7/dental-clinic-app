@@ -197,6 +197,27 @@ describe('DashboardPage', () => {
       expect(api.listTodaysPatients).not.toHaveBeenCalled()
     })
 
+    // What a dentist earned today, in place of two figures about the diary
+    // they can no longer open.
+    it("totals the day's commission instead of Still to come and No-shows", async () => {
+      vi.mocked(api.listDentistDay).mockResolvedValue([
+        { ...row, commission: 500 },
+        { ...row, appointment_id: 'a2', commission: 250 },
+      ])
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      expect(screen.getByText('₱750.00')).toBeInTheDocument()
+      expect(screen.queryByText(/still to come/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/no-shows/i)).not.toBeInTheDocument()
+    })
+
+    it('shows nothing earned as zero rather than blank', async () => {
+      vi.mocked(api.listDentistDay).mockResolvedValue([row])
+      renderPage()
+      await screen.findByText(/in the clinic/i)
+      expect(screen.getAllByText('₱0.00').length).toBeGreaterThan(0)
+    })
+
     it("titles the list Today's Patient, with the five columns in order", async () => {
       vi.mocked(api.listDentistDay).mockResolvedValue([row])
       renderPage()
@@ -237,6 +258,16 @@ describe('DashboardPage', () => {
       expect(hrefs).not.toContain('/schedule')
       expect(hrefs).not.toContain('/recalls')
     })
+  })
+
+  // The two tiles a dentist lost are still reception's: they run the diary.
+  it('keeps the whole day at a glance for reception', async () => {
+    role.current = 'receptionist'
+    renderPage()
+    expect(await screen.findByText(/in the clinic/i)).toBeInTheDocument()
+    expect(screen.getByText(/still to come/i)).toBeInTheDocument()
+    expect(screen.getByText(/no-shows/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^commission$/i)).not.toBeInTheDocument()
   })
 
   it('still offers the schedule button to reception', async () => {
