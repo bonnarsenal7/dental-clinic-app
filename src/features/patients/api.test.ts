@@ -14,6 +14,7 @@ const api = await import('./api')
 const db = () => sb.current!
 
 const INTAKE = {
+  patient_type: 'regular' as const,
   name: 'Maria Clara Santos',
   address: '',
   birthday: '',
@@ -64,6 +65,41 @@ describe('patients api', () => {
     expect(filter).toContain('name.ilike.%santos%')
     expect(filter).toContain('cell_number.ilike.%santos%')
     expect(filter).toContain('phone_number.ilike.%santos%')
+  })
+
+  // --- Patient type --------------------------------------------------------
+
+  it('narrows the list to one patient type when asked', async () => {
+    db().queue('patients', { data: [] })
+    await api.searchPatients('', undefined, 'orthodontic')
+    expect(db().query('patients')!.calls).toContainEqual({
+      method: 'eq',
+      args: ['patient_type', 'orthodontic'],
+    })
+  })
+
+  it('asks for every type when none is chosen', async () => {
+    db().queue('patients', { data: [] })
+    await api.searchPatients('')
+    expect(db().methods('patients')).not.toContain('eq')
+  })
+
+  it('records the type a patient was registered as', async () => {
+    db().queue('patients', { data: { id: 'p-1' } })
+    db().queue('medical_histories', { data: null })
+    db().queue('dental_histories', { data: null })
+    await api.registerPatient({ ...INTAKE, patient_type: 'orthodontic' }, 's-1')
+    expect(db().query('patients')!.payload).toMatchObject({ patient_type: 'orthodontic' })
+  })
+
+  // Sent unchanged by reception, which 0023's trigger allows; a change from
+  // anyone but an admin is refused there, not here.
+  it('carries the type through an edit', async () => {
+    db().queue('patients', { data: null })
+    db().queue('medical_histories', { data: null })
+    db().queue('dental_histories', { data: null })
+    await api.updatePatientHistory('p-1', { ...INTAKE, patient_type: 'orthodontic' })
+    expect(db().query('patients')!.payload).toMatchObject({ patient_type: 'orthodontic' })
   })
 
   it('lists everyone when the box is empty rather than filtering on nothing', async () => {

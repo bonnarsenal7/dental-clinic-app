@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -46,7 +46,42 @@ describe('PatientsPage', () => {
   it('searches the whole clinic for reception', async () => {
     renderPage()
     await screen.findByRole('link', { name: /angelica/i })
-    expect(api.searchPatients).toHaveBeenCalledWith('', undefined)
+    expect(api.searchPatients).toHaveBeenCalledWith('', undefined, undefined)
+  })
+
+  describe('patient type', () => {
+    it('lists every type until one is chosen', async () => {
+      renderPage()
+      await screen.findByRole('link', { name: /angelica/i })
+      expect(screen.getByLabelText(/patient type/i)).toHaveValue('')
+      expect(api.searchPatients).toHaveBeenCalledWith('', undefined, undefined)
+    })
+
+    it('narrows the list to one type, and back to all', async () => {
+      const user = userEvent.setup()
+      renderPage()
+      await screen.findByRole('link', { name: /angelica/i })
+      await user.selectOptions(screen.getByLabelText(/patient type/i), 'orthodontic')
+      await waitFor(() => expect(api.searchPatients).toHaveBeenCalledWith('', undefined, 'orthodontic'))
+      await user.selectOptions(screen.getByLabelText(/patient type/i), '')
+      await waitFor(() =>
+        expect(vi.mocked(api.searchPatients).mock.calls.at(-1)).toEqual(['', undefined, undefined]),
+      )
+    })
+
+    it('shows each patient’s type in the list', async () => {
+      vi.mocked(api.searchPatients).mockResolvedValue([
+        { ...PATIENTS[0], patient_type: 'orthodontic' },
+        { ...PATIENTS[1], patient_type: 'regular' },
+      ] as never)
+      renderPage()
+      // Wait for the patients themselves: the header and the "Loading…" row
+      // are already there, so findAllByRole('row') resolves before they are.
+      await screen.findByRole('link', { name: /angelica/i })
+      const rows = screen.getAllByRole('row')
+      expect(within(rows[1]).getByText('Orthodontic')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('Regular')).toBeInTheDocument()
+    })
   })
 
   // A dentist's list is their own patients — anyone booked with them.
@@ -54,7 +89,7 @@ describe('PatientsPage', () => {
     auth.role = 'dentist'
     renderPage()
     await screen.findByRole('link', { name: /angelica/i })
-    expect(api.searchPatients).toHaveBeenCalledWith('', 's-1')
+    expect(api.searchPatients).toHaveBeenCalledWith('', 's-1', undefined)
   })
 
   // Registration is the front desk's, and a patient a dentist registered
@@ -80,7 +115,7 @@ describe('PatientsPage', () => {
     await screen.findByRole('link', { name: /angelica/i })
     vi.mocked(api.searchPatients).mockClear()
     await user.type(screen.getByPlaceholderText(/search name or contact/i), 'dela')
-    await waitFor(() => expect(api.searchPatients).toHaveBeenCalledWith('dela', undefined))
+    await waitFor(() => expect(api.searchPatients).toHaveBeenCalledWith('dela', undefined, undefined))
     expect(vi.mocked(api.searchPatients).mock.calls.length).toBeLessThan(4)
   })
 

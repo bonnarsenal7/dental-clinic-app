@@ -1,5 +1,19 @@
+/** Two categories, one record: an orthodontic patient uses exactly the same
+ *  fields, histories, chart and billing as a regular one (0023). Nothing in
+ *  the app branches on this yet — it is a label to find people by. */
+export type PatientType = 'regular' | 'orthodontic'
+
+export const PATIENT_TYPES: { value: PatientType; label: string }[] = [
+  { value: 'regular', label: 'Regular' },
+  { value: 'orthodontic', label: 'Orthodontic' },
+]
+
+export const patientTypeLabel = (type: PatientType | null | undefined) =>
+  PATIENT_TYPES.find((t) => t.value === type)?.label ?? 'Regular'
+
 export interface Patient {
   id: string
+  patient_type: PatientType
   name: string
   address: string | null
   birthday: string | null
@@ -106,6 +120,7 @@ export interface PatientFile {
 /** Registration form shape — demographics + the two history checklists,
  *  submitted together in one flow. */
 export interface PatientRegistrationInput {
+  patient_type: PatientType
   name: string
   address: string
   birthday: string

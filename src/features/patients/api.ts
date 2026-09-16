@@ -4,6 +4,7 @@ import type {
   DentalHistory,
   MedicalHistory,
   Patient,
+  PatientType,
   PatientFile,
   PatientRegistrationInput,
   SignerRelationship,
@@ -25,12 +26,17 @@ function toNullableString(v: string): string | null {
  *  A screen scope, not a security boundary — RLS still lets a dentist read
  *  every patient. The inner join makes the embed a filter rather than an
  *  attachment, and PostgREST still returns each patient once. */
-export async function searchPatients(query: string, dentistId?: string): Promise<Patient[]> {
+export async function searchPatients(
+  query: string,
+  dentistId?: string,
+  patientType?: PatientType,
+): Promise<Patient[]> {
   let q = supabase
     .from('patients')
     .select(dentistId ? '*, appointments!inner(dentist_id)' : '*')
     .order('created_at', { ascending: false })
   if (dentistId) q = q.eq('appointments.dentist_id', dentistId)
+  if (patientType) q = q.eq('patient_type', patientType)
   if (query.trim()) {
     const term = query.trim()
     q = q.or(`name.ilike.%${term}%,cell_number.ilike.%${term}%,phone_number.ilike.%${term}%`)
@@ -92,6 +98,9 @@ export async function registerPatient(input: PatientRegistrationInput, createdBy
   const { data: patient, error: patientError } = await supabase
     .from('patients')
     .insert({
+      // Set at registration by whoever is at the front desk; only an admin
+      // can move a patient between categories afterwards (0023).
+      patient_type: input.patient_type,
       name: input.name,
       address: toNullableString(input.address),
       birthday: toNullableString(input.birthday),
@@ -147,6 +156,9 @@ export async function updatePatientHistory(patientId: string, input: PatientRegi
   const { error: patientError } = await supabase
     .from('patients')
     .update({
+      // Always sent: unchanged it passes, and 0023's trigger refuses a
+      // change from anyone but an admin — the form only offers it to them.
+      patient_type: input.patient_type,
       name: input.name,
       address: toNullableString(input.address),
       birthday: toNullableString(input.birthday),

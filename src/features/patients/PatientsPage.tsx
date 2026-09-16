@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { searchPatients } from './api'
-import type { Patient } from './types'
+import { PATIENT_TYPES, patientTypeLabel } from './types'
+import type { Patient, PatientType } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import { PageHeader } from '../../core/components/ui/Page'
@@ -12,17 +13,19 @@ export default function PatientsPage() {
   // A dentist sees only patients booked with them. Everyone else, the clinic.
   const dentistId = staff?.role === 'dentist' ? staff.id : undefined
   const [query, setQuery] = useState('')
+  // '' is All: the filter narrows the list, it does not default to a category.
+  const [patientType, setPatientType] = useState<PatientType | ''>('')
   const [patients, setPatients] = useState<Patient[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      searchPatients(query, dentistId)
+      searchPatients(query, dentistId, patientType || undefined)
         .then(setPatients)
         .catch((e) => setError(toMessage(e)))
     }, 250)
     return () => clearTimeout(handle)
-  }, [query, dentistId])
+  }, [query, dentistId, patientType])
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,12 +51,29 @@ export default function PatientsPage() {
         )}
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search name or contact number…"
-        className="rounded-md border border-slate-300 px-3 py-2 text-sm max-w-md"
-      />
+      <div className="flex items-end gap-3 flex-wrap">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search name or contact number…"
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm max-w-md"
+        />
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+          Patient type
+          <select
+            value={patientType}
+            onChange={(e) => setPatientType(e.target.value as PatientType | '')}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800"
+          >
+            <option value="">All</option>
+            {PATIENT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {error && <ErrorState message={error} />}
 
@@ -62,6 +82,7 @@ export default function PatientsPage() {
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2">Name</th>
+              <th className="text-left px-4 py-2">Type</th>
               <th className="text-left px-4 py-2">Cell number</th>
               <th className="text-left px-4 py-2">Phone number</th>
               <th className="text-left px-4 py-2">Registered</th>
@@ -70,14 +91,14 @@ export default function PatientsPage() {
           <tbody>
             {patients === null && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
                   Loading…
                 </td>
               </tr>
             )}
             {patients?.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
                   No patients found.
                 </td>
               </tr>
@@ -89,6 +110,7 @@ export default function PatientsPage() {
                     {p.name}
                   </Link>
                 </td>
+                <td className="px-4 py-2 text-slate-500">{patientTypeLabel(p.patient_type)}</td>
                 <td className="px-4 py-2 text-slate-500">{p.cell_number ?? '—'}</td>
                 <td className="px-4 py-2 text-slate-500">{p.phone_number ?? '—'}</td>
                 <td className="px-4 py-2 text-slate-500">{new Date(p.created_at).toLocaleDateString()}</td>

@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { DENTAL_SYMPTOMS, MEDICAL_CONDITIONS, ORAL_HABITS } from './historyOptions'
+import { PATIENT_TYPES } from './types'
 import type { PatientRegistrationInput } from './types'
 import { Field, NativeSelect, TextArea, TextInput } from '../../core/components/ui/Field'
 import Button from '../../core/components/ui/Button'
@@ -9,6 +10,7 @@ const EMPTY_SYMPTOMS = Object.fromEntries(DENTAL_SYMPTOMS.map((s) => [s.key, fal
 const EMPTY_HABITS = Object.fromEntries(ORAL_HABITS.map((h) => [h.key, false]))
 
 export const EMPTY_PATIENT_FORM: PatientRegistrationInput = {
+  patient_type: 'regular',
   name: '',
   address: '',
   birthday: '',
@@ -50,9 +52,18 @@ interface PatientFormProps {
   defaultValues: PatientRegistrationInput
   onSubmit: (values: PatientRegistrationInput) => Promise<void>
   submitLabel: string
+  /** Whether the patient's category may be chosen here. True at registration
+   *  — the front desk knows which the patient is — and afterwards only for an
+   *  admin, which 0023 enforces whatever the form offers. */
+  canChooseType?: boolean
 }
 
-export default function PatientForm({ defaultValues, onSubmit, submitLabel }: PatientFormProps) {
+export default function PatientForm({
+  defaultValues,
+  onSubmit,
+  submitLabel,
+  canChooseType = true,
+}: PatientFormProps) {
   const {
     register,
     handleSubmit,
@@ -70,6 +81,19 @@ export default function PatientForm({ defaultValues, onSubmit, submitLabel }: Pa
       <section className={sectionCls}>
         <h2 className="text-sm font-semibold text-slate-700">Demographics</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Both categories use the same form: this is a label to find
+              people by, not a fork (0023). */}
+          {canChooseType && (
+            <Field label="Patient type">
+              <NativeSelect {...register('patient_type')}>
+                {PATIENT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          )}
           <Field label="Full name" error={errors.name?.message}>
             <TextInput {...register('name', { required: 'Name is required' })} />
           </Field>

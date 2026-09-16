@@ -129,6 +129,50 @@ describe('PatientForm', () => {
     expect(screen.getByLabelText(/occupation/i)).toHaveValue('Nurse')
   })
 
+  // Both categories use the same form: the type is a label, not a fork.
+  it('registers a regular patient unless another type is chosen', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderForm()
+    expect(screen.getByLabelText(/patient type/i)).toHaveValue('regular')
+    await user.type(screen.getByLabelText(/full name/i), 'Maria Clara Santos')
+    await user.click(screen.getByRole('button', { name: /register patient/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0].patient_type).toBe('regular')
+  })
+
+  it('records an orthodontic patient when that is chosen', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderForm()
+    await user.selectOptions(screen.getByLabelText(/patient type/i), 'orthodontic')
+    await user.type(screen.getByLabelText(/full name/i), 'Ricardo Bautista')
+    await user.click(screen.getByRole('button', { name: /register patient/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0].patient_type).toBe('orthodontic')
+  })
+
+  it('shows the type on file when editing', () => {
+    renderForm({ patient_type: 'orthodontic' })
+    expect(screen.getByLabelText(/patient type/i)).toHaveValue('orthodontic')
+  })
+
+  // Only an admin may move a patient between categories (0023).
+  it('hides the type when the caller may not change it, and keeps it on save', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <PatientForm
+        defaultValues={{ ...EMPTY_PATIENT_FORM, patient_type: 'orthodontic', name: 'Ricardo' }}
+        onSubmit={onSubmit}
+        submitLabel="Save changes"
+        canChooseType={false}
+      />,
+    )
+    expect(screen.queryByLabelText(/patient type/i)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0].patient_type).toBe('orthodontic')
+  })
+
   it("uses the caller's submit label", () => {
     renderForm()
     expect(screen.getByRole('button', { name: /register patient/i })).toBeInTheDocument()

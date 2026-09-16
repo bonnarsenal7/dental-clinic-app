@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import PatientForm from './PatientForm'
 import { EMPTY_PATIENT_FORM } from './PatientForm'
 import { getDentalHistory, getMedicalHistory, getPatient, updatePatientHistory } from './api'
@@ -13,6 +14,7 @@ function toStr(v: unknown): string {
 
 export default function PatientEditPage() {
   const { id } = useParams<{ id: string }>()
+  const { staff } = useAuth()
   const navigate = useNavigate()
   const [defaultValues, setDefaultValues] = useState<PatientRegistrationInput | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +25,7 @@ export default function PatientEditPage() {
       .then(([patient, medical, dental]) => {
         setDefaultValues({
           ...EMPTY_PATIENT_FORM,
+          patient_type: patient.patient_type ?? 'regular',
           name: patient.name,
           address: toStr(patient.address),
           birthday: toStr(patient.birthday),
@@ -89,7 +92,14 @@ export default function PatientEditPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-semibold text-slate-800">Edit patient</h1>
       {error && <ErrorState message={error} />}
-      <PatientForm defaultValues={defaultValues} onSubmit={handleSubmit} submitLabel="Save changes" />
+      {/* Moving a patient between categories is an admin's (0023), so the
+          field is only offered to them — the database refuses the rest. */}
+      <PatientForm
+        defaultValues={defaultValues}
+        onSubmit={handleSubmit}
+        submitLabel="Save changes"
+        canChooseType={staff?.role === 'admin'}
+      />
     </div>
   )
 }

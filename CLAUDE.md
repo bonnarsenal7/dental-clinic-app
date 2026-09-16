@@ -1453,10 +1453,11 @@ clinic ever opens elsewhere.
   their place.
 - **Clinical alerts for today's patients** — dentist and admin. Not
   reception, whose job is flow rather than clinical judgement.
-- Queue, schedule counts, and recalls — everyone. The tiles stay
-  **clinic-wide** for a dentist too (the view is not per-dentist), but for
-  them they are plain figures, not links: the schedule and recalls routes
-  refuse a dentist, so a link would bounce them straight back to `/`.
+- Queue (In the clinic), Completed, and recalls — everyone. Those two tiles
+  stay **clinic-wide** for a dentist (the view is not per-dentist); only
+  their Commission tile is their own figure. For a dentist the tiles are
+  plain figures, not links: the schedule and recalls routes refuse them, so
+  a link would bounce them straight back to `/`.
 - **Open schedule** button — reception and admin. Hidden from a dentist.
 - **Awaiting payment** queue — reception and admin, first on the page, live.
   See "Awaiting payment queue (0019)".
@@ -1873,6 +1874,53 @@ really over, because nothing in the app reopens one.
 The PDF's layout, including the peso-sign workaround, has not been looked
 at on paper either.
 
+## Patient type: regular and orthodontic (0023)
+
+`patients.patient_type` — `regular` | `orthodontic`, default `regular`,
+CHECK-constrained. **A categorisation and nothing else.** Both kinds use the
+same record, the same histories, the same chart, the same invoices, the same
+recalls. Nothing in the app branches on it; it is a label to find people by.
+If a real difference ever appears, this column is what it hangs off.
+
+Every patient that existed before it is `regular` — that is how they have
+been treated — and the default keeps the pilot seed working untouched.
+
+### Set at registration, changed only by an admin
+Reception registers patients (0015 territory: the front desk knows which the
+patient is), so the type is a field on the registration form like any other.
+**Moving a patient between categories afterwards is an admin's.**
+
+RLS cannot express that: a policy grants the whole row, and reception must
+keep the rest of it to edit a phone number. So `patients_guard_type`, a
+BEFORE UPDATE trigger, refuses a *changed* `patient_type` from anyone but an
+admin — the same shape as 0013/0015/0020. An update that leaves the type
+alone passes, which is what lets reception go on saving the same form.
+
+`PatientForm` takes `canChooseType`: true at registration, and on the edit
+page only for an admin. The form always submits the value and
+`updatePatientHistory` always sends it; unchanged, the trigger allows it.
+Don't "optimise" that by dropping the field from the payload for
+non-admins — the trigger is the rule, the form only mirrors it.
+
+### Finding them
+The patients list has a **Patient type** filter (All / Regular /
+Orthodontic) beside the search box, and a **Type** column.
+`searchPatients(query, dentistId, patientType)` adds `eq('patient_type', …)`
+only when a type is chosen; All means no filter, not a default category. It
+composes with the dentist scope, so a dentist filtering by type still sees
+only their own patients.
+
+### What deliberately did not change
+Profile, visit history, billing, recalls, the chart, the dashboards and the
+end-of-day report all behave identically for both types, and none of them
+reads the column. **The profile does not show the type either** — ask before
+adding a badge there; "purely a categorisation" was the instruction, and the
+list is where the clinic said they needed to see it.
+
+Mutation-checked: offering the type to a non-admin on the edit page,
+ignoring the filter in the search, and dropping the chosen type at
+registration each fail a test.
+
 ## Test environment gotchas
 
 - **A `ref`-driven third-party component must be mocked as a class.** React
@@ -2244,7 +2292,7 @@ carries a left border rather than only a differently coloured badge.
 ### Medical alerts sit above the day's numbers
 A dentist opening the dashboard at the start of a shift needs to know who
 cannot be treated as planned before they read how many are booked, and an
-alert under four stat tiles is an alert someone scrolls past. The order is
+alert below the stat tiles is an alert someone scrolls past. The order is
 asserted by a test and mutation-checked.
 
 ### The chart says that it scrolls
