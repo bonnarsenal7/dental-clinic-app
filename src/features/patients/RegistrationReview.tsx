@@ -1,4 +1,5 @@
 import { DENTAL_SYMPTOMS, MEDICAL_CONDITIONS, ORAL_HABITS } from './historyOptions'
+import { patientTypeLabel } from './types'
 import type { PatientRegistrationInput } from './types'
 
 function checkedLabels(map: Record<string, boolean>, options: { key: string; label: string }[]) {
@@ -19,6 +20,12 @@ export default function RegistrationReview({ values }: { values: PatientRegistra
     <div className="flex flex-col gap-4">
       <section className="bg-white border border-slate-200 rounded-xl p-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-2">Demographics</h2>
+        {/* The category is part of what is being signed for, so it is shown
+            like any other answer rather than left off the summary. */}
+        <div className={row}>
+          <span className={rowLabel}>Patient type</span>
+          <span className={rowValue}>{patientTypeLabel(values.patient_type)}</span>
+        </div>
         <div className={row}>
           <span className={rowLabel}>Name</span>
           <span className={rowValue}>{values.name || '—'}</span>

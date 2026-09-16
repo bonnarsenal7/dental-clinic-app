@@ -334,9 +334,13 @@ appear in one and not the other.
 
 ### What's built
 - `src/features/patients/PatientsPage.tsx` — list + debounced search by
-  name/cell/phone (`ilike` across all three).
-- `src/features/patients/PatientForm.tsx` — shared demographics + medical
-  history + dental history form (used for both registration and edit).
+  name/cell/phone (`ilike` across all three), a **Patient type** filter and a
+  Type column (0023), and the dentist scope that narrows the whole list to
+  their own patients.
+- `src/features/patients/PatientForm.tsx` — shared patient type (0023) +
+  demographics + medical history + dental history form (used for both
+  registration and edit; `canChooseType` decides whether the type is
+  offered).
   Checklists render from `historyOptions.ts` (the condition/symptom/habit
   vocab), each backed by a jsonb map on the corresponding table, with a
   "specify" text field next to allergies, current medications, and any
@@ -1913,13 +1917,27 @@ only their own patients.
 ### What deliberately did not change
 Profile, visit history, billing, recalls, the chart, the dashboards and the
 end-of-day report all behave identically for both types, and none of them
-reads the column. **The profile does not show the type either** — ask before
-adding a badge there; "purely a categorisation" was the instruction, and the
-list is where the clinic said they needed to see it.
+reads the column. **The profile does not show the type** — ask before adding
+a badge there; "purely a categorisation" was the instruction, and the list is
+where the clinic said they needed to see it.
+
+**`patientTypeIsOnlyALabel.test.ts` holds that**: a structural test that
+fails if any file outside the patients feature so much as mentions
+`patient_type`. Same shape, and same reason, as charting's
+`noBilling.test.ts` — the thing being protected is an absence, which a
+behavioural test cannot notice coming back. If the clinic ever asks for a
+real difference, delete that test in the commit that introduces it, on
+purpose rather than by accident.
+
+**The registration review does show it.** That screen is what the patient
+reads before signing, so everything about to be saved belongs on it —
+including the category. `RegistrationReview.test.tsx` covers it, and is that
+component's first test: it had none, at 0% coverage, until then.
 
 Mutation-checked: offering the type to a non-admin on the edit page,
-ignoring the filter in the search, and dropping the chosen type at
-registration each fail a test.
+ignoring the filter in the search, dropping the chosen type at registration,
+naming `patient_type` in another feature, and dropping the type row from the
+review each fail a test.
 
 ## Test environment gotchas
 
