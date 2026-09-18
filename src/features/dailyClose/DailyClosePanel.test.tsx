@@ -302,12 +302,14 @@ describe('DailyClosePanel', () => {
   })
 
   describe("today's summary", () => {
-    /** The four figures, as [label, value] pairs. */
+    /** The four figures, as [label, value] pairs. Read per row rather than
+     *  by sibling: the label sits beside its hint, and the value is the row's
+     *  own <dd>. */
     const summary = async () => {
       const section = await screen.findByRole('region', { name: /today's summary/i })
-      return [...section.querySelectorAll('dt')].map((dt) => [
-        dt.textContent,
-        dt.nextElementSibling?.textContent,
+      return [...section.querySelectorAll('dl > div')].map((row) => [
+        row.querySelector('dt')?.textContent,
+        row.querySelector('dd')?.textContent,
       ])
     }
 

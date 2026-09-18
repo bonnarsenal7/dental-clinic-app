@@ -308,17 +308,24 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
         <h2 id="todays-summary-heading" className="text-sm font-semibold text-slate-700">
           Today's summary
         </h2>
-        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* A list, like the expense and salary entries above it, rather than
+            tiles: the four read down as one set of figures. */}
+        <dl className="flex flex-col">
           {[
             ['Patients serviced', String(data.totals.patients_served), 'seen today'],
             ['Collected', formatMoney(figures.revenue_total), 'from all patients'],
             ['Dentist salary', formatMoney(figures.salary_total), 'paid out today'],
             ['Dentist commission', formatMoney(figures.commission_total), "on today's invoices"],
           ].map(([label, value, hint]) => (
-            <div key={label} className="rounded-xl border border-slate-200 px-4 py-3">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
-              <dd className="text-2xl font-semibold tabular-nums text-slate-800 mt-1">{value}</dd>
-              <p className="text-xs text-slate-500 mt-0.5">{hint}</p>
+            <div
+              key={label}
+              className="flex items-baseline justify-between gap-3 flex-wrap border-t border-slate-100 py-2"
+            >
+              <div className="min-w-0">
+                <dt className="text-sm text-slate-700">{label}</dt>
+                <p className="text-xs text-slate-500">{hint}</p>
+              </div>
+              <dd className="text-sm font-medium tabular-nums text-slate-800">{value}</dd>
             </div>
           ))}
         </dl>
