@@ -8,7 +8,7 @@ import PatientScheduling from '../scheduling/PatientScheduling'
 import VisitTimeline from './VisitTimeline'
 import FileAttachments from './FileAttachments'
 import { MEDICAL_CONDITIONS, DENTAL_SYMPTOMS, ORAL_HABITS } from './historyOptions'
-import { SIGNER_RELATIONSHIPS } from './types'
+import { SIGNER_RELATIONSHIPS, patientTypeLabel } from './types'
 import type { Consent, DentalHistory, MedicalHistory, Patient } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
@@ -56,7 +56,14 @@ export default function PatientProfilePage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-800">{patient.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-lg font-semibold text-slate-800">{patient.name}</h1>
+            {/* Neutral: a category is not a record state (red/green) and not
+                the brand (gold). Only an admin can change it, on Edit. */}
+            <span className="text-xs uppercase tracking-wide border border-slate-200 bg-slate-100 text-slate-600 rounded-full px-2 py-0.5">
+              {patientTypeLabel(patient.patient_type)}
+            </span>
+          </div>
           <p className="text-slate-500 text-sm mt-1">
             {patient.cell_number ?? patient.phone_number ?? 'No contact number on file'}
           </p>

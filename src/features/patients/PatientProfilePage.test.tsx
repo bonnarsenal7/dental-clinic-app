@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -69,6 +69,21 @@ describe('PatientProfilePage', () => {
     expect(await screen.findByRole('heading', { name: /maria clara santos/i })).toBeInTheDocument()
     // Once in the header, once in the Cell field below.
     expect(screen.getAllByText('0917 555 0142')).toHaveLength(2)
+  })
+
+  // The category beside the name. Only an admin can change it, on Edit —
+  // the profile just says which it is.
+  it('badges an orthodontic patient as such', async () => {
+    vi.mocked(api.getPatient).mockResolvedValue({ ...PATIENT, patient_type: 'orthodontic' } as never)
+    renderPage()
+    const heading = await screen.findByRole('heading', { name: /maria clara santos/i })
+    expect(within(heading.parentElement as HTMLElement).getByText('Orthodontic')).toBeInTheDocument()
+  })
+
+  it('badges a patient with no type recorded as regular, rather than blank', async () => {
+    renderPage()
+    const heading = await screen.findByRole('heading', { name: /maria clara santos/i })
+    expect(within(heading.parentElement as HTMLElement).getByText('Regular')).toBeInTheDocument()
   })
 
   // PostgreSQL has no SELECT trigger, so opening a record is the one audit
