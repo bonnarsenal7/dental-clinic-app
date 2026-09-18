@@ -297,6 +297,33 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
         {!closed && <SalaryForm dentists={dentists} onAdded={refresh} />}
       </section>
 
+      {/* The day in four figures, after the per-dentist detail: what the
+          front desk reads out at close of business. The money comes from the
+          same figures as the sections above — frozen once the day is closed —
+          while the patient count is always live: those visits are over. */}
+      <section
+        aria-labelledby="todays-summary-heading"
+        className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-3"
+      >
+        <h2 id="todays-summary-heading" className="text-sm font-semibold text-slate-700">
+          Today's summary
+        </h2>
+        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            ['Patients serviced', String(data.totals.patients_served), 'seen today'],
+            ['Collected', formatMoney(figures.revenue_total), 'from all patients'],
+            ['Dentist salary', formatMoney(figures.salary_total), 'paid out today'],
+            ['Dentist commission', formatMoney(figures.commission_total), "on today's invoices"],
+          ].map(([label, value, hint]) => (
+            <div key={label} className="rounded-xl border border-slate-200 px-4 py-3">
+              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+              <dd className="text-2xl font-semibold tabular-nums text-slate-800 mt-1">{value}</dd>
+              <p className="text-xs text-slate-500 mt-0.5">{hint}</p>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       {!closed && (
         <section className="flex flex-col items-start gap-2 border-t border-slate-200 pt-6">
           <Button onClick={() => setConfirmingClose(true)}>Close Clinic</Button>

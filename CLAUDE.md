@@ -1791,6 +1791,27 @@ U+20B1 and draws stray characters in its place. `receiptPdf.ts` still uses
 `formatMoney` and so very likely has this bug on printed receipts; it is
 unverified, since nobody has put a receipt through a printer yet.
 
+### Today's summary (0024)
+After the per-dentist table, four figures the front desk reads out at close
+of business: **Patients serviced, Collected, Dentist salary, Dentist
+commission**. Nothing new is computed in the browser — the money is the same
+`figures` the sections above use, so it freezes when the day closes.
+
+**Patients serviced is the one new number**, and it is deliberately **not
+frozen**: `clinic_day_totals()` counts *distinct patients with a visit
+today*, and a closed day's visits are already over. A visit row is written
+when a patient is seated, and by the chart when a dentist starts one without
+a booking — so it counts people treated, not people booked, and two visits in
+one day is one patient.
+
+`ClinicDayReport` therefore **omits** `patients_served`
+(`Omit<ClinicDayTotals, …>`): closing does not save it, and a type claiming
+otherwise would have the screen reading `undefined`.
+
+0024 **drops and recreates** `clinic_day_totals` rather than replacing it —
+a function's return type cannot be changed in place. `close_clinic_day()`
+selects it into a record, which adapts.
+
 ### Commission per dentist (0021)
 Salary and commission are **one section, "Daily salary & commission"**: a
 table with a row per dentist — Dentist / Salary / Commission / Total — and a
@@ -1917,9 +1938,13 @@ only their own patients.
 ### What deliberately did not change
 Profile, visit history, billing, recalls, the chart, the dashboards and the
 end-of-day report all behave identically for both types, and none of them
-reads the column. **The profile does not show the type** — ask before adding
-a badge there; "purely a categorisation" was the instruction, and the list is
-where the clinic said they needed to see it.
+reads the column.
+
+**Where it is shown**: the patients list (Type column and filter), the
+registration review, and a neutral badge beside the name on the profile —
+the clinic asked for that one after it was first left off. Neutral on
+purpose: a category is not a record state (red/green) and not the brand
+(gold). Showing it is all any of these do; nothing behaves differently.
 
 **`patientTypeIsOnlyALabel.test.ts` holds that**: a structural test that
 fails if any file outside the patients feature so much as mentions

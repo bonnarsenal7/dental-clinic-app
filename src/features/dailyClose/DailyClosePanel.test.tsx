@@ -65,6 +65,7 @@ describe('DailyClosePanel', () => {
       expense_total: 0,
       salary_total: 0,
       commission_total: 750,
+      patients_served: 9,
     })
     vi.mocked(api.listCommissionByDentist).mockReset().mockResolvedValue([])
     vi.mocked(api.getClinicName).mockReset().mockResolvedValue('ToothCo Dental Clinic')
@@ -265,6 +266,7 @@ describe('DailyClosePanel', () => {
         expense_total: 0,
         salary_total: 3000,
         commission_total: 750,
+        patients_served: 9,
       })
       vi.mocked(api.listCommissionByDentist).mockResolvedValue([
         { dentist_id: 'd-1', dentist_name: 'Dr Cruz', commission_total: 750 },
@@ -296,6 +298,69 @@ describe('DailyClosePanel', () => {
       await waitFor(() => expect(rows()).toEqual([['Dr Cruz', '₱3,000.00', '—', '—']]))
       expect(footer()[2]).toBe('₱750.00')
       expect(screen.getByRole('button', { name: /close clinic/i })).toBeInTheDocument()
+    })
+  })
+
+  describe("today's summary", () => {
+    /** The four figures, as [label, value] pairs. */
+    const summary = async () => {
+      const section = await screen.findByRole('region', { name: /today's summary/i })
+      return [...section.querySelectorAll('dt')].map((dt) => [
+        dt.textContent,
+        dt.nextElementSibling?.textContent,
+      ])
+    }
+
+    it('puts the day in four figures', async () => {
+      vi.mocked(api.getClinicDayTotals).mockResolvedValue({
+        business_date: '2026-09-15',
+        revenue_total: 18450,
+        expense_total: 1350,
+        salary_total: 7500,
+        commission_total: 1850,
+        patients_served: 12,
+      })
+      renderPanel()
+      expect(await summary()).toEqual([
+        ['Patients serviced', '12'],
+        ['Collected', '₱18,450.00'],
+        ['Dentist salary', '₱7,500.00'],
+        ['Dentist commission', '₱1,850.00'],
+      ])
+    })
+
+    it('sits after the salary and commission section', async () => {
+      renderPanel()
+      const pay = await screen.findByRole('region', { name: /daily salary & commission/i })
+      const today = screen.getByRole('region', { name: /today's summary/i })
+      expect(pay.compareDocumentPosition(today) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    // The money follows the rest of the panel: frozen once the day is closed,
+    // so a payment taken afterwards does not move what was closed.
+    it('shows the closing money on a closed day, and the live patient count', async () => {
+      vi.mocked(api.getClinicDay).mockResolvedValue({
+        id: 'c-1',
+        business_date: '2026-09-15',
+        closed_at: REPORT.closed_at,
+        closed_by: 's-1',
+        report: REPORT,
+      })
+      vi.mocked(api.getClinicDayTotals).mockResolvedValue({
+        business_date: '2026-09-15',
+        revenue_total: 9999,
+        expense_total: 0,
+        salary_total: 0,
+        commission_total: 999,
+        patients_served: 12,
+      })
+      renderPanel()
+      expect(await summary()).toEqual([
+        ['Patients serviced', '12'],
+        ['Collected', '₱5,000.00'],
+        ['Dentist salary', '₱3,000.00'],
+        ['Dentist commission', '₱750.00'],
+      ])
     })
   })
 
@@ -445,6 +510,7 @@ describe('DailyClosePanel', () => {
         expense_total: 0,
         salary_total: 0,
         commission_total: 999,
+        patients_served: 9,
       })
       renderPanel()
       const pay = await screen.findByRole('region', { name: /daily salary & commission/i })

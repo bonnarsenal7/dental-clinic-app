@@ -102,6 +102,7 @@ export async function getClinicDayTotals(date: string): Promise<ClinicDayTotals>
     expense_total: Number(row?.expense_total ?? 0),
     salary_total: Number(row?.salary_total ?? 0),
     commission_total: Number(row?.commission_total ?? 0),
+    patients_served: Number(row?.patients_served ?? 0),
   }
 }
 

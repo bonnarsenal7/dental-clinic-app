@@ -21,6 +21,9 @@ export interface ClinicDayTotals {
   expense_total: number
   salary_total: number
   commission_total: number
+  /** Distinct patients with a visit today — people treated, not booked
+   *  (0024). Always live: a closed day's visits are already over. */
+  patients_served: number
 }
 
 /** One dentist's commission for a day, from clinic_day_commission_by_dentist()
@@ -35,7 +38,9 @@ export interface CommissionByDentist {
 /** The frozen end-of-day report, saved when the clinic is closed. A
  *  re-download is rebuilt from this, never recomputed, so it always matches
  *  what was closed. */
-export interface ClinicDayReport extends ClinicDayTotals {
+/** Omits patients_served on purpose: closing does not freeze it (0024), and
+ *  a type claiming otherwise would have the screens reading undefined. */
+export interface ClinicDayReport extends Omit<ClinicDayTotals, 'patients_served'> {
   closed_at: string
   closed_by_name: string | null
   /** revenue − expenses − salary. */
