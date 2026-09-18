@@ -313,7 +313,7 @@ describe('DailyClosePanel', () => {
       ])
     }
 
-    it('puts the day in four figures', async () => {
+    it('puts the day in five figures', async () => {
       vi.mocked(api.getClinicDayTotals).mockResolvedValue({
         business_date: '2026-09-15',
         revenue_total: 18450,
@@ -326,6 +326,7 @@ describe('DailyClosePanel', () => {
       expect(await summary()).toEqual([
         ['Patients serviced', '12'],
         ['Collected', '₱18,450.00'],
+        ['Expenses', '₱1,350.00'],
         ['Dentist salary', '₱7,500.00'],
         ['Dentist commission', '₱1,850.00'],
       ])
@@ -360,6 +361,8 @@ describe('DailyClosePanel', () => {
       expect(await summary()).toEqual([
         ['Patients serviced', '12'],
         ['Collected', '₱5,000.00'],
+        // Frozen 1,200 rather than the live 0.
+        ['Expenses', '₱1,200.00'],
         ['Dentist salary', '₱3,000.00'],
         ['Dentist commission', '₱750.00'],
       ])

@@ -314,6 +314,7 @@ export default function DailyClosePanel({ staff }: { staff: { id: string; role: 
           {[
             ['Patients serviced', String(data.totals.patients_served), 'seen today'],
             ['Collected', formatMoney(figures.revenue_total), 'from all patients'],
+            ['Expenses', formatMoney(figures.expense_total), 'recorded today'],
             ['Dentist salary', formatMoney(figures.salary_total), 'paid out today'],
             ['Dentist commission', formatMoney(figures.commission_total), "on today's invoices"],
           ].map(([label, value, hint]) => (
