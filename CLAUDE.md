@@ -912,6 +912,19 @@ on the patient form. Both seeds are re-runnable.
 `audit_log` deliberately survives the purge (`patient_id` is not a foreign
 key), so the record that fixture rows existed and were deleted remains.
 
+`scripts/reset-clinic-data.sql` is the wider reset the clinic asked for:
+**keeps staff, patients with their histories and consents, the price list
+and clinic settings; clears everything else** — diary, visits, charts,
+money, the day's books, closures, attachment rows and the audit log. Two
+orderings in it are load-bearing: `clinic_days` is deleted **first**, or
+0020's guard refuses to delete a closed day's expenses and salary, and
+`audit_log` **last**, because every delete above it writes audit rows.
+Storage objects are untouched, so attachments outlive their rows.
+
+It is a script, not a migration, on purpose: a destructive one-off should
+not be recorded in migration history, where it would re-run against any new
+database.
+
 ### Blocking the pilot
 **There is no active receptionist account** — both are `active = false`, and
 `current_staff_role()` returns null for an inactive member, so a
