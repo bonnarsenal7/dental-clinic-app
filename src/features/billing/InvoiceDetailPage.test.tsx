@@ -33,7 +33,7 @@ vi.mock('../../core/supabaseClient', () => ({
   },
 }))
 
-const role = { current: 'receptionist' as 'receptionist' | 'admin' }
+const role = { current: 'receptionist' as 'receptionist' | 'dentist' | 'admin' }
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ staff: { id: 's1', name: 'Reception', role: role.current } }),
 }))
@@ -135,6 +135,26 @@ describe('InvoiceDetailPage', () => {
       expect(screen.queryByRole('button', { name: /save commission/i })).not.toBeInTheDocument()
     },
   )
+
+  // Money is the front desk's: a dentist reads the bill and prints it, and
+  // takes no payment against it (0013's split). The screen says where payment
+  // is taken rather than leaving a silent gap where the form was.
+  it('does not offer a dentist the payment form, but shows the whole bill', async () => {
+    role.current = 'dentist'
+    renderPage()
+    await screen.findByText(/composite filling/i)
+    expect(screen.queryByLabelText(/amount/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /record payment/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/payment is taken at the front desk/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /download receipt/i })).toBeInTheDocument()
+  })
+
+  it.each(['receptionist', 'admin'] as const)('offers the payment form to a %s', async (r) => {
+    role.current = r
+    renderPage()
+    await screen.findByText(/composite filling/i)
+    expect(screen.getByRole('button', { name: /record payment/i })).toBeInTheDocument()
+  })
 
   it("asks about the invoice's own day, not today", async () => {
     renderPage()

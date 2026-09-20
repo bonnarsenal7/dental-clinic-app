@@ -40,6 +40,8 @@ export default function PatientLedgerPage() {
       .catch((e) => setError(toMessage(e)))
   }, [patientId])
 
+  const canRaiseInvoice = staff?.role === 'receptionist' || staff?.role === 'admin'
+
   const ledger = useMemo(() => (invoices ? buildLedger(invoices) : []), [invoices])
   const outstanding = useMemo(() => (invoices ? outstandingBalance(invoices) : 0), [invoices])
 
@@ -58,12 +60,18 @@ export default function PatientLedgerPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            to={`/patients/${patientId}/invoices/new`}
-            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
-          >
-            + New invoice
-          </Link>
+          {/* Raising a bill from the ledger is the front desk's. A dentist
+              bills what they did from the Current visit panel on the
+              patient's profile, and reads the ledger here without adding
+              to it. */}
+          {canRaiseInvoice && (
+            <Link
+              to={`/patients/${patientId}/invoices/new`}
+              className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
+            >
+              + New invoice
+            </Link>
+          )}
           <Link
             to={`/patients/${patientId}`}
             className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"

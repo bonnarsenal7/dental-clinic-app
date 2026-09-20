@@ -74,7 +74,14 @@ function App() {
                 <Route path="/patients/:id" element={<PatientProfilePage />} />
                 <Route path="/patients/:id/edit" element={<PatientEditPage />} />
                 <Route path="/patients/:id/billing" element={<PatientLedgerPage />} />
-                <Route path="/patients/:id/invoices/new" element={<InvoiceBuilderPage />} />
+
+                {/* Raising a bill is the front desk's. A dentist bills what
+                    they did from the Current visit panel and reads the
+                    invoice afterwards; the builder is not theirs, so a URL
+                    typed by hand sends them home. */}
+                <Route element={<ProtectedRoute allow={['receptionist', 'admin']} />}>
+                  <Route path="/patients/:id/invoices/new" element={<InvoiceBuilderPage />} />
+                </Route>
 
                 {/* tooth_records are dentist/admin-only at the RLS level
                     (0002_rls.sql), so the chart is guarded to match rather

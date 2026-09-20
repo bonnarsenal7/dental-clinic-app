@@ -147,6 +147,11 @@ export default function InvoiceDetailPage() {
   const paid = invoicePaid(invoice)
   const balance = invoiceBalance(invoice)
   const isVoid = invoice.status === 'void'
+  // Money is the front desk's. A dentist sees the whole bill — lines, totals,
+  // what has been paid — and can print the receipt, but does not take payment:
+  // that is reception's half of the chairside split (0013), and the checkout
+  // that settling triggers is a move 0015 refuses them anyway.
+  const canTakePayment = staff?.role === 'receptionist' || staff?.role === 'admin'
 
   return (
     <div className="flex flex-col gap-6">
@@ -252,7 +257,7 @@ export default function InvoiceDetailPage() {
           </div>
         ))}
 
-        {!isVoid && (
+        {!isVoid && canTakePayment && (
           <form
             noValidate
             onSubmit={handleSubmit(onRecordPayment)}
@@ -285,6 +290,12 @@ export default function InvoiceDetailPage() {
               {isSubmitting ? 'Recording…' : 'Record payment'}
             </button>
           </form>
+        )}
+
+        {!isVoid && !canTakePayment && (
+          <p className="text-sm text-slate-500 border-t border-slate-100 pt-4">
+            Payment is taken at the front desk.
+          </p>
         )}
 
         <p className="text-xs text-slate-400">

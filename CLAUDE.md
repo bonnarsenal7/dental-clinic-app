@@ -1568,6 +1568,27 @@ vanish from their own list the moment it was saved.
 Mutation-checked: letting an unassigned patient through, and dropping the
 `dentist_id` filter from the search, each fail a test.
 
+### A dentist reads a bill; the front desk raises it and takes the money
+The clinic asked for this after seeing a dentist offered both. **Nothing is
+hidden — the whole invoice stays visible**, lines, totals, payments taken,
+commission and the receipt download. What goes is the two controls:
+
+- **`+ New invoice`** on the patient ledger renders for reception and admin
+  only, and `/patients/:id/invoices/new` now refuses a dentist like the rest
+  of the front desk's routes. A dentist still bills what they did from the
+  **Current visit** panel on the patient's profile — that is the chairside
+  path (0013) and it is untouched.
+- **The Record payment form** on `/invoices/:id` renders for reception and
+  admin only; a dentist reads "Payment is taken at the front desk." in its
+  place, so the gap says something rather than looking like a missing
+  section. Settling a bill also checks the patient out, and 0015 refuses a
+  dentist that move anyway — the form was offering them a write that would
+  half-fail.
+
+A screen scope, not a new rule in the database: 0002 still lets a dentist
+insert a payment, and 0013 still lets them raise a draft. Mutation-checked —
+showing either control to a dentist fails a test.
+
 ### Commission (0017)
 `invoices.commission_amount`, `numeric(12,2)`, `>= 0`, default `0`.
 Reception enters it on the invoice screen (`InvoiceDetailPage`, the

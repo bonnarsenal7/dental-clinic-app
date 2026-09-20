@@ -3,12 +3,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PatientLedgerPage from './PatientLedgerPage'
 import type { InvoiceWithDetail } from './types'
+import type { StaffRole } from '../auth/types'
 
 vi.mock('./api', () => ({ listInvoices: vi.fn() }))
 vi.mock('../patients/api', () => ({ getPatient: vi.fn() }))
 vi.mock('../../core/auditView', () => ({ logPatientView: vi.fn() }))
+const auth = vi.hoisted(() => ({ role: 'receptionist' as StaffRole }))
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ staff: { id: 's1', name: 'Reception', role: 'receptionist' } }),
+  useAuth: () => ({ staff: { id: 's1', name: 'Whoever', role: auth.role } }),
 }))
 
 const api = await import('./api')
@@ -63,6 +65,7 @@ const renderPage = () =>
 
 describe('PatientLedgerPage', () => {
   beforeEach(() => {
+    auth.role = 'receptionist'
     vi.mocked(patients.getPatient).mockResolvedValue({
       id: 'p1',
       name: 'Jose Miguel Reyes',
@@ -115,5 +118,15 @@ describe('PatientLedgerPage', () => {
       '/patients/p1/invoices/new',
     )
     expect(screen.getByRole('link', { name: /patient profile/i })).toHaveAttribute('href', '/patients/p1')
+  })
+
+  // Raising a bill is the front desk's. A dentist reads the ledger — and must
+  // still be able to open an invoice from it — without adding to it.
+  it('does not offer a dentist a new invoice, but still shows the ledger', async () => {
+    auth.role = 'dentist'
+    renderPage()
+    await screen.findByText(/consultation/i)
+    expect(screen.queryByRole('link', { name: /new invoice/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /consultation/i })).toHaveAttribute('href', '/invoices/inv1')
   })
 })
