@@ -34,6 +34,7 @@ const PatientRegisterPage = lazy(routeChunks.patientRegister)
 const PatientsPage = lazy(routeChunks.patients)
 const PriceListPage = lazy(routeChunks.priceList)
 const RecallsPage = lazy(routeChunks.recalls)
+const RosterPage = lazy(routeChunks.roster)
 const SchedulePage = lazy(routeChunks.schedule)
 const StaffManagementPage = lazy(routeChunks.staffManagement)
 
@@ -99,6 +100,10 @@ function App() {
                 <Route path="/admin/staff" element={<StaffManagementPage />} />
                 <Route path="/admin/settings" element={<ClinicSettingsPage />} />
                 <Route path="/admin/audit" element={<AuditLogPage />} />
+                {/* The dentist roster: who is in the clinic and when.
+                    Building it is the admin's; reception and each dentist
+                    read the current week from their dashboard. */}
+                <Route path="/admin/roster" element={<RosterPage />} />
               </Route>
             </Route>
           </Route>

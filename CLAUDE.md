@@ -1431,6 +1431,71 @@ Day bounds and booking times are built from local date/time fields. Using
 `toISOString().slice(0,10)` would push the clinic's evening appointments
 onto the following day.
 
+## Dentist roster (0025)
+
+Who is in the clinic, and for which part of which day. An admin taps a date
+on a month calendar and assigns dentists to hours; reception reads the
+current week from their dashboard, and a dentist reads their own.
+
+`src/features/roster/` — `types.ts`, `api.ts`, `rosterWeek.ts` (the pure
+date and time helpers), `RosterPage.tsx` (the admin calendar, `/admin/roster`,
+admin-only in `App.tsx` and in the nav) and `WeekRoster.tsx` (the read-only
+week on the dashboard).
+
+### It records cover; it does not govern booking
+**Nothing in scheduling consults `dentist_shifts`**, at the clinic's choice.
+An appointment can still be booked with any dentist at any time. A walk-in, a
+last-minute swap and a dentist covering a colleague all have to stay possible,
+and a roster that refused them would be worked around inside a week. If that
+changes, it starts as a *warning* on the booking form, in its own migration —
+not as a refusal. The remove-shift dialog says this out loud, because
+"remove from the roster" otherwise reads like "cancel their appointments".
+
+### A shift is wall-clock time on a calendar date
+`shift_date date`, `starts_at time`, `ends_at time` — no timestamptz anywhere,
+because a rota is read off a wall. That also makes the overlap constraint
+simple: `during` is a **generated** `tsrange` over `shift_date + starts_at`,
+which is legal here precisely where `appointments.ends_at` needed a trigger —
+`date + time` is IMMUTABLE, while `timestamptz + interval` is only STABLE.
+
+`dentist_shifts_no_overlap` is **per dentist**, not per clinic: two dentists
+covering the same hours is what a clinic with two chairs looks like. The same
+dentist twice over the same minutes is the mistake worth refusing, and
+`api.ts` turns the constraint name into words an admin can act on.
+
+### Reads are open, writes are the admin's
+RLS: select for any active staff, insert/update/delete for `admin` only. The
+guard trigger sets `created_by`/`created_at` and refuses a shift for anyone
+who is not an active dentist or admin — the same shape as 0020's
+`daily_entries_guard`. 0006's audit trigger covers the table.
+
+Reception and dentists can read the shifts but **not `staff`** (0002 — own row
+only), so names come from `roster_for_range(p_from, p_to)`, SECURITY DEFINER,
+returning the name and nothing else. Same reason and same shape as
+`bookable_dentists()` (0011) — but it joins `staff` rather than calling it, so
+a dentist since deactivated still resolves by name on last month's roster.
+
+### The dentist's week is a screen scope, like everything else theirs
+`WeekRoster` takes an optional `dentistId` and filters; the database would
+happily return the whole clinic's week. Their own week shows **hours without
+names** — it is theirs, so repeating the name in every cell is noise. That is
+why the test for the scope asserts on a colleague's *hours* being absent: with
+the name suppressed, asserting on the name passes even with the filter gone.
+Mutation-checked, and it caught exactly that.
+
+It fetches on its own rather than through the dashboard's refresh, so a
+roster that fails to load costs the roster panel and not the day's figures —
+the same reasoning as visits and invoices being fetched separately.
+
+### Not verified
+**0025 is applied to the live project** and applied cleanly — which proves the
+SQL parses and the objects exist, nothing more. None of the behaviour has been
+exercised against real data: the exclusion constraint refusing a double
+booking of one dentist, the guard refusing a non-dentist, RLS refusing a
+receptionist's write, and `roster_for_range` returning names to somebody who
+cannot read `staff`. The unit tests mock the database. Check it on the live
+project with an admin and a receptionist signed in.
+
 ## Daily dashboard
 
 `/` is now the clinic's day rather than a welcome message.

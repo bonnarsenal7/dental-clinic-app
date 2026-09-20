@@ -170,6 +170,9 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: /^staff$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /clinic settings/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /audit log/i })).not.toBeInTheDocument()
+    // Building the roster is the admin's; everyone else reads their week
+    // from the dashboard, which needs no link.
+    expect(screen.queryByRole('link', { name: /^roster$/i })).not.toBeInTheDocument()
   })
 
   it('shows the admin screens to an admin', () => {
@@ -177,6 +180,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: /^staff$/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /clinic settings/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /audit log/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^roster$/i })).toBeInTheDocument()
   })
 
   it.each(['receptionist', 'admin'] as const)('gives the front desk the day-to-day screens (%s)', (role) => {

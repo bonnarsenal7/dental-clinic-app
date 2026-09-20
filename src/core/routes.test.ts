@@ -29,7 +29,7 @@ describe('route warming', () => {
   // warmer import the same page by two specifiers — which fetches the chunk
   // twice and warms nothing.
   it('covers every lazily loaded route', () => {
-    expect(Object.keys(routeChunks)).toHaveLength(17)
+    expect(Object.keys(routeChunks)).toHaveLength(18)
     for (const fn of Object.values(routeChunks)) expect(typeof fn).toBe('function')
   })
 

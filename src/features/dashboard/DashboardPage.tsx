@@ -13,6 +13,7 @@ import DailyClosePanel from '../dailyClose/DailyClosePanel'
 import PaymentQueue from './PaymentQueue'
 import type { PaymentQueueEntry } from './paymentQueueState'
 import StatTile from './StatTile'
+import WeekRoster from '../roster/WeekRoster'
 import type { DailySummary } from './types'
 
 /** The rows that decide what the payment queue shows (0019 publishes them). */
@@ -351,6 +352,12 @@ export default function DashboardPage() {
           ))}
         </section>
       )}
+
+      {/* Below the day, above the close: the roster answers "who is in this
+          week", which is a question about tomorrow rather than about the
+          patient at the counter. A dentist sees their own sessions; everyone
+          else sees the clinic's. */}
+      <WeekRoster dentistId={isDentist ? staffId : undefined} />
 
       {/* Below everything else: closing the day is the last thing the front
           desk does, and its button should not sit anywhere a tap meant for

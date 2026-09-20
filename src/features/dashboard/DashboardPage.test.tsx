@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DashboardPage from './DashboardPage'
@@ -13,6 +13,7 @@ vi.mock('./api', () => ({
 }))
 vi.mock('../../core/useRealtimeRefresh', () => ({ useRealtimeRefresh: vi.fn() }))
 vi.mock('../scheduling/api', () => ({ checkOutWithoutCharge: vi.fn() }))
+vi.mock('../roster/api', () => ({ listRoster: vi.fn() }))
 vi.mock('../dailyClose/DailyClosePanel', () => ({
   default: () => <section aria-label="End of day">end of day</section>,
 }))
@@ -24,6 +25,7 @@ vi.mock('../auth/AuthContext', () => ({
 
 const api = await import('./api')
 const realtime = await import('../../core/useRealtimeRefresh')
+const roster = await import('../roster/api')
 
 function summary(partial: Partial<DailySummary> = {}): DailySummary {
   return {
@@ -87,6 +89,7 @@ describe('DashboardPage', () => {
     vi.mocked(api.listDentistDay).mockResolvedValue([])
     vi.mocked(api.listPaymentQueue).mockReset().mockResolvedValue([])
     vi.mocked(realtime.useRealtimeRefresh).mockClear()
+    vi.mocked(roster.listRoster).mockReset().mockResolvedValue([])
   })
 
   describe('end of day', () => {
@@ -112,6 +115,25 @@ describe('DashboardPage', () => {
       renderPage()
       const panel = await screen.findByRole('region', { name: /end of day/i })
       expect(panel.parentElement!.lastElementChild).toBe(panel)
+    })
+  })
+
+  // Wiring, not the panel's own behaviour: deleting <WeekRoster/> from this
+  // screen left every WeekRoster test passing. The same lesson as the chart's
+  // medical alerts — cover the component *and* its presence on the screen.
+  describe("this week's roster", () => {
+    it('is on the front desk dashboard, showing the whole clinic', async () => {
+      role.current = 'receptionist'
+      renderPage()
+      expect(await screen.findByRole('heading', { name: /this week's dentists/i })).toBeInTheDocument()
+    })
+
+    // A dentist's dashboard is their own day; the roster follows.
+    it("is on a dentist's dashboard, narrowed to their own sessions", async () => {
+      role.current = 'dentist'
+      renderPage()
+      expect(await screen.findByRole('heading', { name: /your week/i })).toBeInTheDocument()
+      await waitFor(() => expect(roster.listRoster).toHaveBeenCalled())
     })
   })
 
