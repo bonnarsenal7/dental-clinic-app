@@ -1442,6 +1442,27 @@ date and time helpers), `RosterPage.tsx` (the admin calendar, `/admin/roster`,
 admin-only in `App.tsx` and in the nav) and `WeekRoster.tsx` (the read-only
 week on the dashboard).
 
+### The day opens over the calendar, not under it
+Tapping a date opens a `Dialog` (`size="lg"`, added for this — a dialog
+somebody *works* in rather than answers). It was a panel below the calendar
+first, which on a tablet put the form off-screen after a tap near the bottom
+of the month: you tapped a day and nothing appeared to happen.
+
+**It stays open after each add.** A day usually needs more than one dentist,
+and closing after each would make assigning three of them three trips through
+the calendar. The dentist field clears and the hours stay, because the second
+dentist usually covers the same session. Removing a shift opens a
+confirmation *over* the day dialog — two stacked Radix modals, which is why
+the test addresses each by its accessible name rather than `getByRole('dialog')`.
+
+### Where the week sits depends on who is reading it
+Above the day's figures for a dentist, below the day's list for reception.
+A dentist opens the dashboard to find out when they are next in; reception
+opens it for the person at the counter and reads the week when they get to
+it. Medical alerts still come first for a dentist — who cannot be treated as
+planned outranks when anyone is in. Both positions are asserted by tests and
+mutation-checked.
+
 ### It records cover; it does not govern booking
 **Nothing in scheduling consults `dentist_shifts`**, at the clinic's choice.
 An appointment can still be booked with any dentist at any time. A walk-in, a

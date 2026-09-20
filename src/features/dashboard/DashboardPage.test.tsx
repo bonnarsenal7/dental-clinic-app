@@ -135,6 +135,25 @@ describe('DashboardPage', () => {
       expect(await screen.findByRole('heading', { name: /your week/i })).toBeInTheDocument()
       await waitFor(() => expect(roster.listRoster).toHaveBeenCalled())
     })
+
+    // A dentist opens the dashboard to find out when they are next in, so
+    // their week sits above the day's figures. Reception opens it for the
+    // person at the counter and reads the week further down.
+    it("sits above the day's figures for a dentist", async () => {
+      role.current = 'dentist'
+      renderPage()
+      const week = await screen.findByRole('heading', { name: /your week/i })
+      const tile = screen.getByText(/in the clinic/i)
+      expect(week.compareDocumentPosition(tile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it("sits below the day's list for reception", async () => {
+      role.current = 'receptionist'
+      renderPage()
+      const week = await screen.findByRole('heading', { name: /this week's dentists/i })
+      const list = screen.getByRole('heading', { name: /today's list/i })
+      expect(week.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    })
   })
 
   describe('awaiting payment', () => {

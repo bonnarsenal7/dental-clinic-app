@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import Button from '../../core/components/ui/Button'
 import ConfirmDialog from '../../core/components/ui/ConfirmDialog'
-import { Card, PageHeader } from '../../core/components/ui/Page'
+import { Dialog, DialogClose } from '../../core/components/ui/Dialog'
+import { PageHeader } from '../../core/components/ui/Page'
 import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
 import { ErrorState, LoadingState } from '../../core/components/states'
 import { toastSaved } from '../../core/components/ui/toast'
@@ -28,10 +29,10 @@ interface ShiftForm {
  *  the RLS on dentist_shifts (0025). Everyone else reads the week from their
  *  dashboard. */
 export default function RosterPage() {
-  // The month on screen, and the day whose cover is being edited. Separate:
-  // paging to next month should not silently move which day you are editing.
+  // The month on screen, and the day whose dialog is open — null when none
+  // is. Separate, so paging months does not move the day being edited.
   const [anchor, setAnchor] = useState(() => new Date())
-  const [selected, setSelected] = useState(() => toLocalDateString(new Date()))
+  const [selected, setSelected] = useState<string | null>(null)
   const [shifts, setShifts] = useState<DentistShift[] | null>(null)
   const [dentists, setDentists] = useState<{ id: string; name: string }[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -62,7 +63,7 @@ export default function RosterPage() {
 
   const byDate = useMemo(() => groupByDate(shifts ?? []), [shifts])
   const today = toLocalDateString(new Date())
-  const selectedShifts = byDate[selected] ?? []
+  const selectedShifts = selected ? (byDate[selected] ?? []) : []
 
   function moveMonth(by: number) {
     setAnchor((a) => new Date(a.getFullYear(), a.getMonth() + by, 1))
@@ -84,14 +85,7 @@ export default function RosterPage() {
             <Button variant="secondary" aria-label="Next month" onClick={() => moveMonth(1)}>
               ›
             </Button>
-            <Button
-              variant="subtle"
-              onClick={() => {
-                const now = new Date()
-                setAnchor(now)
-                setSelected(toLocalDateString(now))
-              }}
-            >
+            <Button variant="subtle" onClick={() => setAnchor(new Date())}>
               Today
             </Button>
           </>
@@ -113,12 +107,12 @@ export default function RosterPage() {
             {grid.map((date) => {
               const onThatDay = byDate[date] ?? []
               const inMonth = isInMonth(date, anchor)
-              const isSelected = date === selected
+              const isOpen = date === selected
               return (
                 <button
                   key={date}
                   type="button"
-                  aria-pressed={isSelected}
+                  aria-haspopup="dialog"
                   aria-label={`${formatDayLong(date)} — ${
                     onThatDay.length === 0
                       ? 'nobody rostered'
@@ -126,7 +120,7 @@ export default function RosterPage() {
                   }`}
                   onClick={() => setSelected(date)}
                   className={`min-h-16 rounded-lg border p-1.5 text-left transition-colors ${
-                    isSelected
+                    isOpen
                       ? 'border-gold-700 bg-gold-100'
                       : 'border-slate-200 hover:bg-slate-50 focus-visible:bg-slate-50'
                   } ${inMonth ? '' : 'opacity-40'}`}
@@ -157,7 +151,20 @@ export default function RosterPage() {
         </section>
       )}
 
-      <Card title={formatDayLong(selected)}>
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null)
+        }}
+        size="lg"
+        title={selected ? formatDayLong(selected) : ''}
+        description="Who is in the clinic, and for which hours."
+        footer={
+          <DialogClose asChild>
+            <Button variant="secondary">Done</Button>
+          </DialogClose>
+        }
+      >
         {selectedShifts.length === 0 ? (
           <p className="text-sm text-slate-400">Nobody is rostered for this day yet.</p>
         ) : (
@@ -175,7 +182,7 @@ export default function RosterPage() {
                 <Button
                   size="sm"
                   variant="subtle"
-                  aria-label={`Remove ${shift.dentist_name} from ${formatDayLong(selected)}`}
+                  aria-label={`Remove ${shift.dentist_name} from ${formatDayLong(shift.shift_date)}`}
                   onClick={() => setRemoving(shift)}
                 >
                   Remove
@@ -185,9 +192,13 @@ export default function RosterPage() {
           </ul>
         )}
 
+        {/* The dialog stays open afterwards: a day usually needs more than
+            one dentist, and closing after each would make assigning three of
+            them three trips through the calendar. */}
         <AssignForm
           dentists={dentists}
           onAdd={async (values) => {
+            if (!selected) return
             await addShift({
               dentist_id: values.dentist_id,
               shift_date: selected,
@@ -199,7 +210,7 @@ export default function RosterPage() {
             toastSaved('Added to the roster', formatDayLong(selected))
           }}
         />
-      </Card>
+      </Dialog>
 
       <ConfirmDialog
         open={removing !== null}

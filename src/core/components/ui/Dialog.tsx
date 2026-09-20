@@ -18,6 +18,7 @@ export function Dialog({
   description,
   children,
   footer,
+  size = 'md',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -26,6 +27,10 @@ export function Dialog({
   description?: ReactNode
   children?: ReactNode
   footer?: ReactNode
+  /** "lg" is for a dialog somebody *works* in — a form with a list above it
+   *  — rather than one they answer. A confirmation stays md: a wide box for
+   *  one sentence reads as more consequential than it is. */
+  size?: 'md' | 'lg'
 }) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -33,7 +38,8 @@ export function Dialog({
         <RadixDialog.Overlay className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[1px]" />
         <RadixDialog.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2',
+            'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2',
+            size === 'lg' ? 'max-w-2xl max-h-[85vh] overflow-y-auto' : 'max-w-md',
             'rounded-xl border border-slate-200 bg-white p-6 shadow-xl',
             'flex flex-col gap-4',
           )}

@@ -71,20 +71,41 @@ describe('RosterPage', () => {
     expect(dayCell(otherDay)).toHaveAccessibleName(/nobody rostered/)
   })
 
-  it('opens on today, and follows the date that is tapped', async () => {
+  // The day opens over the calendar rather than under it: on a tablet the
+  // panel below was off-screen after a tap near the bottom of the month.
+  it('opens the tapped day in a dialog, and nothing before that', async () => {
     renderPage()
-    expect(await screen.findByText(/8:00 AM – 12:30 PM/)).toBeInTheDocument()
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await userEvent.click(dayCell(today))
+    const dialog = await screen.findByRole('dialog', { name: formatDayLong(today) })
+    expect(within(dialog).getByText(/8:00 AM – 12:30 PM/)).toBeInTheDocument()
+  })
+
+  it('shows the day that was tapped, not the one before it', async () => {
+    renderPage()
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
     await userEvent.click(dayCell(otherDay))
-    expect(screen.getByText(/nobody is rostered for this day yet/i)).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: formatDayLong(otherDay) })).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: formatDayLong(otherDay) })
+    expect(within(dialog).getByText(/nobody is rostered for this day yet/i)).toBeInTheDocument()
+  })
+
+  it('closes on Done', async () => {
+    renderPage()
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    await userEvent.click(dayCell(today))
+    await userEvent.click(await screen.findByRole('button', { name: /done/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   // The date comes from the calendar, not from a field in the form — tapping
   // a day and then filling the form is the whole interaction.
   it('assigns a dentist to the date that is selected', async () => {
     renderPage()
-    await screen.findByText(/8:00 AM – 12:30 PM/)
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
     await userEvent.click(dayCell(otherDay))
+    await screen.findByRole('dialog', { name: formatDayLong(otherDay) })
 
     await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-2')
     await userEvent.clear(screen.getByLabelText('From'))
@@ -105,9 +126,30 @@ describe('RosterPage', () => {
     )
   })
 
+  // A day usually needs more than one dentist; closing after each would make
+  // assigning three of them three trips through the calendar.
+  it('stays open after adding, so the next dentist can go on the same day', async () => {
+    renderPage()
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    await userEvent.click(dayCell(otherDay))
+    await screen.findByRole('dialog', { name: formatDayLong(otherDay) })
+
+    await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-2')
+    await userEvent.click(screen.getByRole('button', { name: /add to roster/i }))
+
+    await waitFor(() => expect(api.addShift).toHaveBeenCalled())
+    expect(screen.getByRole('dialog', { name: formatDayLong(otherDay) })).toBeInTheDocument()
+    // Cleared for the next one, with the hours kept — the second dentist
+    // usually covers the same session.
+    expect(screen.getByLabelText('Dentist')).toHaveValue('')
+    expect(screen.getByLabelText('From')).toHaveValue('09:00')
+  })
+
   it('refuses a finish time before the start, without asking the database', async () => {
     renderPage()
-    await screen.findByText(/8:00 AM – 12:30 PM/)
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    await userEvent.click(dayCell(today))
+    await screen.findByRole('dialog', { name: formatDayLong(today) })
     await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-2')
     await userEvent.clear(screen.getByLabelText('To'))
     await userEvent.type(screen.getByLabelText('To'), '08:00')
@@ -124,7 +166,9 @@ describe('RosterPage', () => {
       new Error('That dentist is already rostered for part of those hours.'),
     )
     renderPage()
-    await screen.findByText(/8:00 AM – 12:30 PM/)
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    await userEvent.click(dayCell(today))
+    await screen.findByRole('dialog', { name: formatDayLong(today) })
     await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-1')
     await userEvent.click(screen.getByRole('button', { name: /add to roster/i }))
 
@@ -134,20 +178,24 @@ describe('RosterPage', () => {
 
   it('confirms before removing a shift', async () => {
     renderPage()
-    await screen.findByText(/8:00 AM – 12:30 PM/)
-    await userEvent.click(screen.getByRole('button', { name: /remove dr. santos from/i }))
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    await userEvent.click(dayCell(today))
+    await userEvent.click(await screen.findByRole('button', { name: /remove dr. santos from/i }))
 
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText(/booked appointments are not affected/i)).toBeInTheDocument()
+    // Two dialogs are open — the day, and the confirmation over it.
+    const confirm = await screen.findByRole('dialog', { name: /remove this shift\?/i })
+    expect(within(confirm).getByText(/booked appointments are not affected/i)).toBeInTheDocument()
     expect(api.removeShift).not.toHaveBeenCalled()
 
-    await userEvent.click(within(dialog).getByRole('button', { name: /^remove$/i }))
+    await userEvent.click(within(confirm).getByRole('button', { name: /^remove$/i }))
     await waitFor(() => expect(api.removeShift).toHaveBeenCalledWith('s-1'))
   })
 
   it('says so when there is no dentist to assign', async () => {
     vi.mocked(scheduling.listDentists).mockResolvedValue([])
     renderPage()
+    await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
+    await userEvent.click(dayCell(today))
     expect(await screen.findByText(/no active dentists to assign/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add to roster/i })).toBeDisabled()
   })

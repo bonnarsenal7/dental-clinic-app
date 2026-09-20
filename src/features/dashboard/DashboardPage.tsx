@@ -174,6 +174,13 @@ export default function DashboardPage() {
           the thing to act on before any figure. */}
       {seesPaymentQueue && <PaymentQueue entries={paymentQueue} onChanged={() => void refresh()} />}
 
+      {/* High on a dentist's dashboard, below the day on reception's.
+          A dentist opens this to find out when they are next in; reception
+          opens it to deal with the person in front of them, and reads the
+          week when they get to it. Medical alerts still come first — who
+          cannot be treated as planned outranks when anyone is in. */}
+      {isDentist && <WeekRoster dentistId={staffId} />}
+
       {/* The day, at a glance. A dentist gets what they earned in place of
           two figures about a diary they cannot open — their own commission,
           never the clinic's takings. */}
@@ -353,11 +360,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Below the day, above the close: the roster answers "who is in this
-          week", which is a question about tomorrow rather than about the
-          patient at the counter. A dentist sees their own sessions; everyone
-          else sees the clinic's. */}
-      <WeekRoster dentistId={isDentist ? staffId : undefined} />
+      {!isDentist && <WeekRoster />}
 
       {/* Below everything else: closing the day is the last thing the front
           desk does, and its button should not sit anywhere a tap meant for
