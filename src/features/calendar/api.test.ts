@@ -70,7 +70,7 @@ describe('roster api', () => {
         ends_at: '12:30',
         note: null,
       }),
-    ).rejects.toThrow(/already rostered for part of those hours/i)
+    ).rejects.toThrow(/already on the calendar for part of those hours/i)
   })
 
   it('leaves an error it does not recognise in its own words', async () => {

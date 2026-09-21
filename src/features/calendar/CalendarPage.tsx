@@ -11,7 +11,14 @@ import { toMessage } from '../../core/errors'
 import { toLocalDateString } from '../../core/localDate'
 import { listDentists } from '../scheduling/api'
 import { addShift, listRoster, removeShift } from './api'
-import { formatDayLong, formatShiftRange, groupByDate, isInMonth, monthGrid, monthLabel } from './rosterWeek'
+import {
+  formatDayLong,
+  formatShiftRange,
+  groupByDate,
+  isInMonth,
+  monthGrid,
+  monthLabel,
+} from './calendarWeek'
 import type { DentistShift } from './types'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -23,12 +30,13 @@ interface ShiftForm {
   note: string
 }
 
-/** The roster: a month to tap a date on, and that day's cover beneath it.
+/** The calendar: a month to tap a date on, and that day's cover in a
+ *  dialog over it.
  *
  *  Admin only — the module, the nav link and the route (App.tsx), matching
  *  the RLS on dentist_shifts (0025). Everyone else reads the week from their
  *  dashboard. */
-export default function RosterPage() {
+export default function CalendarPage() {
   // The month on screen, and the day whose dialog is open — null when none
   // is. Separate, so paging months does not move the day being edited.
   const [anchor, setAnchor] = useState(() => new Date())
@@ -72,7 +80,7 @@ export default function RosterPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Dentist roster"
+        title="Dentist calendar"
         description="Who is in the clinic, and for which part of the day. Reception and each dentist see the current week on their dashboard."
         actions={
           <>
@@ -95,7 +103,7 @@ export default function RosterPage() {
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
 
       {shifts === null ? (
-        <LoadingState label="Loading the roster…" />
+        <LoadingState label="Loading the calendar…" />
       ) : (
         <section className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
@@ -115,8 +123,8 @@ export default function RosterPage() {
                   aria-haspopup="dialog"
                   aria-label={`${formatDayLong(date)} — ${
                     onThatDay.length === 0
-                      ? 'nobody rostered'
-                      : `${onThatDay.length} ${onThatDay.length === 1 ? 'dentist' : 'dentists'} rostered`
+                      ? 'nobody assigned'
+                      : `${onThatDay.length} ${onThatDay.length === 1 ? 'dentist' : 'dentists'} assigned`
                   }`}
                   onClick={() => setSelected(date)}
                   className={`min-h-16 rounded-lg border p-1.5 text-left transition-colors ${
@@ -166,7 +174,7 @@ export default function RosterPage() {
         }
       >
         {selectedShifts.length === 0 ? (
-          <p className="text-sm text-slate-400">Nobody is rostered for this day yet.</p>
+          <p className="text-sm text-slate-400">Nobody is assigned to this day yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {selectedShifts.map((shift) => (
@@ -207,7 +215,7 @@ export default function RosterPage() {
               note: values.note.trim() || null,
             })
             await refresh()
-            toastSaved('Added to the roster', formatDayLong(selected))
+            toastSaved('Added to the calendar', formatDayLong(selected))
           }}
         />
       </Dialog>
@@ -220,7 +228,7 @@ export default function RosterPage() {
         title="Remove this shift?"
         description={
           removing
-            ? `${removing.dentist_name}, ${formatShiftRange(removing)} on ${formatDayLong(removing.shift_date)}. Booked appointments are not affected — the roster records cover, it does not hold the diary.`
+            ? `${removing.dentist_name}, ${formatShiftRange(removing)} on ${formatDayLong(removing.shift_date)}. Booked appointments are not affected — the calendar records cover, it does not hold the diary.`
             : ''
         }
         confirmLabel="Remove"
@@ -305,7 +313,7 @@ function AssignForm({
           <TextInput {...register('note')} placeholder="Half day, cover… (optional)" />
         </Field>
         <Button type="submit" disabled={isSubmitting || dentists.length === 0}>
-          {isSubmitting ? 'Adding…' : 'Add to roster'}
+          {isSubmitting ? 'Adding…' : 'Add to calendar'}
         </Button>
       </div>
       {dentists.length === 0 && (

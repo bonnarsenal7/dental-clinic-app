@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import WeekRoster from './WeekRoster'
-import { startOfWeek, weekDates } from './rosterWeek'
+import WeekCalendar from './WeekCalendar'
+import { startOfWeek, weekDates } from './calendarWeek'
 import type { DentistShift } from './types'
 
 vi.mock('./api', () => ({ listRoster: vi.fn() }))
@@ -23,7 +23,7 @@ function shift(partial: Partial<DentistShift> = {}): DentistShift {
   }
 }
 
-describe('WeekRoster', () => {
+describe('WeekCalendar', () => {
   beforeEach(() => {
     vi.mocked(api.listRoster)
       .mockReset()
@@ -47,22 +47,22 @@ describe('WeekRoster', () => {
   })
 
   it('asks for Monday to Sunday of the current week', async () => {
-    render(<WeekRoster />)
+    render(<WeekCalendar />)
     await waitFor(() => expect(api.listRoster).toHaveBeenCalledWith(week[0], week[6]))
   })
 
   it('shows the front desk every dentist, with their hours', async () => {
-    render(<WeekRoster />)
+    render(<WeekCalendar />)
     expect(await screen.findByText('Dr. Cruz')).toBeInTheDocument()
     expect(screen.getAllByText('Dr. Santos')).toHaveLength(2)
     expect(screen.getByText('8:00 AM – 12:30 PM')).toBeInTheDocument()
     expect(screen.getByText('Half day')).toBeInTheDocument()
   })
 
-  // A dentist's dashboard is their own day everywhere else; the roster
+  // A dentist's dashboard is their own day everywhere else; the calendar
   // follows. Removing the filter fails this.
   it("shows a dentist their own sessions and nobody else's", async () => {
-    render(<WeekRoster dentistId="d-1" />)
+    render(<WeekCalendar dentistId="d-1" />)
     await screen.findByText('8:00 AM – 12:30 PM')
     // The hours, not the name: their own week does not repeat whose it is,
     // so a colleague's shift is only visible as its times — which is what
@@ -73,23 +73,23 @@ describe('WeekRoster', () => {
     expect(screen.getByText(/your week/i)).toBeInTheDocument()
   })
 
-  it('says when nobody is rostered rather than showing seven blank days', async () => {
+  it('says when nobody is assigned rather than showing seven blank days', async () => {
     vi.mocked(api.listRoster).mockResolvedValue([])
-    render(<WeekRoster />)
-    expect(await screen.findByText(/nobody is rostered this week yet/i)).toBeInTheDocument()
+    render(<WeekCalendar />)
+    expect(await screen.findByText(/nobody is assigned this week yet/i)).toBeInTheDocument()
   })
 
   it('tells a dentist when they are not on this week', async () => {
     vi.mocked(api.listRoster).mockResolvedValue([])
-    render(<WeekRoster dentistId="d-1" />)
-    expect(await screen.findByText(/you are not rostered this week/i)).toBeInTheDocument()
+    render(<WeekCalendar dentistId="d-1" />)
+    expect(await screen.findByText(/you are not on the calendar this week/i)).toBeInTheDocument()
   })
 
-  // It fetches on its own, so a failure here costs the roster panel and not
+  // It fetches on its own, so a failure here costs this panel and not
   // the day's figures beside it.
   it('reports its own failure, with a way to try again', async () => {
     vi.mocked(api.listRoster).mockRejectedValue(new Error('Failed to fetch'))
-    render(<WeekRoster />)
+    render(<WeekCalendar />)
     expect(await screen.findByRole('button', { name: /try again/i })).toBeInTheDocument()
   })
 })

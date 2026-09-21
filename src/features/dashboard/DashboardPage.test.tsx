@@ -13,7 +13,7 @@ vi.mock('./api', () => ({
 }))
 vi.mock('../../core/useRealtimeRefresh', () => ({ useRealtimeRefresh: vi.fn() }))
 vi.mock('../scheduling/api', () => ({ checkOutWithoutCharge: vi.fn() }))
-vi.mock('../roster/api', () => ({ listRoster: vi.fn() }))
+vi.mock('../calendar/api', () => ({ listRoster: vi.fn() }))
 vi.mock('../dailyClose/DailyClosePanel', () => ({
   default: () => <section aria-label="End of day">end of day</section>,
 }))
@@ -25,7 +25,7 @@ vi.mock('../auth/AuthContext', () => ({
 
 const api = await import('./api')
 const realtime = await import('../../core/useRealtimeRefresh')
-const roster = await import('../roster/api')
+const roster = await import('../calendar/api')
 
 function summary(partial: Partial<DailySummary> = {}): DailySummary {
   return {
@@ -118,17 +118,17 @@ describe('DashboardPage', () => {
     })
   })
 
-  // Wiring, not the panel's own behaviour: deleting <WeekRoster/> from this
-  // screen left every WeekRoster test passing. The same lesson as the chart's
+  // Wiring, not the panel's own behaviour: deleting <WeekCalendar/> from this
+  // screen left every WeekCalendar test passing. The same lesson as the chart's
   // medical alerts — cover the component *and* its presence on the screen.
-  describe("this week's roster", () => {
+  describe("this week's calendar", () => {
     it('is on the front desk dashboard, showing the whole clinic', async () => {
       role.current = 'receptionist'
       renderPage()
       expect(await screen.findByRole('heading', { name: /this week's dentists/i })).toBeInTheDocument()
     })
 
-    // A dentist's dashboard is their own day; the roster follows.
+    // A dentist's dashboard is their own day; the calendar follows.
     it("is on a dentist's dashboard, narrowed to their own sessions", async () => {
       role.current = 'dentist'
       renderPage()
@@ -136,23 +136,63 @@ describe('DashboardPage', () => {
       await waitFor(() => expect(roster.listRoster).toHaveBeenCalled())
     })
 
-    // A dentist opens the dashboard to find out when they are next in, so
-    // their week sits above the day's figures. Reception opens it for the
-    // person at the counter and reads the week further down.
-    it("sits above the day's figures for a dentist", async () => {
-      role.current = 'dentist'
+    // The clinic asked for it first on the page, for every role.
+    it.each([
+      ['receptionist', /this week's dentists/i],
+      ['dentist', /your week/i],
+      ['admin', /this week's dentists/i],
+    ] as const)('is the first thing a %s sees', async (r, title) => {
+      role.current = r
       renderPage()
-      const week = await screen.findByRole('heading', { name: /your week/i })
+      const week = await screen.findByRole('heading', { name: title })
       const tile = screen.getByText(/in the clinic/i)
       expect(week.compareDocumentPosition(tile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
-    it("sits below the day's list for reception", async () => {
+    // Above two act-now panels, which is the trade the clinic made when they
+    // asked for it at the top. Worth pinning, so moving either back is a
+    // decision rather than an accident.
+    it('sits above the front desk’s payment queue', async () => {
       role.current = 'receptionist'
+      vi.mocked(api.listPaymentQueue).mockResolvedValue([
+        {
+          appointmentId: 'a-1',
+          patientId: 'p-1',
+          patientName: 'Maria Clara Santos',
+          treatment: 'Composite filling',
+          scheduledAt: '2026-09-11T01:30:00Z',
+          state: 'awaiting' as const,
+          invoiceId: 'inv-1',
+          balance: 1800,
+          carriedOver: false,
+        },
+      ])
       renderPage()
       const week = await screen.findByRole('heading', { name: /this week's dentists/i })
-      const list = screen.getByRole('heading', { name: /today's list/i })
-      expect(week.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+      const queue = await screen.findByRole('heading', { name: /awaiting payment/i })
+      expect(week.compareDocumentPosition(queue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('sits above a dentist’s medical alerts', async () => {
+      role.current = 'dentist'
+      vi.mocked(api.listDentistDay).mockResolvedValue([
+        {
+          appointment_id: 'a1',
+          patient_id: 'p1',
+          name: 'Ricardo Bautista',
+          scheduled_at: '2026-09-11T07:30:00Z',
+          status: 'booked',
+          reason: null,
+          medical: medical({ allergic_to_anesthesia: true }),
+          treatment: null,
+          amount: null,
+          commission: 0,
+        },
+      ])
+      renderPage()
+      const week = await screen.findByRole('heading', { name: /your week/i })
+      const alert = await screen.findByRole('alert')
+      expect(week.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
   })
 

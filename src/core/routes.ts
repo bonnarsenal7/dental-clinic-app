@@ -24,7 +24,7 @@ export const routeChunks = {
   staffManagement: () => import('../features/admin/StaffManagementPage'),
   clinicSettings: () => import('../features/admin/ClinicSettingsPage'),
   auditLog: () => import('../features/admin/AuditLogPage'),
-  roster: () => import('../features/roster/RosterPage'),
+  calendar: () => import('../features/calendar/CalendarPage'),
 } as const
 
 /** What each role opens within the first minute of a shift.

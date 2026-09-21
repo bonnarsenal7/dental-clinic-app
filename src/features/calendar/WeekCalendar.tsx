@@ -4,7 +4,7 @@ import { ErrorState, LoadingState } from '../../core/components/states'
 import { toMessage } from '../../core/errors'
 import { toLocalDateString } from '../../core/localDate'
 import { listRoster } from './api'
-import { formatShiftRange, groupByDate, startOfWeek, weekDates } from './rosterWeek'
+import { formatShiftRange, groupByDate, startOfWeek, weekDates } from './calendarWeek'
 import type { DentistShift } from './types'
 
 /** This week's cover, read-only.
@@ -15,8 +15,8 @@ import type { DentistShift } from './types'
  *  (0025), so this is a screen decision, not a boundary.
  *
  *  It fetches on its own rather than through the dashboard's refresh, so a
- *  roster that fails to load costs the roster panel and nothing else. */
-export default function WeekRoster({ dentistId }: { dentistId?: string }) {
+ *  calendar that fails to load costs this panel and nothing else. */
+export default function WeekCalendar({ dentistId }: { dentistId?: string }) {
   const [shifts, setShifts] = useState<DentistShift[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,14 +42,14 @@ export default function WeekRoster({ dentistId }: { dentistId?: string }) {
   return (
     <Card title={dentistId ? 'Your week' : "This week's dentists"}>
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
-      {!error && shifts === null && <LoadingState label="Loading the roster…" />}
+      {!error && shifts === null && <LoadingState label="Loading the calendar…" />}
       {!error && shifts !== null && (
         <>
           {shifts.length === 0 && (
             <p className="text-sm text-slate-400">
               {dentistId
-                ? 'You are not rostered this week.'
-                : 'Nobody is rostered this week yet — an admin sets the roster.'}
+                ? 'You are not on the calendar this week.'
+                : 'Nobody is assigned this week yet — an admin sets the calendar.'}
             </p>
           )}
           <div className="grid gap-2 sm:grid-cols-7">

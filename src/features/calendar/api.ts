@@ -7,7 +7,7 @@ import type { DentistShift, NewShift } from './types'
  *  be readable when it comes back — the constraint name is not. */
 function rosterMessage(message: string): string {
   if (message.includes('dentist_shifts_no_overlap')) {
-    return 'That dentist is already rostered for part of those hours. Remove or change the other shift first.'
+    return 'That dentist is already on the calendar for part of those hours. Remove or change the other shift first.'
   }
   if (message.includes('dentist_shifts_time_order')) {
     return 'The finish time has to be after the start time.'

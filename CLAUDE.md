@@ -1431,16 +1431,26 @@ Day bounds and booking times are built from local date/time fields. Using
 `toISOString().slice(0,10)` would push the clinic's evening appointments
 onto the following day.
 
-## Dentist roster (0025)
+## Dentist calendar (0025)
 
 Who is in the clinic, and for which part of which day. An admin taps a date
-on a month calendar and assigns dentists to hours; reception reads the
-current week from their dashboard, and a dentist reads their own.
+on a month calendar and assigns dentists to hours; everyone reads the current
+week from the top of their dashboard.
 
-`src/features/roster/` — `types.ts`, `api.ts`, `rosterWeek.ts` (the pure
-date and time helpers), `RosterPage.tsx` (the admin calendar, `/admin/roster`,
-admin-only in `App.tsx` and in the nav) and `WeekRoster.tsx` (the read-only
+**"Calendar" is who is *in*; "Schedule" is who is *booked*.** Two nav items,
+two different questions, and they are easy to conflate — the Calendar never
+touches `appointments`, and the Schedule never reads `dentist_shifts`.
+
+`src/features/calendar/` — `types.ts`, `api.ts`, `calendarWeek.ts` (the pure
+date and time helpers), `CalendarPage.tsx` (the admin month, `/admin/calendar`,
+admin-only in `App.tsx` and in the nav) and `WeekCalendar.tsx` (the read-only
 week on the dashboard).
+
+**The database still says roster**: `dentist_shifts`, `roster_for_range()`,
+and `api.ts`'s `listRoster`/`rosterMessage`, which are named for the SQL they
+wrap. The rename was the clinic's word for the screen, and renaming shipped
+database objects to follow it would have cost a migration for nothing. If you
+add to the data layer, match the SQL; if you add to a screen, say calendar.
 
 ### The day opens over the calendar, not under it
 Tapping a date opens a `Dialog` (`size="lg"`, added for this — a dialog
@@ -1455,22 +1465,22 @@ dentist usually covers the same session. Removing a shift opens a
 confirmation *over* the day dialog — two stacked Radix modals, which is why
 the test addresses each by its accessible name rather than `getByRole('dialog')`.
 
-### Where the week sits depends on who is reading it
-Above the day's figures for a dentist, below the day's list for reception.
-A dentist opens the dashboard to find out when they are next in; reception
-opens it for the person at the counter and reads the week when they get to
-it. Medical alerts still come first for a dentist — who cannot be treated as
-planned outranks when anyone is in. Both positions are asserted by tests and
-mutation-checked.
+### The week is first on the dashboard, for every role
+The clinic asked for it there. It therefore sits **above the medical alerts
+and above the front desk's payment queue**, both of which are act-now items —
+a deliberate trade, not an oversight: knowing who is in this week is what
+they want to open onto. Tests pin it above both, so moving either back is a
+decision rather than an accident. **If the pilot finds alerts being missed,
+this is the first thing to move back down.**
 
 ### It records cover; it does not govern booking
 **Nothing in scheduling consults `dentist_shifts`**, at the clinic's choice.
 An appointment can still be booked with any dentist at any time. A walk-in, a
 last-minute swap and a dentist covering a colleague all have to stay possible,
-and a roster that refused them would be worked around inside a week. If that
+and a calendar that refused them would be worked around inside a week. If that
 changes, it starts as a *warning* on the booking form, in its own migration —
 not as a refusal. The remove-shift dialog says this out loud, because
-"remove from the roster" otherwise reads like "cancel their appointments".
+"remove from the calendar" otherwise reads like "cancel their appointments".
 
 ### A shift is wall-clock time on a calendar date
 `shift_date date`, `starts_at time`, `ends_at time` — no timestamptz anywhere,
@@ -1494,10 +1504,10 @@ Reception and dentists can read the shifts but **not `staff`** (0002 — own row
 only), so names come from `roster_for_range(p_from, p_to)`, SECURITY DEFINER,
 returning the name and nothing else. Same reason and same shape as
 `bookable_dentists()` (0011) — but it joins `staff` rather than calling it, so
-a dentist since deactivated still resolves by name on last month's roster.
+a dentist since deactivated still resolves by name on last month's calendar.
 
 ### The dentist's week is a screen scope, like everything else theirs
-`WeekRoster` takes an optional `dentistId` and filters; the database would
+`WeekCalendar` takes an optional `dentistId` and filters; the database would
 happily return the whole clinic's week. Their own week shows **hours without
 names** — it is theirs, so repeating the name in every cell is noise. That is
 why the test for the scope asserts on a colleague's *hours* being absent: with
@@ -1505,7 +1515,7 @@ the name suppressed, asserting on the name passes even with the filter gone.
 Mutation-checked, and it caught exactly that.
 
 It fetches on its own rather than through the dashboard's refresh, so a
-roster that fails to load costs the roster panel and not the day's figures —
+calendar that fails to load costs that panel and not the day's figures —
 the same reasoning as visits and invoices being fetched separately.
 
 ### Not verified

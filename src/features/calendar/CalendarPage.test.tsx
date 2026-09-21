@@ -2,8 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import RosterPage from './RosterPage'
-import { formatDayLong, monthGrid } from './rosterWeek'
+import CalendarPage from './CalendarPage'
+import { formatDayLong, monthGrid } from './calendarWeek'
 import { toLocalDateString } from '../../core/localDate'
 import type { DentistShift } from './types'
 
@@ -34,7 +34,7 @@ function shift(partial: Partial<DentistShift> = {}): DentistShift {
 const renderPage = () =>
   render(
     <MemoryRouter>
-      <RosterPage />
+      <CalendarPage />
     </MemoryRouter>,
   )
 
@@ -44,7 +44,7 @@ const dayCell = (date: string) =>
     name: new RegExp(`^${formatDayLong(date).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
   })
 
-describe('RosterPage', () => {
+describe('CalendarPage', () => {
   beforeEach(() => {
     vi.mocked(api.listRoster).mockReset().mockResolvedValue([shift()])
     vi.mocked(api.addShift).mockReset().mockResolvedValue(undefined)
@@ -58,7 +58,7 @@ describe('RosterPage', () => {
   })
 
   // The visible grid spills into the neighbouring months, and those cells
-  // must not look empty when somebody is rostered in them.
+  // must not look empty when somebody is assigned in them.
   it('loads the whole visible grid, not just the calendar month', async () => {
     renderPage()
     await waitFor(() => expect(api.listRoster).toHaveBeenCalledWith(grid[0], grid[41]))
@@ -67,8 +67,8 @@ describe('RosterPage', () => {
   it('announces each date with how many dentists are on it', async () => {
     renderPage()
     await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
-    expect(dayCell(today)).toHaveAccessibleName(/1 dentist rostered/)
-    expect(dayCell(otherDay)).toHaveAccessibleName(/nobody rostered/)
+    expect(dayCell(today)).toHaveAccessibleName(/1 dentist assigned/)
+    expect(dayCell(otherDay)).toHaveAccessibleName(/nobody assigned/)
   })
 
   // The day opens over the calendar rather than under it: on a tablet the
@@ -88,7 +88,7 @@ describe('RosterPage', () => {
     await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
     await userEvent.click(dayCell(otherDay))
     const dialog = await screen.findByRole('dialog', { name: formatDayLong(otherDay) })
-    expect(within(dialog).getByText(/nobody is rostered for this day yet/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/nobody is assigned to this day yet/i)).toBeInTheDocument()
   })
 
   it('closes on Done', async () => {
@@ -113,7 +113,7 @@ describe('RosterPage', () => {
     await userEvent.clear(screen.getByLabelText('To'))
     await userEvent.type(screen.getByLabelText('To'), '17:00')
     await userEvent.type(screen.getByLabelText('Note'), 'Cover')
-    await userEvent.click(screen.getByRole('button', { name: /add to roster/i }))
+    await userEvent.click(screen.getByRole('button', { name: /add to calendar/i }))
 
     await waitFor(() =>
       expect(api.addShift).toHaveBeenCalledWith({
@@ -135,7 +135,7 @@ describe('RosterPage', () => {
     await screen.findByRole('dialog', { name: formatDayLong(otherDay) })
 
     await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-2')
-    await userEvent.click(screen.getByRole('button', { name: /add to roster/i }))
+    await userEvent.click(screen.getByRole('button', { name: /add to calendar/i }))
 
     await waitFor(() => expect(api.addShift).toHaveBeenCalled())
     expect(screen.getByRole('dialog', { name: formatDayLong(otherDay) })).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('RosterPage', () => {
     await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-2')
     await userEvent.clear(screen.getByLabelText('To'))
     await userEvent.type(screen.getByLabelText('To'), '08:00')
-    await userEvent.click(screen.getByRole('button', { name: /add to roster/i }))
+    await userEvent.click(screen.getByRole('button', { name: /add to calendar/i }))
 
     expect(await screen.findByText(/finish time has to be after the start time/i)).toBeInTheDocument()
     expect(api.addShift).not.toHaveBeenCalled()
@@ -163,16 +163,16 @@ describe('RosterPage', () => {
   // reaches the person who typed the hours.
   it('shows a refused overlap beside the form, and keeps what was typed', async () => {
     vi.mocked(api.addShift).mockRejectedValue(
-      new Error('That dentist is already rostered for part of those hours.'),
+      new Error('That dentist is already on the calendar for part of those hours.'),
     )
     renderPage()
     await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
     await userEvent.click(dayCell(today))
     await screen.findByRole('dialog', { name: formatDayLong(today) })
     await userEvent.selectOptions(screen.getByLabelText('Dentist'), 'd-1')
-    await userEvent.click(screen.getByRole('button', { name: /add to roster/i }))
+    await userEvent.click(screen.getByRole('button', { name: /add to calendar/i }))
 
-    expect(await screen.findByText(/already rostered for part of those hours/i)).toBeInTheDocument()
+    expect(await screen.findByText(/already on the calendar for part of those hours/i)).toBeInTheDocument()
     expect(screen.getByLabelText('Dentist')).toHaveValue('d-1')
   })
 
@@ -197,6 +197,6 @@ describe('RosterPage', () => {
     await waitFor(() => expect(api.listRoster).toHaveBeenCalled())
     await userEvent.click(dayCell(today))
     expect(await screen.findByText(/no active dentists to assign/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /add to roster/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /add to calendar/i })).toBeDisabled()
   })
 })

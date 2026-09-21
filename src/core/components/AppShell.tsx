@@ -114,8 +114,8 @@ export default function AppShell() {
                 <NavLink to="/admin/staff" className={navLinkClass}>
                   Staff
                 </NavLink>
-                <NavLink to="/admin/roster" className={navLinkClass}>
-                  Roster
+                <NavLink to="/admin/calendar" className={navLinkClass}>
+                  Calendar
                 </NavLink>
                 <NavLink to="/admin/settings" className={navLinkClass}>
                   Clinic Settings

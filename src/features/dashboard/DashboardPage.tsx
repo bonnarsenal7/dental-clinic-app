@@ -13,7 +13,7 @@ import DailyClosePanel from '../dailyClose/DailyClosePanel'
 import PaymentQueue from './PaymentQueue'
 import type { PaymentQueueEntry } from './paymentQueueState'
 import StatTile from './StatTile'
-import WeekRoster from '../roster/WeekRoster'
+import WeekCalendar from '../calendar/WeekCalendar'
 import type { DailySummary } from './types'
 
 /** The rows that decide what the payment queue shows (0019 publishes them). */
@@ -129,6 +129,16 @@ export default function DashboardPage() {
 
       {error && <ErrorState message={error} onRetry={() => void refresh()} />}
 
+      {/* First on the page, for every role — the clinic asked for it there.
+          A dentist sees their own sessions, everyone else the whole clinic.
+
+          It sits above the medical alerts and above the front desk's payment
+          queue, both of which are act-now items, so this is a deliberate
+          trade the clinic made: knowing who is in this week is the thing
+          they want to open the dashboard onto. If the pilot finds alerts
+          being missed, this is the first thing to move back down. */}
+      <WeekCalendar dentistId={isDentist ? staffId : undefined} />
+
       {/* Above the day's numbers, not below them. A dentist opening this
           at the start of a shift needs to know who cannot be treated as
           planned before they read how many are booked — and an alert that
@@ -173,13 +183,6 @@ export default function DashboardPage() {
       {/* First for the front desk: the patient standing at the counter is
           the thing to act on before any figure. */}
       {seesPaymentQueue && <PaymentQueue entries={paymentQueue} onChanged={() => void refresh()} />}
-
-      {/* High on a dentist's dashboard, below the day on reception's.
-          A dentist opens this to find out when they are next in; reception
-          opens it to deal with the person in front of them, and reads the
-          week when they get to it. Medical alerts still come first — who
-          cannot be treated as planned outranks when anyone is in. */}
-      {isDentist && <WeekRoster dentistId={staffId} />}
 
       {/* The day, at a glance. A dentist gets what they earned in place of
           two figures about a diary they cannot open — their own commission,
@@ -359,8 +362,6 @@ export default function DashboardPage() {
           ))}
         </section>
       )}
-
-      {!isDentist && <WeekRoster />}
 
       {/* Below everything else: closing the day is the last thing the front
           desk does, and its button should not sit anywhere a tap meant for

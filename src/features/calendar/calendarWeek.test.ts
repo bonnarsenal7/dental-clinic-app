@@ -8,7 +8,7 @@ import {
   startOfWeek,
   toTimeValue,
   weekDates,
-} from './rosterWeek'
+} from './calendarWeek'
 import type { DentistShift } from './types'
 
 function shift(partial: Partial<DentistShift> = {}): DentistShift {
