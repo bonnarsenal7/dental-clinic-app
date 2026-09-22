@@ -111,13 +111,16 @@ describe('PatientLedgerPage', () => {
     expect(audit.logPatientView).toHaveBeenCalledWith('p1', 's1', 'invoices')
   })
 
-  it('offers a new invoice and a way back to the profile', async () => {
+  // Getting back to the record is the patient tabs' job now
+  // (AssignedPatientRoute), on every screen about a patient rather than only
+  // the ones that remembered to offer it. Raising a bill stays here.
+  it('offers a new invoice, and leaves the way back to the tabs', async () => {
     renderPage()
     expect(await screen.findByRole('link', { name: /new invoice/i })).toHaveAttribute(
       'href',
       '/patients/p1/invoices/new',
     )
-    expect(screen.getByRole('link', { name: /patient profile/i })).toHaveAttribute('href', '/patients/p1')
+    expect(screen.queryByRole('link', { name: /patient profile/i })).not.toBeInTheDocument()
   })
 
   // Raising a bill is the front desk's. A dentist reads the ledger — and must

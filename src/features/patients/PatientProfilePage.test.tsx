@@ -26,6 +26,7 @@ vi.mock('./ConsentCapture', () => ({ default: () => <p>signature pad</p> }))
 vi.mock('../scheduling/PatientScheduling', () => ({ default: () => <p>scheduling panel</p> }))
 vi.mock('./VisitTimeline', () => ({ default: () => <p>visit timeline</p> }))
 vi.mock('./FileAttachments', () => ({ default: () => <p>attachments</p> }))
+vi.mock('./PatientSummary', () => ({ default: () => <p>patient summary</p> }))
 
 const api = await import('./api')
 const PatientProfilePage = (await import('./PatientProfilePage')).default
@@ -67,8 +68,42 @@ describe('PatientProfilePage', () => {
   it('shows the patient and their contact number', async () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: /maria clara santos/i })).toBeInTheDocument()
-    // Once in the header, once in the Cell field below.
-    expect(screen.getAllByText('0917 555 0142')).toHaveLength(2)
+    // Once, in the header. The Cell field is inside Patient details, which
+    // is folded away until somebody asks for it.
+    expect(screen.getAllByText('0917 555 0142')).toHaveLength(1)
+  })
+
+  // Ten intake fields sat between the name and the clinical record. They are
+  // read when somebody needs an address, which is not most visits.
+  it('folds the intake fields away, and opens them on request', async () => {
+    renderPage()
+    const toggle = await screen.findByRole('button', { name: /patient details/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(/12 Mabini St/)).not.toBeInTheDocument()
+
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(/12 Mabini St/)).toBeInTheDocument()
+  })
+
+  // Deleting the banner from the chart page once passed the whole suite —
+  // the component was covered, its wiring was not. Same test, new screen.
+  it('warns about the patient before anything else on the screen', async () => {
+    vi.mocked(api.getMedicalHistory).mockResolvedValue({
+      conditions: {},
+      allergic_to_anesthesia: true,
+    } as never)
+    renderPage()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/allergic to anaesthesia/i)
+    const details = screen.getByRole('button', { name: /patient details/i })
+    expect(alert.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('says a clear history was reviewed rather than showing no banner', async () => {
+    vi.mocked(api.getMedicalHistory).mockResolvedValue({ conditions: {} } as never)
+    renderPage()
+    expect(await screen.findByText(/no medical alerts/i)).toBeInTheDocument()
   })
 
   // The category beside the name. Only an admin can change it, on Edit —
@@ -94,25 +129,16 @@ describe('PatientProfilePage', () => {
     expect(logPatientView).toHaveBeenCalledWith('p-1', 's-1', 'patients')
   })
 
-  // Mirrors the RLS boundary: reception has no policy at all on
-  // tooth_records, so the chart would refuse them anyway.
-  it('does not offer the chart to a receptionist', async () => {
-    renderPage('receptionist')
-    await screen.findByRole('heading', { name: /maria clara santos/i })
-    expect(screen.queryByRole('link', { name: /dental chart/i })).not.toBeInTheDocument()
-  })
-
-  it('offers the chart to a dentist', async () => {
+  // The chart and the ledger are tabs above this screen now
+  // (AssignedPatientRoute), so repeating them here would be two ways to the
+  // same place, one of which a role sometimes may not use. Editing stays: it
+  // is an action on this screen, not a tab.
+  it('leaves the chart and the ledger to the tabs, keeping Edit here', async () => {
     renderPage('dentist')
     await screen.findByRole('heading', { name: /maria clara santos/i })
-    expect(screen.getByRole('link', { name: /dental chart/i })).toHaveAttribute('href', '/patients/p-1/chart')
-  })
-
-  it('offers billing and editing to everyone', async () => {
-    renderPage('receptionist')
-    await screen.findByRole('heading', { name: /maria clara santos/i })
-    expect(screen.getByRole('link', { name: /^billing$/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /edit demographics/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /dental chart/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^billing$/i })).not.toBeInTheDocument()
   })
 
   // "None reported" and a blank line mean different things to a clinician.
@@ -128,8 +154,12 @@ describe('PatientProfilePage', () => {
       allergic_to_anesthesia: true,
     } as never)
     renderPage()
-    expect(await screen.findByText(/asthma/i)).toBeInTheDocument()
-    expect(screen.getByText(/allergic reaction to anesthesia/i)).toBeInTheDocument()
+    // Scoped to the history section: a flagged condition now also appears in
+    // the alert banner above, which is the point of the banner.
+    const history = (await screen.findByRole('heading', { name: /medical history/i }))
+      .parentElement as HTMLElement
+    expect(within(history).getByText(/asthma/i)).toBeInTheDocument()
+    expect(within(history).getByText(/allergic reaction to anesthesia/i)).toBeInTheDocument()
   })
 
   // An allergy recorded as "yes" with no detail must not read as no allergy.

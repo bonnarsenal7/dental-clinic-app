@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Outlet, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { EmptyState, ErrorState, LoadingState } from '../../core/components/states'
 import { toMessage } from '../../core/errors'
 import { isAssignedToDentist } from './api'
+import PatientTabs from './PatientTabs'
 
 /** Keeps a dentist to their own patients on every `/patients/:id/…` screen.
  *
@@ -17,7 +18,12 @@ import { isAssignedToDentist } from './api'
  *  Other roles pass straight through.
  *
  *  Nothing below renders until the check answers, so a record that is not
- *  the dentist's is never fetched by its screen or logged as viewed. */
+ *  the dentist's is never fetched by its screen or logged as viewed.
+ *
+ *  It also carries the patient tabs, since it is the one place that wraps
+ *  every screen about one patient. They are deliberately *not* rendered
+ *  above the refusal below: a dentist who may not open this record should
+ *  not be handed tabs into the rest of it. */
 export default function AssignedPatientRoute() {
   const { id } = useParams<{ id: string }>()
   const { staff } = useAuth()
@@ -40,7 +46,14 @@ export default function AssignedPatientRoute() {
     }
   }, [dentistId, id, key])
 
-  if (!dentistId) return <Outlet />
+  const framed = (children: ReactNode) => (
+    <div className="flex flex-col gap-4">
+      {id && <PatientTabs patientId={id} />}
+      {children}
+    </div>
+  )
+
+  if (!dentistId) return framed(<Outlet />)
   if (!result || result.key !== key) return <LoadingState />
   if (result.error) return <ErrorState message={result.error} />
   if (!result.allowed) {
@@ -56,5 +69,5 @@ export default function AssignedPatientRoute() {
       />
     )
   }
-  return <Outlet />
+  return framed(<Outlet />)
 }

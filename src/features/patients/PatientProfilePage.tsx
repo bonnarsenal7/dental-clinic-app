@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { logPatientView } from '../../core/auditView'
 import { getDentalHistory, getMedicalHistory, getPatient, listConsents } from './api'
@@ -11,6 +11,9 @@ import { MEDICAL_CONDITIONS, DENTAL_SYMPTOMS, ORAL_HABITS } from './historyOptio
 import { SIGNER_RELATIONSHIPS, patientTypeLabel } from './types'
 import type { Consent, DentalHistory, MedicalHistory, Patient } from './types'
 import { toMessage } from '../../core/errors'
+import { ButtonLink } from '../../core/components/ui/Button'
+import MedicalAlerts from './MedicalAlerts'
+import PatientSummary from './PatientSummary'
 import { ErrorState, LoadingState } from '../../core/components/states'
 
 function trueKeys(map: Record<string, boolean> | undefined, options: { key: string; label: string }[]) {
@@ -25,6 +28,7 @@ export default function PatientProfilePage() {
   const [medical, setMedical] = useState<MedicalHistory | null>(null)
   const [dental, setDental] = useState<DentalHistory | null>(null)
   const [consents, setConsents] = useState<Consent[]>([])
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showConsent, setShowConsent] = useState(false)
 
@@ -68,65 +72,78 @@ export default function PatientProfilePage() {
             {patient.cell_number ?? patient.phone_number ?? 'No contact number on file'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {staff && staff.role !== 'receptionist' && (
-            <Link
-              to={`/patients/${id}/chart`}
-              className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
-            >
-              Dental chart
-            </Link>
-          )}
-          <Link
-            to={`/patients/${id}/billing`}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
-          >
-            Billing
-          </Link>
-          <Link
-            to={`/patients/${id}/edit`}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
-          >
-            Edit demographics & history
-          </Link>
-        </div>
+        {/* The chart and the ledger are tabs above this, on every screen
+            about the patient, so they are not repeated here. Editing is not
+            a tab: it is an action on this screen. */}
+        <ButtonLink to={`/patients/${id}/edit`} variant="secondary">
+          Edit demographics & history
+        </ButtonLink>
       </div>
 
-      <section className="bg-white border border-slate-200 rounded-xl p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        <p>
-          <span className="text-slate-400">Address:</span> {patient.address ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Birthday:</span> {patient.birthday ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Age:</span> {patient.age ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Sex:</span> {patient.sex ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Height:</span> {patient.height ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Weight:</span> {patient.weight ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Occupation:</span> {patient.occupation ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Spouse:</span> {patient.spouse ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Phone:</span> {patient.phone_number ?? '—'}
-        </p>
-        <p>
-          <span className="text-slate-400">Cell:</span> {patient.cell_number ?? '—'}
-        </p>
-        {patient.remarks && (
-          <p className="sm:col-span-2">
-            <span className="text-slate-400">Remarks:</span> {patient.remarks}
-          </p>
+      {/* Clinical first, as on the chart and the dashboard: an allergy is
+          the one thing that has to be read before anybody does anything,
+          and the profile is where reception checks somebody in. */}
+      {/* No `loading` prop: the screen itself waits for all four fetches,
+          so by the time this renders the history is settled — null here
+          means none on file, which the banner says in its own words. */}
+      <MedicalAlerts medical={medical} />
+
+      <PatientSummary patient={patient} />
+
+      {/* Ten intake fields, folded away. They are read when somebody needs
+          an address or a birthday, and they were sitting between the name
+          and everything about today's treatment — on a tablet that is most
+          of a screenful of scrolling before the clinical record starts. */}
+      <section className="bg-white border border-slate-200 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((open) => !open)}
+          aria-expanded={detailsOpen}
+          className="w-full flex items-center justify-between gap-3 px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl"
+        >
+          Patient details
+          <span aria-hidden="true" className="text-slate-400">
+            {detailsOpen ? '▾' : '▸'}
+          </span>
+        </button>
+        {detailsOpen && (
+          <div className="px-6 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <p>
+              <span className="text-slate-400">Address:</span> {patient.address ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Birthday:</span> {patient.birthday ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Age:</span> {patient.age ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Sex:</span> {patient.sex ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Height:</span> {patient.height ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Weight:</span> {patient.weight ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Occupation:</span> {patient.occupation ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Spouse:</span> {patient.spouse ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Phone:</span> {patient.phone_number ?? '—'}
+            </p>
+            <p>
+              <span className="text-slate-400">Cell:</span> {patient.cell_number ?? '—'}
+            </p>
+            {patient.remarks && (
+              <p className="sm:col-span-2">
+                <span className="text-slate-400">Remarks:</span> {patient.remarks}
+              </p>
+            )}
+          </div>
         )}
       </section>
 

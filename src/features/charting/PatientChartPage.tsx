@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { logPatientView } from '../../core/auditView'
 import { getMedicalHistory, getPatient } from '../patients/api'
@@ -178,12 +178,6 @@ export default function PatientChartPage() {
             tooth adds an entry rather than overwriting the old one.
           </p>
         </div>
-        <Link
-          to={`/patients/${patientId}`}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          Back to profile
-        </Link>
       </div>
 
       {error && <ErrorState message={error} />}

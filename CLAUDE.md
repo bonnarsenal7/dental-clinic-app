@@ -436,6 +436,61 @@ The repair stuck — remote history now lists 0001-0004, so no further
 repair is needed. Only run `migration repair` again if SQL is applied
 outside the CLI once more.
 
+## The patient record: one way around it, and today first
+
+Three changes from the design review, all placement rather than behaviour.
+
+### Patient tabs live on the layout route, not on each screen
+`PatientTabs` renders inside `AssignedPatientRoute`, which is the one thing
+wrapping every `/patients/:id/…` screen. Profile · Dental chart · Billing,
+plus `‹ Patients`. The Chart tab is dentist/admin only, mirroring the RLS on
+`tooth_records` and the route guard — a tab that bounces is worse than no tab.
+
+Each screen used to carry its own way out ("Dental chart", "Billing", "Back
+to profile", "Patient profile"), so where you could go depended on which
+screen you were on, and `/patients/:id/edit` offered nothing. Those links are
+**deleted, not duplicated** — the profile keeps only Edit, which is an action
+on that screen rather than a destination.
+
+**The tabs are not rendered above the "isn't assigned to you" refusal.** A
+dentist who may not open a record should not be handed tabs into the rest of
+it.
+
+`/invoices/:id` is outside this route — its URL names no patient — so it
+keeps its own "Back to ledger".
+
+Gold-100/900 for the active tab, not the 700 used for a primary action: this
+bar also renders above the odontogram, where the gold guard applies.
+
+### The profile opens on today, not on the intake form
+Order is now: name and type · **medical alerts** · summary strip · *Patient
+details* (folded) · histories · consent · scheduling · visits · files.
+
+- **`MedicalAlerts` is on the profile**, which it was not: it was on the
+  chart and the dashboard, so the screen reception checks somebody in on said
+  nothing about an anaesthesia allergy. Same component, and the same lesson
+  as the chart — cover the component *and* its presence on the screen.
+- **The ten intake fields are behind a disclosure**, closed by default. They
+  are read when somebody needs an address, and they were sitting between the
+  name and everything clinical.
+
+### The summary strip answers what used to need three screens
+`PatientSummary` — age, balance, next appointment, last visit.
+
+**Age is computed from the birthday**, not read from `patients.age`, which
+was true the day somebody typed it. The column stays as the fallback for a
+record with no birthday.
+
+**It fetches its own three figures with `Promise.allSettled`**, so a failed
+billing query costs that one number and says so, rather than taking the
+profile with it — the same reasoning as visits and invoices being separate in
+`VisitTimeline`. Balance is red only when something is owed; nothing owed is
+ordinary, not an achievement, so it stays neutral rather than going green.
+
+**Next appointment is the soonest still to come**, not the newest row:
+`listPatientAppointments` returns newest first, and cancelled and completed
+bookings are excluded. Mutation-checked — taking `[0]` fails a test.
+
 ## Phase 3 — Dental Charting (Odontogram) (done)
 
 ### Where it lives

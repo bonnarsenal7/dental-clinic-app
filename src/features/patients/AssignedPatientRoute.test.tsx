@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AssignedPatientRoute from './AssignedPatientRoute'
@@ -61,5 +61,37 @@ describe('AssignedPatientRoute', () => {
     renderAt()
     expect(await screen.findByRole('alert')).toHaveTextContent(/you're offline/i)
     expect(screen.queryByText('patient record')).not.toBeInTheDocument()
+  })
+
+  // One way around a patient's record, on every screen about them. Each
+  // screen used to carry its own, which is how some ended up with none.
+  describe('the patient tabs', () => {
+    it('are on every screen about the patient, pointing at that patient', async () => {
+      renderAt()
+      await screen.findByText('patient record')
+      const tabs = within(screen.getByRole('navigation', { name: /patient record/i }))
+      expect(tabs.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/patients/p-1')
+      expect(tabs.getByRole('link', { name: /dental chart/i })).toHaveAttribute('href', '/patients/p-1/chart')
+      expect(tabs.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/patients/p-1/billing')
+    })
+
+    // Mirrors the RLS boundary: reception has no policy at all on
+    // tooth_records, and the route refuses them — so the tab would bounce.
+    it('keep the chart from a receptionist', async () => {
+      auth.role = 'receptionist'
+      renderAt()
+      await screen.findByText('patient record')
+      expect(screen.queryByRole('link', { name: /dental chart/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Billing' })).toBeInTheDocument()
+    })
+
+    // A dentist who may not open this record should not be handed tabs into
+    // the rest of it.
+    it('are not shown with the refusal', async () => {
+      vi.mocked(api.isAssignedToDentist).mockResolvedValue(false)
+      renderAt()
+      await screen.findByText(/isn't assigned to you/i)
+      expect(screen.queryByRole('navigation', { name: /patient record/i })).not.toBeInTheDocument()
+    })
   })
 })
