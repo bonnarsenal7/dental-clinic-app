@@ -1486,6 +1486,91 @@ Day bounds and booking times are built from local date/time fields. Using
 `toISOString().slice(0,10)` would push the clinic's evening appointments
 onto the following day.
 
+## Patient self-intake (0026)
+
+A new patient types their own registration on the clinic tablet. Reception
+taps **Patient fills in form** on the patients list; a new tab opens the
+form, the staff tab locks, and the patient's answers wait for reception to
+review before they become a record.
+
+`src/features/patients/intake/` — `api.ts`, `IntakeApp.tsx` (the whole app
+on the intake address), `IntakePage.tsx` (form → review → sign → send),
+`StartIntakeButton.tsx`, `IntakeQueue.tsx` (on the patients list),
+`IntakeReviewPage.tsx` (`/intakes/:id`, reception/admin). `src/core/`
+`intakeHost.ts` and `intakeLock.ts`; `src/features/auth/IntakeLockScreen.tsx`.
+
+### The patient's tab has no staff login, because it is another address
+The same build is served at `toothco-intake.vercel.app` (a second domain on
+the same Vercel project). Browsers keep sign-ins per address, so that tab has
+**no session at all** and talks to Supabase as `anon`. `main.tsx` renders
+only `IntakeApp` there — no router, no login screen — whatever path is typed.
+
+**Don't serve the intake from a path on the main address.** A tab on the
+same address shares reception's login: the patient could type `/patients`
+and be in. That is the whole reason for the second domain, and why a
+"kiosk mode" that only hides the nav was rejected.
+
+`anon` can call exactly two functions, neither of which reads anything back:
+`intake_status(code)` and `submit_intake(code, …)`. The code is one-time,
+144 random bits, valid two hours, and only its sha256 is stored.
+
+**The code travels in the URL fragment** (`/#<code>`), never the path or
+query: a fragment is not sent to the server, so it is not in Vercel's logs,
+and the page needs no SPA rewrite — which matters because the project has
+none (deep links on the main site 404 on reload).
+
+### The staff tab locks
+`intakeLock.ts` stores a flag in localStorage; `ProtectedRoute` renders
+`IntakeLockScreen` instead of **any** staff route while it is set, including
+`/change-password`. A reload or a URL typed into that tab still meets the
+lock, and every staff tab on the device locks together. Unlocking re-checks
+the signed-in staff member's password with Supabase — not a PIN, which a
+patient can watch someone type. **Signing out clears it**, so the idle
+timeout firing mid-intake leaves the login screen, not a lock.
+
+The lock hides; it does not enforce. What enforces is that the tab the
+patient types in has no session. Suggest iPad **Guided Access** to stop the
+patient switching tabs at all.
+
+The new tab is opened **before** the code is fetched — Safari blocks a tab
+opened after an await as a pop-up. If it is blocked anyway, the button
+offers a link, which is a fresh tap.
+
+### Staging, then review
+`submit_intake` writes `intake_submissions`, not `patients`. Reception sees
+"N patient forms waiting for review" on the patients list, checks the
+answers against **possible duplicates** (same name or cell number), chooses
+the patient type (0023 — the patient never does), and accepts or discards.
+
+`accept_intake` is **SECURITY INVOKER** — reception's own RLS applies — and
+creates the patient, both histories and the consent in **one transaction**,
+which the by-hand `registerPatient` does not. Its column mapping mirrors
+`registerPatient`: **keep the two in step** when a field is added.
+
+- `patient_id` is reserved on the submission, so the signature uploads to
+  `signatures/<patient_id>/intake-<id>.png` before the patient exists, and a
+  retried accept finds it already there.
+- The consent's `signed_at` is when the patient signed; `staff_id` is the
+  reviewer, since no staff member was beside the patient.
+- **Once reviewed, the payload and signature are erased** by the guard
+  trigger — a second copy of a medical history is a breach surface. The
+  audit trigger records that the intake happened, under the patient's id.
+- Nothing the patient typed is editable in staging; corrections are made on
+  the record after acceptance, as ordinary audited edits.
+
+### Not verified
+**0026 is applied to the live project.** Checked there with the anon key,
+the way the patient's tab calls it: `intake_status` answers `unknown` for a
+made-up code, `start_intake` is refused, both tables read back empty, and
+`submit_intake` refuses a bad code with its own wording.
+
+Not exercised yet: a real code end to end, spending a code under two
+simultaneous submits, `accept_intake` under reception's RLS, and Safari's
+pop-up behaviour on an iPad. The unit tests mock Supabase.
+
+The patient signs the same unreviewed draft consent wording as at the desk
+(`docs/COMPLIANCE.md`), now without staff beside them.
+
 ## Dentist calendar (0025)
 
 Who is in the clinic, and for which part of which day. An admin taps a date

@@ -12,6 +12,7 @@ export const routeChunks = {
   recalls: () => import('../features/scheduling/RecallsPage'),
   patients: () => import('../features/patients/PatientsPage'),
   patientRegister: () => import('../features/patients/PatientRegisterPage'),
+  intakeReview: () => import('../features/patients/intake/IntakeReviewPage'),
   patientProfile: () => import('../features/patients/PatientProfilePage'),
   patientEdit: () => import('../features/patients/PatientEditPage'),
   billing: () => import('../features/billing/BillingPage'),

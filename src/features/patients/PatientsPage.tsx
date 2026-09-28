@@ -7,6 +7,8 @@ import type { Patient, PatientType } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import { PageHeader } from '../../core/components/ui/Page'
+import StartIntakeButton from './intake/StartIntakeButton'
+import IntakeQueue from './intake/IntakeQueue'
 
 export default function PatientsPage() {
   const { staff } = useAuth()
@@ -42,14 +44,21 @@ export default function PatientsPage() {
             would not be booked with them, so it would vanish from their own
             list the moment it was saved. */}
         {!dentistId && (
-          <Link
-            to="/patients/new"
-            className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
-          >
-            + Register patient
-          </Link>
+          <div className="flex items-start gap-3 flex-wrap">
+            {/* The patient types their own details, in a tab with no staff
+                login behind it, while this one locks (0026). */}
+            <StartIntakeButton />
+            <Link
+              to="/patients/new"
+              className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"
+            >
+              + Register patient
+            </Link>
+          </div>
         )}
       </div>
+
+      {!dentistId && <IntakeQueue />}
 
       <div className="flex items-end gap-3 flex-wrap">
         <input

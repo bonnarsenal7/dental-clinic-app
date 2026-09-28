@@ -12,15 +12,27 @@ import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
 
-interface ConsentCaptureProps {
-  patientId: string
+/** One signing, as captured — before anything is stored. */
+export interface CapturedConsent {
+  consentTextVersion: string
+  signatureDataUrl: string
+  signedByName: string
+  signerRelationship: SignerRelationship
+}
+
+type ConsentCaptureProps = {
   /** Filled in for them when the patient is signing for themselves. */
   patientName: string
-  staffId: string
   onSaved: () => void
   /** Shown on the button — differs for first-time vs. re-confirm. */
   submitLabel?: string
-}
+} & (
+  | { patientId: string; staffId: string; save?: never }
+  /** Somewhere other than the patient's record: the intake screen has no
+   *  login and cannot write to Storage, so it hands the signature to its own
+   *  submit instead (0026). */
+  | { save: (consent: CapturedConsent) => Promise<void>; patientId?: never; staffId?: never }
+)
 
 export default function ConsentCapture({
   patientId,
@@ -28,6 +40,7 @@ export default function ConsentCapture({
   staffId,
   onSaved,
   submitLabel,
+  save,
 }: ConsentCaptureProps) {
   const padRef = useRef<SignatureCanvas>(null)
   const [error, setError] = useState<string | null>(null)
@@ -67,14 +80,14 @@ export default function ConsentCapture({
       // throws in the deployed build). Untrimmed is functionally fine --
       // just a little transparent padding around the signature.
       const dataUrl = padRef.current.toDataURL('image/png')
-      await saveConsent({
-        patientId,
-        staffId,
+      const consent: CapturedConsent = {
         consentTextVersion: CONSENT_TEXT_VERSION,
         signatureDataUrl: dataUrl,
         signedByName: signedByName.trim(),
         signerRelationship: relationship,
-      })
+      }
+      if (save) await save(consent)
+      else await saveConsent({ patientId: patientId!, staffId: staffId!, ...consent })
       onSaved()
     } catch (e) {
       setError(toMessage(e))

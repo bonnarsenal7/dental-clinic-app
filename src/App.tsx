@@ -31,6 +31,7 @@ const PatientEditPage = lazy(routeChunks.patientEdit)
 const PatientLedgerPage = lazy(routeChunks.patientLedger)
 const PatientProfilePage = lazy(routeChunks.patientProfile)
 const PatientRegisterPage = lazy(routeChunks.patientRegister)
+const IntakeReviewPage = lazy(routeChunks.intakeReview)
 const PatientsPage = lazy(routeChunks.patients)
 const PriceListPage = lazy(routeChunks.priceList)
 const RecallsPage = lazy(routeChunks.recalls)
@@ -66,6 +67,9 @@ function App() {
                 <Route path="/recalls" element={<RecallsPage />} />
                 <Route path="/billing" element={<BillingPage />} />
                 <Route path="/patients/new" element={<PatientRegisterPage />} />
+                {/* A form a patient filled in themselves, waiting to become
+                    a record. Registration is the front desk's, so is this. */}
+                <Route path="/intakes/:id" element={<IntakeReviewPage />} />
               </Route>
 
               {/* Every screen about one patient: a dentist reaches only

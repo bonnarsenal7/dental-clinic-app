@@ -15,17 +15,28 @@ const rowValue = 'text-slate-700 text-right'
  *  for verification before they sign. Renders straight from the submitted
  *  form values (not a re-fetch) so it's an honest "this is what you're
  *  about to sign for" snapshot. */
-export default function RegistrationReview({ values }: { values: PatientRegistrationInput }) {
+export default function RegistrationReview({
+  values,
+  showType = true,
+}: {
+  values: PatientRegistrationInput
+  /** Off where the category has not been chosen yet: a patient typing their
+   *  own intake never picks one, so showing "Regular" would be a claim
+   *  nobody made. Reception chooses it on acceptance. */
+  showType?: boolean
+}) {
   return (
     <div className="flex flex-col gap-4">
       <section className="bg-white border border-slate-200 rounded-xl p-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-2">Demographics</h2>
         {/* The category is part of what is being signed for, so it is shown
             like any other answer rather than left off the summary. */}
-        <div className={row}>
-          <span className={rowLabel}>Patient type</span>
-          <span className={rowValue}>{patientTypeLabel(values.patient_type)}</span>
-        </div>
+        {showType && (
+          <div className={row}>
+            <span className={rowLabel}>Patient type</span>
+            <span className={rowValue}>{patientTypeLabel(values.patient_type)}</span>
+          </div>
+        )}
         <div className={row}>
           <span className={rowLabel}>Name</span>
           <span className={rowValue}>{values.name || '—'}</span>

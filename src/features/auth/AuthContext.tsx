@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../core/supabaseClient'
+import { clearIntakeLock } from '../../core/intakeLock'
 import type { StaffProfile } from './types'
 
 interface AuthContextValue {
@@ -85,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Nothing signed in means nothing behind the intake lock to protect —
+    // and the idle timeout signing out mid-intake should leave the login
+    // screen, not a lock nobody's password opens.
+    clearIntakeLock()
     await supabase.auth.signOut()
     setStaff(null)
   }

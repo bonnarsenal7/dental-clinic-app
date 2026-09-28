@@ -9,7 +9,9 @@ const auth = vi.hoisted(() => ({ role: 'receptionist' as 'receptionist' | 'denti
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ staff: { id: 's-1', name: 'Test', role: auth.role } }),
 }))
+vi.mock('./intake/api', () => ({ listPendingIntakes: vi.fn(), startIntake: vi.fn() }))
 const api = await import('./api')
+const intakeApi = await import('./intake/api')
 
 const PATIENTS = [
   {
@@ -41,6 +43,33 @@ describe('PatientsPage', () => {
     vi.mocked(api.searchPatients)
       .mockReset()
       .mockResolvedValue(PATIENTS as never)
+    vi.mocked(intakeApi.listPendingIntakes).mockReset().mockResolvedValue([])
+  })
+
+  // Forms patients typed themselves wait here for reception to review.
+  it('lists patient forms waiting for review, linked to the review screen', async () => {
+    vi.mocked(intakeApi.listPendingIntakes).mockResolvedValue([
+      {
+        id: 'in-1',
+        patient_id: 'p-new',
+        payload: { name: 'Lorna Villanueva' },
+        submitted_at: '2026-09-28T01:00:00Z',
+        status: 'pending',
+      },
+    ] as never)
+    renderPage()
+    expect(await screen.findByText('1 patient form waiting for review')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Lorna Villanueva' })).toHaveAttribute('href', '/intakes/in-1')
+    expect(screen.getByRole('button', { name: 'Patient fills in form' })).toBeInTheDocument()
+  })
+
+  // Registration is the front desk's, and so is the patient's own form.
+  it('offers a dentist neither the intake nor its queue', async () => {
+    auth.role = 'dentist'
+    renderPage()
+    await screen.findByRole('link', { name: /angelica/i })
+    expect(screen.queryByRole('button', { name: 'Patient fills in form' })).not.toBeInTheDocument()
+    expect(intakeApi.listPendingIntakes).not.toHaveBeenCalled()
   })
 
   it('searches the whole clinic for reception', async () => {
