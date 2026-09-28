@@ -2064,11 +2064,57 @@ the app and needed once a day. `doc.save()`, for the same tablet reasons.
 If the close succeeds and only the download fails, the panel says so and
 **Download report** stays available; the close is not repeated.
 
-**Amounts are written `PHP 1,234.00`, not with the peso sign** —
+**Amounts are written `P 1,234.00`, not with the peso sign** —
 `pdfMoney()`, not `formatMoney()`. jsPDF's built-in Helvetica cannot encode
 U+20B1 and draws stray characters in its place. `receiptPdf.ts` still uses
 `formatMoney` and so very likely has this bug on printed receipts; it is
 unverified, since nobody has put a receipt through a printer yet.
+
+### The report is the clinic's EOD sheet (0027)
+`eodReportPdf.ts` lays the PDF out as the grid reception keeps by hand —
+**four equal columns**, cells wrapping within their column — in this order:
+
+1. **Today's patients** — name, procedure, method, amount; one row per
+   payment taken that day (a refund is a negative row)
+2. **Expenses**
+3. **Salary & commission** — the per-dentist table (0021/0022)
+4. **Overall summary**, ending in **TODAY'S COH** in red
+
+`buildReportPatientTable()` and `buildReportSummary()` in
+`reportSections.ts` turn the frozen report into the text to draw, so what the
+sheet says is tested even though jsPDF's layout is not.
+
+**Cash on hand is the clinic's formula, and it differs from net:**
+
+    COH = revenue − bank & digital − expenses − (salary + commission)
+    net = revenue − expenses − salary                      (0020, unchanged)
+
+COH is the cash that should be in the drawer, so it takes out everything
+that did not arrive as cash and everything paid out, commission included.
+Net stays as 0020 defined it. **Don't "reconcile" the two** — they answer
+different questions, and the sheet prints both.
+
+**0027 freezes what these need into the report at closing**, for the same
+reason as the per-dentist commission (0022) — every re-download is rebuilt
+from what was saved, never recomputed:
+
+- `report.payments` — the day's payments with patient name, the invoice's
+  lines joined as `procedure`, `method` and `amount`. The same rows
+  `clinic_day_totals()` sums as revenue, so the table adds up to the total.
+- `report.non_cash_total` — every method but cash (card, bank transfer,
+  other — GCash and the like).
+
+`close_clinic_day()` also takes `payments` and `invoice_items` into its SHARE
+locks, so a payment landing in the same instant cannot be in the total and
+missing from the list. Everything else in the function is 0022's.
+
+**Days closed before 0027 have neither key, and they are not backfilled.**
+Both builders return null and the PDF says the list and COH were not
+recorded — unknown must not print as a figure. **0027 is applied to the live
+project** (after its code had been deployed for a while, so any day closed
+in that window lacks both sections for good). None of it has been exercised
+by a real close yet: the first Close Clinic after 0027 is the check, and the
+layout has not been looked at on paper.
 
 ### Today's summary (0024)
 After the per-dentist table, four figures the front desk reads out at close
