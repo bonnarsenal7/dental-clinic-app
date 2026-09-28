@@ -46,7 +46,7 @@ describe('AssignedPatientRoute', () => {
   it('keeps a dentist out of a patient not booked with them', async () => {
     vi.mocked(api.isAssignedToDentist).mockResolvedValue(false)
     renderAt()
-    expect(await screen.findByText(/isn't assigned to you/i)).toBeInTheDocument()
+    expect(await screen.findByText(/isn't on your schedule today/i)).toBeInTheDocument()
     expect(screen.queryByText('patient record')).not.toBeInTheDocument()
   })
 
@@ -90,7 +90,7 @@ describe('AssignedPatientRoute', () => {
     it('are not shown with the refusal', async () => {
       vi.mocked(api.isAssignedToDentist).mockResolvedValue(false)
       renderAt()
-      await screen.findByText(/isn't assigned to you/i)
+      await screen.findByText(/isn't on your schedule today/i)
       expect(screen.queryByRole('navigation', { name: /patient record/i })).not.toBeInTheDocument()
     })
   })

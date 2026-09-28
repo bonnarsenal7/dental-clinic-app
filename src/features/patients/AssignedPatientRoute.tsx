@@ -6,11 +6,12 @@ import { toMessage } from '../../core/errors'
 import { isAssignedToDentist } from './api'
 import PatientTabs from './PatientTabs'
 
-/** Keeps a dentist to their own patients on every `/patients/:id/…` screen.
+/** Keeps a dentist to today's patients on every `/patients/:id/…` screen.
  *
- *  "Their own" means the patient has at least one appointment booked with
- *  them. The Patients list already shows a dentist only those; this covers
- *  the same record reached by URL, a bookmark or a link from elsewhere.
+ *  "Today's" means the patient has an appointment booked with them today
+ *  that is not cancelled or a no-show. The Patients list already shows a
+ *  dentist only those; this covers the same record reached by URL, a
+ *  bookmark or a link from elsewhere — including yesterday's patient.
  *
  *  **A screen scope, not a security boundary.** RLS still lets a dentist read
  *  every patient — the clinic chose that deliberately, so a dentist covering
@@ -59,11 +60,11 @@ export default function AssignedPatientRoute() {
   if (!result.allowed) {
     return (
       <EmptyState
-        title="This patient isn't assigned to you"
-        hint="You can open the records of patients booked with you. Ask reception if this patient should be."
+        title="This patient isn't on your schedule today"
+        hint="You can open the records of patients booked with you today. Ask reception to book them with you if you need this record."
         action={
           <Link to="/patients" className="text-sm text-gold-700 hover:underline">
-            Back to your patients
+            Back to today's patients
           </Link>
         }
       />

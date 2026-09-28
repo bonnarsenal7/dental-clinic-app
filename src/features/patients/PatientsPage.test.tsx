@@ -113,12 +113,20 @@ describe('PatientsPage', () => {
     })
   })
 
-  // A dentist's list is their own patients — anyone booked with them.
+  // A dentist's list is today's patients — anyone booked with them today.
   it("scopes a dentist's list to their own patients", async () => {
     auth.role = 'dentist'
     renderPage()
     await screen.findByRole('link', { name: /angelica/i })
     expect(api.searchPatients).toHaveBeenCalledWith('', 's-1', undefined)
+  })
+
+  // An empty day is not a failed search: it says why the list is empty.
+  it('tells a dentist with no bookings today that nobody is booked', async () => {
+    auth.role = 'dentist'
+    vi.mocked(api.searchPatients).mockResolvedValue([])
+    renderPage()
+    expect(await screen.findByText('No patients are booked with you today.')).toBeInTheDocument()
   })
 
   // Registration is the front desk's, and a patient a dentist registered

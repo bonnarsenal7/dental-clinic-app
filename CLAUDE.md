@@ -1770,9 +1770,13 @@ A refused route sends them to `/`. `AppShell.test.tsx` pins the nav per
 role; `AppShell` and `App.tsx` must agree, or a dentist gets a link that
 bounces.
 
-### A dentist sees only their own patients — on screen
-"Their own" means **the patient has at least one appointment booked with
-them, past or future**. The same rule is applied in two places:
+### A dentist sees only today's patients — on screen
+"Their own" means **the patient has an appointment booked with them today**
+(Manila's day), **not cancelled and not a no-show**. No booking today, no
+patients — an empty list, at the clinic's choice. It was "any booking, past
+or future" until the clinic narrowed it: a dentist now reaches a record only
+on a day they are treating that patient. The same rule is applied in two
+places, and both must change together:
 
 - `searchPatients(query, dentistId)` — an `appointments!inner(dentist_id)`
   embed filtered by `appointments.dentist_id`. **`!inner` is the filter**:
@@ -1792,9 +1796,14 @@ colleague, and from a walk-in charted before reception booked them. So the
 database still lets a dentist read any patient. Don't describe it as a
 security boundary, and don't "fix" it with a policy without asking.
 
-Two consequences, both known:
+Consequences, all known:
 - **A walk-in** with no booking against the dentist does not appear in their
   list until reception books them.
+- **Yesterday's patient is out of reach** from midnight, chart and notes
+  included — a record left unfinished at close of day needs a booking today,
+  or an admin.
+- **A dentist covering a colleague** sees the patient only once reception
+  reassigns the booking (seating does this).
 - **`/invoices/:id` is not scoped** — its URL does not name the patient.
 
 **Register patient is hidden from a dentist** and the route refuses them.

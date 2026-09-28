@@ -12,7 +12,7 @@ import IntakeQueue from './intake/IntakeQueue'
 
 export default function PatientsPage() {
   const { staff } = useAuth()
-  // A dentist sees only patients booked with them. Everyone else, the clinic.
+  // A dentist sees only patients booked with them today. Everyone else, the clinic.
   const dentistId = staff?.role === 'dentist' ? staff.id : undefined
   const [query, setQuery] = useState('')
   // '' is All: the filter narrows the list, it does not default to a category.
@@ -36,7 +36,7 @@ export default function PatientsPage() {
           title="Patients"
           description={
             dentistId
-              ? 'Your patients — anyone booked with you. Search by name or contact number.'
+              ? 'Your patients today — anyone booked with you today. Search by name or contact number.'
               : 'Search by name or contact number.'
           }
         />
@@ -108,7 +108,9 @@ export default function PatientsPage() {
             {patients?.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                  No patients found.
+                  {dentistId && !query.trim() && !patientType
+                    ? 'No patients are booked with you today.'
+                    : 'No patients found.'}
                 </td>
               </tr>
             )}

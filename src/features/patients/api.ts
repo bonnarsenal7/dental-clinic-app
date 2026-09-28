@@ -20,8 +20,23 @@ function toNullableString(v: string): string | null {
   return v.trim() === '' ? null : v
 }
 
-/** `dentistId` narrows the list to that dentist's patients: anyone with at
- *  least one appointment booked with them, past or future.
+/** Bookings that mean the patient is not coming. They do not put anyone on a
+ *  dentist's day. */
+const NOT_COMING = '(cancelled,no_show)'
+
+/** Local midnight to the next, as instants — the clinic's day, not UTC's.
+ *  Same bounds as the dashboard's "Today's Patient". */
+function todayRange(now: Date = new Date()): [string, string] {
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 1)
+  return [start.toISOString(), end.toISOString()]
+}
+
+/** `dentistId` narrows the list to that dentist's patients **for today**:
+ *  anyone with an appointment booked with them today that is not cancelled
+ *  or a no-show. No booking today, no patients — at the clinic's choice.
  *
  *  A screen scope, not a security boundary — RLS still lets a dentist read
  *  every patient. The inner join makes the embed a filter rather than an
@@ -35,7 +50,14 @@ export async function searchPatients(
     .from('patients')
     .select(dentistId ? '*, appointments!inner(dentist_id)' : '*')
     .order('created_at', { ascending: false })
-  if (dentistId) q = q.eq('appointments.dentist_id', dentistId)
+  if (dentistId) {
+    const [start, end] = todayRange()
+    q = q
+      .eq('appointments.dentist_id', dentistId)
+      .gte('appointments.scheduled_at', start)
+      .lt('appointments.scheduled_at', end)
+      .not('appointments.status', 'in', NOT_COMING)
+  }
   if (patientType) q = q.eq('patient_type', patientType)
   if (query.trim()) {
     const term = query.trim()
@@ -51,14 +73,19 @@ export async function searchPatients(
   })
 }
 
-/** Whether a patient has ever been booked with this dentist — the same rule
- *  `searchPatients` scopes a dentist's list by. */
+/** Whether a patient is booked with this dentist today — the same rule
+ *  `searchPatients` scopes a dentist's list by, so a record reached by URL or
+ *  bookmark follows the list rather than outliving it. */
 export async function isAssignedToDentist(patientId: string, dentistId: string): Promise<boolean> {
+  const [start, end] = todayRange()
   const { data, error } = await supabase
     .from('appointments')
     .select('id')
     .eq('patient_id', patientId)
     .eq('dentist_id', dentistId)
+    .gte('scheduled_at', start)
+    .lt('scheduled_at', end)
+    .not('status', 'in', NOT_COMING)
     .limit(1)
   if (error) throw new Error(error.message)
   return (data ?? []).length > 0

@@ -126,6 +126,39 @@ describe('patients api', () => {
     expect(q.calls).toContainEqual({ method: 'eq', args: ['appointments.dentist_id', 'd-1'] })
   })
 
+  // Today only, by the clinic's clock: a patient booked with this dentist
+  // yesterday or tomorrow is not on their list. Checked at 07:30 Manila,
+  // when the UTC date is still yesterday — the hour a UTC bug would show.
+  it("limits a dentist's list to bookings today, local time", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 8, 28, 7, 30))
+    try {
+      db().queue('patients', { data: [] })
+      await api.searchPatients('', 'd-1')
+      const q = db().query('patients')!
+      expect(q.calls).toContainEqual({
+        method: 'gte',
+        args: ['appointments.scheduled_at', new Date(2026, 8, 28).toISOString()],
+      })
+      expect(q.calls).toContainEqual({
+        method: 'lt',
+        args: ['appointments.scheduled_at', new Date(2026, 8, 29).toISOString()],
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // A cancelled booking or a no-show does not put anyone on the day.
+  it("leaves cancelled and no-show bookings off a dentist's list", async () => {
+    db().queue('patients', { data: [] })
+    await api.searchPatients('', 'd-1')
+    expect(db().query('patients')!.calls).toContainEqual({
+      method: 'not',
+      args: ['appointments.status', 'in', '(cancelled,no_show)'],
+    })
+  })
+
   it('leaves the clinic-wide search unjoined', async () => {
     db().queue('patients', { data: [] })
     await api.searchPatients('')
@@ -139,12 +172,35 @@ describe('patients api', () => {
     expect(patient).toEqual({ id: 'p-1', name: 'Maria' })
   })
 
-  it('counts a patient as assigned when any booking names the dentist', async () => {
+  it('counts a patient as assigned when a booking today names the dentist', async () => {
     db().queue('appointments', { data: [{ id: 'a-1' }] })
     expect(await api.isAssignedToDentist('p-1', 'd-1')).toBe(true)
     const q = db().query('appointments')!
     expect(q.calls).toContainEqual({ method: 'eq', args: ['patient_id', 'p-1'] })
     expect(q.calls).toContainEqual({ method: 'eq', args: ['dentist_id', 'd-1'] })
+  })
+
+  // The record follows the list: yesterday's patient, reached by a bookmark,
+  // is refused like any other.
+  it('counts only a booking today that is still happening', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 8, 28, 7, 30))
+    try {
+      db().queue('appointments', { data: [] })
+      await api.isAssignedToDentist('p-1', 'd-1')
+      const q = db().query('appointments')!
+      expect(q.calls).toContainEqual({
+        method: 'gte',
+        args: ['scheduled_at', new Date(2026, 8, 28).toISOString()],
+      })
+      expect(q.calls).toContainEqual({
+        method: 'lt',
+        args: ['scheduled_at', new Date(2026, 8, 29).toISOString()],
+      })
+      expect(q.calls).toContainEqual({ method: 'not', args: ['status', 'in', '(cancelled,no_show)'] })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not count a patient never booked with the dentist', async () => {
