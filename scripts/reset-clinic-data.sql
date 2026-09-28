@@ -23,6 +23,12 @@
 --   daily_expenses, salary_entries the day's books
 --   clinic_days                    end-of-day closures (and their locks)
 --   patient_files                  attachment rows (see Storage note below)
+--   dentist_shifts                 the dentist calendar (0025)
+--   intake_submissions, intake_sessions
+--                                  patient self-intake forms and codes (0026).
+--                                  A form still pending review is a patient
+--                                  who never became a record — check the
+--                                  count below before running.
 --   audit_log                      the trail of all of the above
 --
 -- ORDER MATTERS, twice:
@@ -33,7 +39,8 @@
 --     which writes new rows; clearing the log first would leave those behind.
 --
 -- Invoices are deleted before visits: invoices.visit_id has no ON DELETE
--- rule, so visits cannot go first.
+-- rule, so visits cannot go first. Intake forms go before their codes, which
+-- they reference.
 --
 -- STORAGE IS NOT TOUCHED. Deleting patient_files rows removes the app's list
 -- of attachments, not the objects in the patient-files bucket. X-rays and ID
@@ -41,7 +48,8 @@
 -- signatures are kept on purpose, and their rows still point at them.
 --
 -- Usage: paste into the Supabase SQL editor and run, or
---        psql "$SUPABASE_DB_URL" -f scripts/reset-clinic-data.sql
+--        psql "$SUPABASE_DB_URL" -f scripts/reset-clinic-data.sql, or
+--        supabase db query --linked -f scripts/reset-clinic-data.sql
 
 begin;
 
@@ -52,7 +60,10 @@ select
   (select count(*) from visits) || ' visits, ' ||
   (select count(*) from invoices) || ' invoices, ' ||
   (select count(*) from payments) || ' payments, ' ||
-  (select count(*) from clinic_days) || ' closed days'
+  (select count(*) from clinic_days) || ' closed days, ' ||
+  (select count(*) from dentist_shifts) || ' calendar shifts, ' ||
+  (select count(*) from intake_submissions) || ' intake forms (' ||
+  (select count(*) from intake_submissions where status = 'pending') || ' still pending)'
   as about_to_clear;
 
 -- The day's books. clinic_days first: it holds the lock on the other two.
@@ -74,6 +85,11 @@ delete from visit_notes;
 delete from patient_files;
 delete from visits;
 
+-- The dentist calendar, and patient self-intake.
+delete from dentist_shifts;
+delete from intake_submissions;
+delete from intake_sessions;
+
 -- Last: everything above wrote to it.
 delete from audit_log;
 
@@ -93,7 +109,8 @@ select
   (select count(*) from payments) + (select count(*) from recalls) +
   (select count(*) from daily_expenses) + (select count(*) from salary_entries) +
   (select count(*) from clinic_days) + (select count(*) from patient_files) +
-  (select count(*) from audit_log)
+  (select count(*) from dentist_shifts) + (select count(*) from intake_submissions) +
+  (select count(*) from intake_sessions) + (select count(*) from audit_log)
   as rows_remaining_should_be_zero;
 
 commit;
