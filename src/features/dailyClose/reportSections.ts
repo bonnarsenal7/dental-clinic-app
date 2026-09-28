@@ -1,4 +1,4 @@
-import type { ClinicDayReport } from './types'
+import type { ClinicDayReport, ReportPayment } from './types'
 
 /** The report as it arrives from jsonb, with every figure a number.
  *  PostgREST and jsonb both hand numeric back as a string often enough that
@@ -22,6 +22,11 @@ export function normaliseReport(raw: ClinicDayReport): ClinicDayReport {
             commission_total: Number(c.commission_total),
           })),
         }
+      : {}),
+    // Same rule: only when frozen (0027).
+    ...(raw.payments ? { payments: raw.payments.map((p) => ({ ...p, amount: Number(p.amount) })) } : {}),
+    ...(raw.non_cash_total !== undefined && raw.non_cash_total !== null
+      ? { non_cash_total: Number(raw.non_cash_total) }
       : {}),
   }
 }
@@ -101,7 +106,7 @@ export function pdfMoney(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  return `${amount < 0 ? '-' : ''}PHP ${figure}`
+  return `${amount < 0 ? '-' : ''}P ${figure}`
 }
 
 /** The "Salary & commission" section of the PDF, as text ready to draw — the
@@ -135,5 +140,58 @@ export function buildReportPayTable(report: ClinicDayReport): ReportPayTable {
       total: pdfMoney(report.salary_total + report.commission_total),
     },
     commissionByDentistRecorded: report.commission_by_dentist !== undefined,
+  }
+}
+
+/** How a payment method reads on the report. */
+export function methodLabel(method: ReportPayment['method']): string {
+  switch (method) {
+    case 'cash':
+      return 'Cash'
+    case 'card':
+      return 'Card'
+    case 'bank_transfer':
+      return 'Bank'
+    default:
+      return 'Other'
+  }
+}
+
+/** The "Today's patients" table, as text ready to draw. Null for a day
+ *  closed before the list was frozen (0027). */
+export function buildReportPatientTable(
+  report: ClinicDayReport,
+): { name: string; procedure: string; method: string; amount: string }[] | null {
+  if (!report.payments) return null
+  return report.payments.map((p, i) => ({
+    name: `${i + 1}. ${p.patient_name}`,
+    procedure: p.procedure || '-',
+    method: methodLabel(p.method),
+    amount: pdfMoney(p.amount),
+  }))
+}
+
+/** The overall summary and today's cash on hand:
+ *
+ *    COH = revenue - bank & digital - expenses - (salary + commission)
+ *
+ *  Bank & digital and COH are null for a day closed before the non-cash
+ *  total was frozen (0027) — unknown must not print as a figure. */
+export function buildReportSummary(report: ClinicDayReport): {
+  revenue: number
+  nonCash: number | null
+  expenses: number
+  salaryAndCommission: number
+  cashOnHand: number | null
+} {
+  const salaryAndCommission = report.salary_total + report.commission_total
+  const nonCash = report.non_cash_total ?? null
+  return {
+    revenue: report.revenue_total,
+    nonCash,
+    expenses: report.expense_total,
+    salaryAndCommission,
+    cashOnHand:
+      nonCash === null ? null : report.revenue_total - nonCash - report.expense_total - salaryAndCommission,
   }
 }

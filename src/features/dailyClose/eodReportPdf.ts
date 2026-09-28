@@ -1,14 +1,39 @@
 import { jsPDF } from 'jspdf'
 import { CLINIC_NAME } from '../../core/branding'
-import { buildReportPayTable, pdfMoney } from './reportSections'
+import { buildReportPatientTable, buildReportPayTable, buildReportSummary, pdfMoney } from './reportSections'
 import type { ClinicDayReport } from './types'
 
-const MARGIN = 48
+const MARGIN = 40
 const PAGE_WIDTH = 595 // A4 at 72dpi
-const PAGE_BOTTOM = 842 - 56
-const RIGHT = PAGE_WIDTH - MARGIN
+const PAGE_BOTTOM = 842 - 48
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
+/** Four equal columns, like the clinic's spreadsheet. */
+const COL_WIDTH = CONTENT_WIDTH / 4
+const PAD = 5
+const LINE = 11
+const ROW_MIN = 20
+
+const GRID = 215
+const SECTION_GREY = 90
+const RED: [number, number, number] = [200, 30, 30]
+
+type Cell =
+  | string
+  | null
+  | {
+      text: string
+      bold?: boolean
+      /** How many columns the cell covers. */
+      span?: number
+      color?: number | [number, number, number]
+      size?: number
+    }
 
 /** Builds the end-of-day report from the frozen figures and saves it.
+ *
+ *  Laid out as the clinic's own EOD sheet: a four-column grid with Today's
+ *  patients, Expenses, Salary & commission, an Overall summary and Today's
+ *  cash on hand.
  *
  *  Loaded on demand from the dashboard: jsPDF is the heaviest thing in the
  *  app, and it is needed once a day. `doc.save()` rather than a new window,
@@ -20,143 +45,153 @@ export function downloadClinicDayReport(report: ClinicDayReport, clinicName: str
 function buildReport(report: ClinicDayReport, clinicName: string | null): jsPDF {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   let y = MARGIN
+  const notes: string[] = []
 
-  const ensure = (space: number) => {
-    if (y + space > PAGE_BOTTOM) {
+  /** One grid row. Cells wrap within their column; the row grows to fit. */
+  const row = (cells: Cell[]) => {
+    const laid: { x: number; width: number; lines: string[]; cell: Exclude<Cell, string | null> }[] = []
+    let col = 0
+    for (const raw of cells) {
+      if (col >= 4) break
+      const cell = raw === null ? { text: '' } : typeof raw === 'string' ? { text: raw } : raw
+      const span = Math.min(cell.span ?? 1, 4 - col)
+      const width = COL_WIDTH * span
+      doc.setFont('helvetica', cell.bold ? 'bold' : 'normal').setFontSize(cell.size ?? 8.5)
+      const lines = cell.text ? (doc.splitTextToSize(cell.text, width - PAD * 2) as string[]) : []
+      laid.push({ x: MARGIN + col * COL_WIDTH, width, lines, cell })
+      col += span
+    }
+    // Pad the row out to four columns so the grid is complete.
+    while (col < 4) {
+      laid.push({ x: MARGIN + col * COL_WIDTH, width: COL_WIDTH, lines: [], cell: { text: '' } })
+      col += 1
+    }
+
+    const height = Math.max(ROW_MIN, Math.max(...laid.map((c) => c.lines.length)) * LINE + 9)
+    if (y + height > PAGE_BOTTOM) {
       doc.addPage()
       y = MARGIN
     }
-  }
 
-  const heading = (text: string) => {
-    ensure(48)
-    y += 12
-    doc.setFont('helvetica', 'bold').setFontSize(9).setTextColor(110)
-    doc.text(text.toUpperCase(), MARGIN, y)
-    y += 6
-    doc.setDrawColor(220).line(MARGIN, y, RIGHT, y)
-    y += 16
-    doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(0)
-  }
-
-  const row = (label: string, amount: number, opts: { bold?: boolean; indent?: number } = {}) => {
-    const indent = opts.indent ?? 0
-    doc
-      .setFont('helvetica', opts.bold ? 'bold' : 'normal')
-      .setFontSize(10)
-      .setTextColor(0)
-    // Wrap rather than overflow into the amount column.
-    const lines = doc.splitTextToSize(label, RIGHT - MARGIN - indent - 120) as string[]
-    ensure(lines.length * 14)
-    doc.text(lines, MARGIN + indent, y)
-    doc.text(pdfMoney(amount), RIGHT, y, { align: 'right' })
-    y += Math.max(lines.length, 1) * 14
-  }
-
-  const note = (text: string) => {
-    ensure(14)
-    doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(140)
-    doc.text(text, MARGIN, y)
+    doc.setDrawColor(GRID).setLineWidth(0.5)
+    doc.line(MARGIN, y + height, MARGIN + CONTENT_WIDTH, y + height)
+    for (const c of laid) {
+      if (c.x > MARGIN) doc.line(c.x, y, c.x, y + height)
+      if (c.lines.length === 0) continue
+      const { cell } = c
+      doc.setFont('helvetica', cell.bold ? 'bold' : 'normal').setFontSize(cell.size ?? 8.5)
+      if (Array.isArray(cell.color)) doc.setTextColor(...cell.color)
+      else doc.setTextColor(cell.color ?? 0)
+      doc.text(c.lines, c.x + PAD, y + 13)
+    }
     doc.setTextColor(0)
-    y += 14
+    y += height
   }
+
+  const blank = () => row([])
+  const section = (title: string) =>
+    row([{ text: title.toUpperCase(), bold: true, color: SECTION_GREY, size: 9, span: 4 }])
+  const message = (text: string) => row([{ text, color: 120, span: 4 }])
+  const total = (label: string, amount: string) =>
+    row([null, null, { text: label, bold: true }, { text: amount, bold: true }])
 
   // --- Header
-  doc.setFont('helvetica', 'bold').setFontSize(16)
-  doc.text(clinicName || CLINIC_NAME, MARGIN, y)
-  y += 20
-  doc.setFontSize(11).text('END-OF-DAY REPORT', MARGIN, y)
-  y += 16
-  doc.setFont('helvetica', 'normal').setFontSize(10)
-  doc.text(
-    new Date(`${report.business_date}T00:00:00`).toLocaleDateString([], {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }),
-    MARGIN,
-    y,
-  )
-  const closed = new Date(report.closed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  doc.setFontSize(9).setTextColor(110)
-  doc.text(`Closed ${closed}${report.closed_by_name ? ` by ${report.closed_by_name}` : ''}`, RIGHT, y, {
-    align: 'right',
+  doc
+    .setDrawColor(GRID)
+    .setLineWidth(0.5)
+    .line(MARGIN, y, MARGIN + CONTENT_WIDTH, y)
+  row([{ text: clinicName || CLINIC_NAME, bold: true, size: 11, span: 4 }])
+  row([{ text: 'END-OF-DAY REPORT', bold: true, span: 4 }])
+  const date = new Date(`${report.business_date}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
   })
-  doc.setTextColor(0)
-  y += 8
+  const closed = new Date(report.closed_at).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+  row([
+    { text: date, span: 3 },
+    `Closed ${closed}${report.closed_by_name ? ` by ${report.closed_by_name}` : ''}`,
+  ])
+  blank()
 
-  // --- Summary
-  heading('Summary')
-  row('Revenue collected', report.revenue_total)
-  row('Expenses', report.expense_total)
-  row('Salary', report.salary_total)
-  row('Commission', report.commission_total)
-  y += 4
-  row('Net (revenue - expenses - salary)', report.net_total, { bold: true })
+  // --- Today's patients
+  section("Today's patients")
+  row(['NAME', 'PROCEDURE', 'METHOD', 'AMOUNT'])
+  const patients = buildReportPatientTable(report)
+  if (patients === null) message('Patient list not recorded for this day.')
+  else if (patients.length === 0) message('No payments recorded.')
+  else for (const p of patients) row([p.name, p.procedure, p.method, p.amount])
+  blank()
+  total('REVENUE COLLECTED', pdfMoney(report.revenue_total))
+  blank()
 
   // --- Expenses
-  heading('Expenses')
-  if (report.expenses.length === 0) note('No expenses recorded.')
-  for (const e of report.expenses) row(e.description, e.amount)
-  row('Total expenses', report.expense_total, { bold: true })
+  section('Expenses')
+  row([{ text: 'DESCRIPTION', span: 3 }, 'AMOUNT'])
+  if (report.expenses.length === 0) message('No expenses recorded.')
+  for (const e of report.expenses) row([{ text: e.description, span: 3 }, pdfMoney(e.amount)])
+  blank()
+  total('TOTAL', pdfMoney(report.expense_total))
+  blank()
 
-  // --- Salary & commission: the dashboard's combined table on paper
-  heading('Salary & commission')
+  // --- Salary & commission
+  section('Salary & commission')
+  row(['DENTIST', 'SALARY', 'COMMISSION', 'TOTAL'])
   const pay = buildReportPayTable(report)
-
-  // Three right-aligned money columns, the dentist's name wrapping in the rest.
-  const COL_TOTAL = RIGHT
-  const COL_COMMISSION = RIGHT - 95
-  const COL_SALARY = RIGHT - 190
-  const NAME_WIDTH = COL_SALARY - 95 - MARGIN
-
-  const payRow = (
-    cells: { label: string; salary: string; commission: string; total: string },
-    bold = false,
-  ) => {
-    doc
-      .setFont('helvetica', bold ? 'bold' : 'normal')
-      .setFontSize(10)
-      .setTextColor(0)
-    const lines = doc.splitTextToSize(cells.label, NAME_WIDTH) as string[]
-    ensure(lines.length * 14)
-    doc.text(lines, MARGIN, y)
-    doc.text(cells.salary, COL_SALARY, y, { align: 'right' })
-    doc.text(cells.commission, COL_COMMISSION, y, { align: 'right' })
-    doc.text(cells.total, COL_TOTAL, y, { align: 'right' })
-    y += Math.max(lines.length, 1) * 14
-  }
-
-  if (pay.rows.length === 0) {
-    note('No salary or commission recorded.')
-  } else {
-    ensure(16)
-    doc.setFont('helvetica', 'bold').setFontSize(8).setTextColor(110)
-    doc.text('DENTIST', MARGIN, y)
-    doc.text('SALARY', COL_SALARY, y, { align: 'right' })
-    doc.text('COMMISSION', COL_COMMISSION, y, { align: 'right' })
-    doc.text('TOTAL', COL_TOTAL, y, { align: 'right' })
-    y += 14
-
-    for (const r of pay.rows) payRow(r)
-
-    ensure(20)
-    doc.setDrawColor(220).line(MARGIN, y - 9, RIGHT, y - 9)
-    y += 4
-    payRow(pay.footer, true)
-  }
-
+  if (pay.rows.length === 0) message('No salary or commission recorded.')
+  pay.rows.forEach((r, i) => row([`${i + 1}. ${r.label}`, r.salary, r.commission, r.total]))
+  blank()
+  total('TOTAL', pay.footer.total)
+  blank()
   if (!pay.commissionByDentistRecorded) {
     // Closed before the breakdown was frozen into reports (0022). Not
     // reconstructed: the report is what was closed.
-    note('Per-dentist commission not recorded for this day; commission is shown as a total only.')
+    notes.push('Per-dentist commission not recorded for this day; commission is shown as a total only.')
   }
 
-  note("Commission on the day's invoices, by the dentist who treated the patient.")
+  // --- Overall summary
+  const summary = buildReportSummary(report)
+  section('Overall summary')
+  row(['REVENUE COLLECTED', 'Bank & Digital Transactions', 'EXPENSES', 'SALARY & COMMISSION'])
+  row([
+    { text: pdfMoney(summary.revenue), bold: true },
+    { text: summary.nonCash === null ? '-' : pdfMoney(summary.nonCash), bold: true },
+    { text: pdfMoney(summary.expenses), bold: true },
+    { text: pdfMoney(summary.salaryAndCommission), bold: true },
+  ])
+  blank()
+  blank()
+  row([null, null, null, { text: "TODAY'S COH", bold: true, color: RED }])
+  row([
+    null,
+    null,
+    null,
+    { text: summary.cashOnHand === null ? '-' : pdfMoney(summary.cashOnHand), bold: true, color: RED },
+  ])
+  if (summary.cashOnHand === null) {
+    // Closed before the non-cash total was frozen (0027).
+    notes.push('Bank & digital total not recorded for this day, so cash on hand cannot be shown.')
+  }
 
-  y += 12
-  note('Figures as at closing. Payments recorded after closing are not included.')
+  // --- Notes under the grid
+  notes.push(
+    'COH = revenue collected - bank & digital - expenses - salary & commission.',
+    'Figures as at closing. Payments recorded after closing are not included.',
+  )
+  y += 14
+  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(130)
+  for (const n of notes) {
+    if (y + 12 > PAGE_BOTTOM) {
+      doc.addPage()
+      y = MARGIN
+    }
+    doc.text(n, MARGIN, y)
+    y += 12
+  }
 
   return doc
 }

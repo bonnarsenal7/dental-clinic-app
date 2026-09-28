@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPayByDentist,
+  buildReportPatientTable,
   buildReportPayTable,
+  buildReportSummary,
   commissionLabel,
   normaliseReport,
   pdfMoney,
@@ -31,13 +33,13 @@ describe('normaliseReport', () => {
 
 describe('pdfMoney', () => {
   // jsPDF's built-in fonts cannot draw the peso sign.
-  it('writes PHP rather than the peso sign', () => {
-    expect(pdfMoney(1234.5)).toBe('PHP 1,234.50')
+  it('writes P rather than the peso sign', () => {
+    expect(pdfMoney(1234.5)).toBe('P 1,234.50')
     expect(pdfMoney(1234.5)).not.toContain('₱')
   })
 
   it('puts the sign in front of a negative net', () => {
-    expect(pdfMoney(-800)).toBe('-PHP 800.00')
+    expect(pdfMoney(-800)).toBe('-P 800.00')
   })
 })
 
@@ -176,15 +178,15 @@ describe('buildReportPayTable', () => {
       }),
     )
     expect(table.rows).toEqual([
-      { label: 'Dr Cruz', salary: 'PHP 3,000.00', commission: 'PHP 500.00', total: 'PHP 3,500.00' },
-      { label: 'Dr Reyes', salary: 'PHP 0.00', commission: 'PHP 250.00', total: 'PHP 250.00' },
-      { label: 'No dentist recorded', salary: 'PHP 0.00', commission: 'PHP 100.00', total: 'PHP 100.00' },
+      { label: 'Dr Cruz', salary: 'P 3,000.00', commission: 'P 500.00', total: 'P 3,500.00' },
+      { label: 'Dr Reyes', salary: 'P 0.00', commission: 'P 250.00', total: 'P 250.00' },
+      { label: 'No dentist recorded', salary: 'P 0.00', commission: 'P 100.00', total: 'P 100.00' },
     ])
     expect(table.footer).toEqual({
       label: 'Total',
-      salary: 'PHP 3,000.00',
-      commission: 'PHP 850.00',
-      total: 'PHP 3,850.00',
+      salary: 'P 3,000.00',
+      commission: 'P 850.00',
+      total: 'P 3,850.00',
     })
     expect(table.commissionByDentistRecorded).toBe(true)
   })
@@ -200,8 +202,8 @@ describe('buildReportPayTable', () => {
   // unknown, not zero — but the column total is still the frozen figure.
   it('shows per-dentist commission as unknown on a day closed before it was frozen', () => {
     const table = buildReportPayTable(report())
-    expect(table.rows).toEqual([{ label: 'Dr Cruz', salary: 'PHP 3,000.00', commission: '-', total: '-' }])
-    expect(table.footer.commission).toBe('PHP 850.00')
+    expect(table.rows).toEqual([{ label: 'Dr Cruz', salary: 'P 3,000.00', commission: '-', total: '-' }])
+    expect(table.footer.commission).toBe('P 850.00')
     expect(table.commissionByDentistRecorded).toBe(false)
   })
 
@@ -211,5 +213,72 @@ describe('buildReportPayTable', () => {
     const text = JSON.stringify(table)
     expect(text).not.toContain('₱')
     expect(text).not.toContain('—')
+  })
+})
+
+describe('the patients table and cash on hand (0027)', () => {
+  // The clinic's own worked example, 28 Sep 2026.
+  const sample = (extra: object = {}) =>
+    normaliseReport({
+      business_date: '2026-09-28',
+      closed_at: '2026-09-28T05:10:00Z',
+      closed_by_name: 'Receptionist One',
+      revenue_total: '5250.00',
+      expense_total: '250.00',
+      salary_total: '1500.00',
+      commission_total: '525.00',
+      net_total: '3500.00',
+      expenses: [
+        { description: 'Lunch', amount: '200.00' },
+        { description: 'Others', amount: '50.00' },
+      ],
+      salaries: [{ dentist_id: 'd-1', dentist_name: 'Dentist One', description: 'Day', amount: '1500.00' }],
+      commission_by_dentist: [{ dentist_id: 'd-1', dentist_name: 'Dentist One', commission_total: '525.00' }],
+      payments: [
+        { patient_name: 'Sara Abella', procedure: 'Adjustment', method: 'bank_transfer', amount: '2500.00' },
+        {
+          patient_name: 'Ivan Gloria',
+          procedure: 'Oral Prophylaxis (Cleaning)',
+          method: 'cash',
+          amount: '2750.00',
+        },
+      ],
+      non_cash_total: '2500.00',
+      ...extra,
+    } as unknown as ClinicDayReport)
+
+  it('lists each payment, numbered, with its method in words', () => {
+    expect(buildReportPatientTable(sample())).toEqual([
+      { name: '1. Sara Abella', procedure: 'Adjustment', method: 'Bank', amount: 'P 2,500.00' },
+      {
+        name: '2. Ivan Gloria',
+        procedure: 'Oral Prophylaxis (Cleaning)',
+        method: 'Cash',
+        amount: 'P 2,750.00',
+      },
+    ])
+  })
+
+  it('works out cash on hand as revenue less bank & digital, expenses, salary and commission', () => {
+    expect(buildReportSummary(sample())).toEqual({
+      revenue: 5250,
+      nonCash: 2500,
+      expenses: 250,
+      salaryAndCommission: 2025,
+      cashOnHand: 475,
+    })
+  })
+
+  it('prints a hyphen for an invoice with no lines', () => {
+    const report = sample({
+      payments: [{ patient_name: 'Ana', procedure: null, method: 'other', amount: '100' }],
+    })
+    expect(buildReportPatientTable(report)?.[0]).toMatchObject({ procedure: '-', method: 'Other' })
+  })
+
+  it('does not invent a list or a cash on hand for a day closed before 0027', () => {
+    const report = sample({ payments: undefined, non_cash_total: undefined })
+    expect(buildReportPatientTable(report)).toBeNull()
+    expect(buildReportSummary(report)).toMatchObject({ nonCash: null, cashOnHand: null })
   })
 })

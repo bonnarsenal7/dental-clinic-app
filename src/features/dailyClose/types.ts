@@ -50,6 +50,21 @@ export interface ClinicDayReport extends Omit<ClinicDayTotals, 'patients_served'
   /** Frozen at closing (0022). Absent on days closed before then — those
    *  reports never recorded it, and it is not reconstructed. */
   commission_by_dentist?: CommissionByDentist[]
+  /** One row per payment taken that day — the "Today's patients" table.
+   *  Frozen at closing (0027); absent on days closed before then. */
+  payments?: ReportPayment[]
+  /** Card, bank transfer and other — everything but cash (0027). Absent on
+   *  days closed before then, where cash on hand cannot be worked out. */
+  non_cash_total?: number
+}
+
+/** One payment on the end-of-day report. A refund is a negative amount. */
+export interface ReportPayment {
+  patient_name: string
+  /** The invoice's lines, joined. Null when the invoice had none. */
+  procedure: string | null
+  method: 'cash' | 'card' | 'bank_transfer' | 'other'
+  amount: number
 }
 
 /** A closed day. Its existence is the lock. */
