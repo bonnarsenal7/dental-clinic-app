@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { CLINIC_NAME } from '../../core/branding'
-import { formatMoney, invoiceBalance, invoicePaid, invoiceTotal } from './ledger'
+import { invoiceBalance, invoicePaid, invoiceTotal, pdfMoney } from './ledger'
 import type { InvoiceWithDetail } from './types'
 
 interface ReceiptContext {
@@ -78,7 +78,7 @@ function buildReceipt({ invoice, patientName, clinicName, operatingHours }: Rece
     // Wrap rather than overflow into the fee column.
     const lines = doc.splitTextToSize(label, RIGHT - MARGIN - 90) as string[]
     doc.text(lines, MARGIN, y)
-    doc.text(formatMoney(Number(item.amount)), RIGHT, y, { align: 'right' })
+    doc.text(pdfMoney(Number(item.amount)), RIGHT, y, { align: 'right' })
     y += Math.max(lines.length, 1) * 14
   }
 
@@ -97,9 +97,9 @@ function buildReceipt({ invoice, patientName, clinicName, operatingHours }: Rece
   const balance = invoiceBalance(invoice)
 
   const summary: [string, string, boolean][] = [
-    ['Total', formatMoney(total), false],
-    ['Paid', formatMoney(paid), false],
-    ['Balance', formatMoney(balance), true],
+    ['Total', pdfMoney(total), false],
+    ['Paid', pdfMoney(paid), false],
+    ['Balance', pdfMoney(balance), true],
   ]
   for (const [label, value, bold] of summary) {
     doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(bold ? 11 : 10)
@@ -122,7 +122,7 @@ function buildReceipt({ invoice, patientName, clinicName, operatingHours }: Rece
       const method = payment.method.replace('_', ' ')
       const ref = payment.reference ? ` · ref ${payment.reference}` : ''
       doc.text(`${new Date(payment.paid_at).toLocaleDateString()} — ${method}${ref}`, MARGIN, y)
-      doc.text(formatMoney(Number(payment.amount)), RIGHT, y, { align: 'right' })
+      doc.text(pdfMoney(Number(payment.amount)), RIGHT, y, { align: 'right' })
       y += 13
     }
   }

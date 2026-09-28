@@ -10,6 +10,17 @@ export function formatMoney(amount: number): string {
   return pesoFormat.format(amount)
 }
 
+/** Money for a PDF — receipts and the end-of-day report. Not formatMoney:
+ *  jsPDF's built-in fonts cannot draw the peso sign (U+20B1) and print stray
+ *  characters in its place, so the amount reads "P 1,234.00" instead. */
+export function pdfMoney(amount: number): string {
+  const figure = Math.abs(amount).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `${amount < 0 ? '-' : ''}P ${figure}`
+}
+
 export function invoiceTotal(invoice: InvoiceWithDetail): number {
   return invoice.invoice_items.reduce((sum, item) => sum + Number(item.amount), 0)
 }

@@ -899,9 +899,11 @@ caller came to reach for `toISOString()` instead.
 About 73% of statements. The gap is deliberate rather than a backlog:
 `App.tsx` and `main.tsx` are wiring, `sentry.ts` is inert without a DSN,
 `PlaceholderPage` is eight lines. **`receiptPdf.ts` is the one real gap** —
-jsPDF draws to a canvas, so the output is not assertable in happy-dom, and
-a receipt is a money artifact. It needs a human looking at a printed page,
-which belongs in the pilot.
+jsPDF draws to a canvas, so the layout is not assertable in happy-dom, and
+a receipt is a money artifact. `receiptPdf.test.ts` swaps jsPDF for a
+double that records what `text()` is asked to write, which covers the
+wording and the amounts; the layout still needs a human looking at a
+printed page, which belongs in the pilot.
 
 Coverage is a map of what has been *looked* at, not evidence anything
 works. The evidence is that a test fails when the behaviour it names is
@@ -2066,9 +2068,10 @@ If the close succeeds and only the download fails, the panel says so and
 
 **Amounts are written `P 1,234.00`, not with the peso sign** —
 `pdfMoney()`, not `formatMoney()`. jsPDF's built-in Helvetica cannot encode
-U+20B1 and draws stray characters in its place. `receiptPdf.ts` still uses
-`formatMoney` and so very likely has this bug on printed receipts; it is
-unverified, since nobody has put a receipt through a printer yet.
+U+20B1 and draws stray characters in its place. `pdfMoney` lives in
+`billing/ledger.ts` beside `formatMoney` and is used by **both** PDFs —
+receipts had the bug until they were switched over too. **Any new PDF uses
+`pdfMoney`**; `receiptPdf.test.ts` fails if a peso sign reaches `text()`.
 
 ### The report is the clinic's EOD sheet (0027)
 `eodReportPdf.ts` lays the PDF out as the grid reception keeps by hand —

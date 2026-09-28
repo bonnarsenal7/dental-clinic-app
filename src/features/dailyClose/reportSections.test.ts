@@ -6,7 +6,6 @@ import {
   buildReportSummary,
   commissionLabel,
   normaliseReport,
-  pdfMoney,
 } from './reportSections'
 import type { ClinicDayReport } from './types'
 
@@ -28,18 +27,6 @@ describe('normaliseReport', () => {
     expect(report.net_total).toBe(800)
     expect(report.expenses[0].amount).toBe(1200)
     expect(report.salaries[0].amount).toBe(3000)
-  })
-})
-
-describe('pdfMoney', () => {
-  // jsPDF's built-in fonts cannot draw the peso sign.
-  it('writes P rather than the peso sign', () => {
-    expect(pdfMoney(1234.5)).toBe('P 1,234.50')
-    expect(pdfMoney(1234.5)).not.toContain('₱')
-  })
-
-  it('puts the sign in front of a negative net', () => {
-    expect(pdfMoney(-800)).toBe('-P 800.00')
   })
 })
 

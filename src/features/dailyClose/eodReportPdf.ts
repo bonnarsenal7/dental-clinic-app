@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import { CLINIC_NAME } from '../../core/branding'
-import { buildReportPatientTable, buildReportPayTable, buildReportSummary, pdfMoney } from './reportSections'
+import { buildReportPatientTable, buildReportPayTable, buildReportSummary } from './reportSections'
+import { pdfMoney } from '../billing/ledger'
 import type { ClinicDayReport } from './types'
 
 const MARGIN = 40

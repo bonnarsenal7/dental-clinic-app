@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { buildLedger, invoiceBalance, invoicePaid, invoiceTotal, outstandingBalance } from './ledger'
+import {
+  buildLedger,
+  invoiceBalance,
+  invoicePaid,
+  invoiceTotal,
+  outstandingBalance,
+  pdfMoney,
+} from './ledger'
 import type { InvoiceWithDetail } from './types'
 
 let seq = 0
@@ -44,6 +51,18 @@ function invoice(partial: InvoiceFixture = {}): InvoiceWithDetail {
     })),
   }
 }
+
+describe('pdfMoney', () => {
+  // jsPDF's built-in fonts cannot draw the peso sign.
+  it('writes P rather than the peso sign', () => {
+    expect(pdfMoney(1234.5)).toBe('P 1,234.50')
+    expect(pdfMoney(1234.5)).not.toContain('₱')
+  })
+
+  it('puts the sign in front of a negative amount, such as a refund', () => {
+    expect(pdfMoney(-800)).toBe('-P 800.00')
+  })
+})
 
 describe('invoice arithmetic', () => {
   it('sums lines and payments into a balance', () => {

@@ -1,3 +1,4 @@
+import { pdfMoney } from '../billing/ledger'
 import type { ClinicDayReport, ReportPayment } from './types'
 
 /** The report as it arrives from jsonb, with every figure a number.
@@ -97,16 +98,6 @@ export function buildPayByDentist(
     .sort(
       (a, b) => Number(a.dentistId === null) - Number(b.dentistId === null) || a.label.localeCompare(b.label),
     )
-}
-
-/** Money for the PDF. Not formatMoney: jsPDF's built-in fonts cannot draw
- *  the peso sign, and render it as stray characters. */
-export function pdfMoney(amount: number): string {
-  const figure = Math.abs(amount).toLocaleString('en-PH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-  return `${amount < 0 ? '-' : ''}P ${figure}`
 }
 
 /** The "Salary & commission" section of the PDF, as text ready to draw — the
