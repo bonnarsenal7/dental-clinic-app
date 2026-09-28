@@ -8,7 +8,7 @@ import PatientScheduling from '../scheduling/PatientScheduling'
 import VisitTimeline from './VisitTimeline'
 import FileAttachments from './FileAttachments'
 import { MEDICAL_CONDITIONS, DENTAL_SYMPTOMS, ORAL_HABITS } from './historyOptions'
-import { SIGNER_RELATIONSHIPS, patientTypeLabel } from './types'
+import { SIGNER_RELATIONSHIPS, agreementTerm, patientTypeLabel } from './types'
 import type { Consent, DentalHistory, MedicalHistory, Patient } from './types'
 import { toMessage } from '../../core/errors'
 import { ButtonLink } from '../../core/components/ui/Button'
@@ -55,6 +55,8 @@ export default function PatientProfilePage() {
 
   if (error) return <ErrorState message={error} />
   if (!patient || !id) return <LoadingState />
+  // Contract for an orthodontic patient, Consent for everyone else.
+  const term = agreementTerm(patient.patient_type)
 
   return (
     <div className="flex flex-col gap-6">
@@ -193,14 +195,16 @@ export default function PatientProfilePage() {
 
       <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Consent history</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{term.title} history</h2>
           {!showConsent && (
             <button onClick={() => setShowConsent(true)} className="text-sm text-slate-600 hover:underline">
-              + Re-confirm consent
+              + Re-confirm {term.word}
             </button>
           )}
         </div>
-        {consents.length === 0 && <p className="text-slate-400 text-sm">No signed consent on file yet.</p>}
+        {consents.length === 0 && (
+          <p className="text-slate-400 text-sm">No signed {term.word} on file yet.</p>
+        )}
         {consents.map((c) => (
           <p key={c.id} className="text-sm text-slate-600">
             Signed {new Date(c.signed_at).toLocaleString()} — version {c.consent_text_version}
@@ -225,7 +229,8 @@ export default function PatientProfilePage() {
             patientId={id}
             patientName={patient.name}
             staffId={staff.id}
-            submitLabel="Save re-confirmed consent"
+            submitLabel={`Save re-confirmed ${term.word}`}
+            patientType={patient.patient_type}
             onSaved={() => {
               setShowConsent(false)
               void refreshConsents(id)

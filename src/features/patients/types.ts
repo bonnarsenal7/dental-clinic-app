@@ -1,6 +1,7 @@
 /** Two categories, one record: an orthodontic patient uses exactly the same
- *  fields, histories, chart and billing as a regular one (0023). Nothing in
- *  the app branches on this yet — it is a label to find people by. */
+ *  fields, histories, chart and billing as a regular one (0023). The one
+ *  thing that differs is a word — see `agreementTerm` — and only inside the
+ *  patients feature. */
 export type PatientType = 'regular' | 'orthodontic'
 
 export const PATIENT_TYPES: { value: PatientType; label: string }[] = [
@@ -10,6 +11,20 @@ export const PATIENT_TYPES: { value: PatientType; label: string }[] = [
 
 export const patientTypeLabel = (type: PatientType | null | undefined) =>
   PATIENT_TYPES.find((t) => t.value === type)?.label ?? 'Regular'
+
+/** What the signed agreement is called: a **Contract** for an orthodontic
+ *  patient, a **Consent** for everyone else — the clinic's own words.
+ *
+ *  A word only. The stored record is a `consents` row either way, and the
+ *  text signed is the same CONSENT_TEXT; a separate orthodontic contract
+ *  wording would be its own change, and its own legal review. Unknown or
+ *  unchosen types read as Consent, which is what every patient signed
+ *  before the distinction existed. */
+export function agreementTerm(type: PatientType | null | undefined): { title: string; word: string } {
+  return type === 'orthodontic'
+    ? { title: 'Contract', word: 'contract' }
+    : { title: 'Consent', word: 'consent' }
+}
 
 export interface Patient {
   id: string

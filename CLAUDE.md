@@ -2181,10 +2181,27 @@ at on paper either.
 ## Patient type: regular and orthodontic (0023)
 
 `patients.patient_type` — `regular` | `orthodontic`, default `regular`,
-CHECK-constrained. **A categorisation and nothing else.** Both kinds use the
+CHECK-constrained. **A categorisation, plus one word.** Both kinds use the
 same record, the same histories, the same chart, the same invoices, the same
-recalls. Nothing in the app branches on it; it is a label to find people by.
-If a real difference ever appears, this column is what it hangs off.
+recalls. It is a label to find people by. If a real difference ever appears,
+this column is what it hangs off.
+
+### The one difference: Contract, not Consent
+At the clinic's request, an orthodontic patient's signed agreement is called
+a **Contract**; everyone else's stays **Consent**. `agreementTerm(type)` in
+`types.ts` is the single place that decides, used by the signature panel
+(`ConsentCapture`'s `patientType` prop), the profile's history section,
+reception's registration, and the intake review (following the type chosen
+there).
+
+**A word only.** The row is still in `consents`, the text signed is the same
+`CONSENT_TEXT`, and nothing else behaves differently. A real orthodontic
+contract — fees, duration, retention terms — would be its own wording, its
+own `CONSENT_TEXT_VERSION`, and its own legal review.
+
+The patient's own intake form always says Consent: the type is reception's
+to choose, after the patient has signed. An unknown type reads as Consent,
+which is what every patient signed before the distinction existed.
 
 Every patient that existed before it is `regular` — that is how they have
 been treated — and the default keeps the pilot seed working untouched.
@@ -2215,9 +2232,10 @@ composes with the dentist scope, so a dentist filtering by type still sees
 only their own patients.
 
 ### What deliberately did not change
-Profile, visit history, billing, recalls, the chart, the dashboards and the
-end-of-day report all behave identically for both types, and none of them
-reads the column.
+Visit history, billing, recalls, the chart, the dashboards and the end-of-day
+report all behave identically for both types, and none of them reads the
+column. The profile reads it for the badge and for Contract/Consent, nothing
+more.
 
 **Where it is shown**: the patients list (Type column and filter), the
 registration review, and a neutral badge beside the name on the profile —

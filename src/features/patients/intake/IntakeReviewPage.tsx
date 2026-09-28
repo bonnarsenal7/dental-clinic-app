@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import RegistrationReview from '../RegistrationReview'
 import { EMPTY_PATIENT_FORM } from '../PatientForm'
 import { searchPatients } from '../api'
-import { PATIENT_TYPES, SIGNER_RELATIONSHIPS, type Patient, type PatientType } from '../types'
+import { PATIENT_TYPES, SIGNER_RELATIONSHIPS, agreementTerm, type Patient, type PatientType } from '../types'
 import { acceptIntake, discardIntake, getIntake, type IntakeSubmission } from './api'
 import { toMessage } from '../../../core/errors'
 import { ErrorState, LoadingState } from '../../../core/components/states'
@@ -126,7 +126,9 @@ export default function IntakeReviewPage() {
 
       <RegistrationReview values={{ ...EMPTY_PATIENT_FORM, ...intake.payload }} showType={false} />
 
-      <Card title="Consent">
+      {/* Follows the type chosen below: the patient signed before anyone had
+          decided which kind they are. */}
+      <Card title={agreementTerm(patientType).title}>
         <p className="text-sm text-slate-600">
           Signed by <strong className="font-medium text-slate-800">{intake.signed_by_name}</strong>
           {relationship ? ` (${relationship.toLowerCase()})` : ''} against wording{' '}

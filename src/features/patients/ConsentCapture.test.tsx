@@ -47,6 +47,28 @@ describe('ConsentCapture', () => {
     vi.mocked(api.saveConsent).mockResolvedValue(undefined)
   })
 
+  it('calls it a contract for an orthodontic patient', () => {
+    render(
+      <ConsentCapture
+        patientId="p1"
+        patientName="Maria Clara Santos"
+        staffId="s1"
+        onSaved={vi.fn()}
+        patientType="orthodontic"
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Contract for treatment' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save signed contract' })).toBeInTheDocument()
+  })
+
+  // Where the type is unknown — the patient's own intake form — it reads as
+  // consent, which is what every patient signed before the distinction.
+  it('calls it consent when no type is given', () => {
+    render(<ConsentCapture patientId="p1" patientName="Maria Clara Santos" staffId="s1" onSaved={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'Consent for treatment' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save signed consent' })).toBeInTheDocument()
+  })
+
   it('shows the consent wording the patient is signing', () => {
     render(<ConsentCapture patientId="p1" patientName="Maria Clara Santos" staffId="s1" onSaved={vi.fn()} />)
     expect(screen.getByText(/consent for dental treatment/i)).toBeInTheDocument()

@@ -197,6 +197,22 @@ describe('PatientProfilePage', () => {
     expect(await screen.findByText('signature pad')).toBeInTheDocument()
   })
 
+  // The clinic's word for an orthodontic patient's signed agreement.
+  it('calls it a contract for an orthodontic patient', async () => {
+    vi.mocked(api.getPatient).mockResolvedValue({ ...PATIENT, patient_type: 'orthodontic' } as never)
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Contract history' })).toBeInTheDocument()
+    expect(screen.getByText(/no signed contract on file yet/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /re-confirm contract/i })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Consent history' })).not.toBeInTheDocument()
+  })
+
+  it('keeps calling it consent for a regular patient', async () => {
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Consent history' })).toBeInTheDocument()
+    expect(screen.queryByText(/contract/i)).not.toBeInTheDocument()
+  })
+
   it('shows a failure rather than an empty profile', async () => {
     vi.mocked(api.getPatient).mockRejectedValue(new Error('permission denied'))
     renderPage()

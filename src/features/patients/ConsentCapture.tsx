@@ -7,7 +7,7 @@ import {
   missingConsentDetails,
 } from './historyOptions'
 import { saveConsent } from './api'
-import { SIGNER_RELATIONSHIPS, type SignerRelationship } from './types'
+import { SIGNER_RELATIONSHIPS, agreementTerm, type PatientType, type SignerRelationship } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
@@ -26,6 +26,9 @@ type ConsentCaptureProps = {
   onSaved: () => void
   /** Shown on the button — differs for first-time vs. re-confirm. */
   submitLabel?: string
+  /** Decides the word: Contract for orthodontic, Consent otherwise. Left
+   *  out where the type is not known yet (the patient's own intake form). */
+  patientType?: PatientType
 } & (
   | { patientId: string; staffId: string; save?: never }
   /** Somewhere other than the patient's record: the intake screen has no
@@ -41,7 +44,9 @@ export default function ConsentCapture({
   onSaved,
   submitLabel,
   save,
+  patientType,
 }: ConsentCaptureProps) {
+  const term = agreementTerm(patientType)
   const padRef = useRef<SignatureCanvas>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -98,7 +103,7 @@ export default function ConsentCapture({
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-slate-700">Consent for treatment</h2>
+      <h2 className="text-sm font-semibold text-slate-700">{term.title} for treatment</h2>
       {/* Scrolls rather than growing: the full privacy notice would push
           the signature pad off a tablet screen, and a patient signing
           something they had to scroll past is the point of the exercise. */}
@@ -142,7 +147,7 @@ export default function ConsentCapture({
         </Field>
         <Field
           label="Name of person signing"
-          hint={relationship === 'self' ? undefined : 'The adult consenting, not the patient.'}
+          hint={relationship === 'self' ? undefined : 'The adult signing, not the patient.'}
         >
           <TextInput
             value={signedByName}
@@ -178,7 +183,7 @@ export default function ConsentCapture({
           disabled={saving}
           className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800 disabled:opacity-50"
         >
-          {saving ? 'Saving…' : (submitLabel ?? 'Save signed consent')}
+          {saving ? 'Saving…' : (submitLabel ?? `Save signed ${term.word}`)}
         </button>
       </div>
     </div>

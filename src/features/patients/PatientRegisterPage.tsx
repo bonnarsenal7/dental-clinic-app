@@ -5,7 +5,7 @@ import PatientForm, { EMPTY_PATIENT_FORM } from './PatientForm'
 import RegistrationReview from './RegistrationReview'
 import ConsentCapture from './ConsentCapture'
 import { registerPatient } from './api'
-import type { PatientRegistrationInput } from './types'
+import { agreementTerm, type PatientRegistrationInput } from './types'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 
@@ -45,11 +45,17 @@ export default function PatientRegisterPage() {
     }
   }
 
+  // Contract for an orthodontic patient, Consent for everyone else — the
+  // type is chosen on the form, so the words follow it from the review on.
+  const term = agreementTerm(pendingValues?.patient_type)
+
   if (stage === 'consent' && newPatientId) {
     return (
       <div className="flex flex-col gap-6 max-w-lg">
         <div>
-          <h1 className="text-lg font-semibold text-slate-800">Consent for {newPatientName}</h1>
+          <h1 className="text-lg font-semibold text-slate-800">
+            {term.title} for {newPatientName}
+          </h1>
           <p className="text-slate-500 text-sm mt-1">
             Have the patient (or parent/guardian) sign below to finish registration.
           </p>
@@ -59,6 +65,7 @@ export default function PatientRegisterPage() {
             patientId={newPatientId}
             patientName={newPatientName}
             staffId={staff.id}
+            patientType={pendingValues?.patient_type}
             onSaved={() => navigate(`/patients/${newPatientId}`)}
           />
         )}
@@ -66,7 +73,7 @@ export default function PatientRegisterPage() {
           onClick={() => navigate(`/patients/${newPatientId}`)}
           className="self-start text-sm text-slate-500 hover:text-slate-700 hover:underline"
         >
-          Skip for now — capture consent later from the patient's profile
+          Skip for now — capture the {term.word} later from the patient's profile
         </button>
       </div>
     )
@@ -79,7 +86,7 @@ export default function PatientRegisterPage() {
           <h1 className="text-lg font-semibold text-slate-800">Review before signing</h1>
           <p className="text-slate-500 text-sm mt-1">
             Show this to the patient (or parent/guardian) so they can confirm everything below is correct
-            before signing consent. Nothing is saved yet.
+            before signing the {term.word}. Nothing is saved yet.
           </p>
         </div>
         {error && <ErrorState message={error} />}
