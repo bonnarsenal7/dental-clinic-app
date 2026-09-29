@@ -259,10 +259,8 @@ a **Contract**; everyone else's stays **Consent**. `agreementTerm(type)` in
 reception's registration, and the intake review (following the type chosen
 there).
 
-**A word only.** The row is still in `consents`, the text signed is the same
-`CONSENT_TEXT`, and nothing else behaves differently. A real orthodontic
-contract — fees, duration, retention terms — would be its own wording, its
-own `CONSENT_TEXT_VERSION`, and its own legal review.
+**No longer a word only** — see "The orthodontic consent form" below. The
+row is still in `consents`; what is signed is now the clinic's own form.
 
 The patient's own intake form always says Consent: the type is reception's
 to choose, after the patient has signed. An unknown type reads as Consent,
@@ -436,3 +434,68 @@ pop-up behaviour on an iPad. The unit tests mock Supabase.
 
 The patient signs the same unreviewed draft consent wording as at the desk
 (`docs/COMPLIANCE.md`), now without staff beside them.
+
+## The orthodontic consent form (ortho-v1)
+
+At the clinic's request, an orthodontic patient signs the clinic's own
+**Orthodontic Treatment Consent Form** (the paper "ORTHO CONSENT PACKAGE –
+DAVAO", Dr. Abella) **instead of** the general `CONSENT_TEXT`.
+`ConsentCapture` hands off to `ortho/OrthoContractCapture` whenever
+`patientType === 'orthodontic'` and there is a patient to save against —
+at registration and on the profile's "Re-confirm contract". The self-intake
+form never passes a type, so a patient there always signs the general
+consent; if reception then files them as orthodontic, the contract is
+captured afterwards from the profile.
+
+- `ortho/orthoContract.ts` — the wording, the seven packages with their
+  terms, the add-ons and the acknowledgment, transcribed from the paper
+  form. **Change a word or a price → bump `ORTHO_CONTRACT_VERSION`**; it is
+  stored on the consents row, as with `CONSENT_TEXT_VERSION`.
+- On screen: the whole form scrolls in one box; the package availed is a
+  radio choice and fills the "regular fee" blank (editable, for a discount);
+  an acknowledgment tick, the patient/guardian signature (required) and the
+  dentist's signature (optional — may be countersigned on paper).
+- On save, **in this order**: render the PDF → file it on the record
+  (`saveOrthoContractPdf`: `attachments/<patient_id>/…`, a `patient_files`
+  row, type `contract`, listed under Attachments) → write the `consents` row
+  → hand the PDF to the tablet. PDF first so a consents row never exists
+  without its document; a failed upload records nothing.
+- The file is named **`<Patient Name> - <yyyy-mm-dd>.pdf`** (Manila date,
+  `orthoContractFileName`), characters a file system rejects dropped. The
+  Storage key is a sanitised copy with a timestamp, so two signings on one
+  day never overwrite.
+- `ortho/orthoContractPdf.ts` uses only Helvetica: amounts print as
+  "P 50,000", bullets and tick boxes are drawn shapes. jsPDF is imported
+  dynamically, only when somebody signs.
+
+- **A retry does not file the PDF twice.** If the PDF is filed and only the
+  consents row fails, the screen remembers what it filed; pressing Save again
+  for the *same* signing records it without uploading another copy. It has
+  to: reception cannot delete or overwrite a stored file, so a duplicate
+  would sit on the record until an admin removed it. A changed signing —
+  another package, fee or signature — is a different document and is filed.
+- **A discount prints both figures.** An edited fee fills the "regular fee"
+  blank; the ticked package still prints its own price and terms, so the
+  form adds "Agreed fee: P … (package price P …)" beneath it, on screen and
+  in the PDF.
+- **The heading is the clinic's name from settings** (`getClinicName`), like
+  the nav bar; `CLINIC_NAME` if unset or unreadable. A failed read never
+  blocks a signature.
+- **The profile tells a contract from a consent.** Rows are labelled
+  "orthodontic contract" or "general consent" by version
+  (`isOrthoContractVersion` — any `ortho-*`), and an orthodontic patient
+  with only the general consent on file gets "No orthodontic contract signed
+  yet". That is the self-intake path: they signed the general consent before
+  reception chose the type, and "Contract history" alone made it read as the
+  contract.
+
+Mutation-checked: dropping the profile warning, re-filing on every retry,
+dropping the agreed-fee line on screen or on paper, and ignoring the clinic
+name setting each fail a test.
+
+**Consequence to know:** the orthodontic form has no data-privacy clause,
+so an orthodontic patient no longer signs the RA 10173 notice in
+`CONSENT_TEXT`. The clinic chose "instead of"; if the privacy consent is
+still wanted for them, add it to the form (and bump the version) rather than
+asking for two signatures on two screens. The form wording has not had the
+legal review `docs/COMPLIANCE.md` asks of the general consent either.

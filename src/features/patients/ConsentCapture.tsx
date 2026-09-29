@@ -11,6 +11,7 @@ import { SIGNER_RELATIONSHIPS, agreementTerm, type PatientType, type SignerRelat
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import { Field, NativeSelect, TextInput } from '../../core/components/ui/Field'
+import OrthoContractCapture from './ortho/OrthoContractCapture'
 
 /** One signing, as captured — before anything is stored. */
 export interface CapturedConsent {
@@ -29,6 +30,8 @@ type ConsentCaptureProps = {
   /** Decides the word: Contract for orthodontic, Consent otherwise. Left
    *  out where the type is not known yet (the patient's own intake form). */
   patientType?: PatientType
+  /** Printed beside the name on the orthodontic form. */
+  patientAge?: number | null
 } & (
   | { patientId: string; staffId: string; save?: never }
   /** Somewhere other than the patient's record: the intake screen has no
@@ -37,7 +40,28 @@ type ConsentCaptureProps = {
   | { save: (consent: CapturedConsent) => Promise<void>; patientId?: never; staffId?: never }
 )
 
-export default function ConsentCapture({
+/** An orthodontic patient signs the clinic's own orthodontic treatment
+ *  consent form instead of the general consent, and it is saved as a PDF on
+ *  their record (see ortho/OrthoContractCapture). Everyone else — and the
+ *  patient's own intake form, where the type is not chosen yet — signs the
+ *  general consent below. */
+export default function ConsentCapture(props: ConsentCaptureProps) {
+  if (props.patientType === 'orthodontic' && props.patientId && props.staffId) {
+    return (
+      <OrthoContractCapture
+        patientId={props.patientId}
+        patientName={props.patientName}
+        patientAge={props.patientAge ?? null}
+        staffId={props.staffId}
+        onSaved={props.onSaved}
+        submitLabel={props.submitLabel}
+      />
+    )
+  }
+  return <GeneralConsentCapture {...props} />
+}
+
+function GeneralConsentCapture({
   patientId,
   patientName,
   staffId,

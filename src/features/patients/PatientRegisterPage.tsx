@@ -5,7 +5,8 @@ import PatientForm, { EMPTY_PATIENT_FORM } from './PatientForm'
 import RegistrationReview from './RegistrationReview'
 import ConsentCapture from './ConsentCapture'
 import { registerPatient } from './api'
-import { agreementTerm, type PatientRegistrationInput } from './types'
+import { agreementTerm, type Patient, type PatientRegistrationInput } from './types'
+import { ageOf } from './age'
 import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 
@@ -20,6 +21,7 @@ export default function PatientRegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [newPatientId, setNewPatientId] = useState<string | null>(null)
   const [newPatientName, setNewPatientName] = useState('')
+  const [newPatientAge, setNewPatientAge] = useState<number | null>(null)
 
   // The form's own "submit" just moves to the review step — nothing is
   // saved yet, so the patient can check every answer before anything
@@ -37,6 +39,7 @@ export default function PatientRegisterPage() {
       const patient = await registerPatient(pendingValues, staff.id)
       setNewPatientId(patient.id)
       setNewPatientName(patient.name)
+      setNewPatientAge(ageOf(patient as Pick<Patient, 'birthday' | 'age'>))
       setStage('consent')
     } catch (e) {
       setError(toMessage(e))
@@ -66,6 +69,7 @@ export default function PatientRegisterPage() {
             patientName={newPatientName}
             staffId={staff.id}
             patientType={pendingValues?.patient_type}
+            patientAge={newPatientAge}
             onSaved={() => navigate(`/patients/${newPatientId}`)}
           />
         )}

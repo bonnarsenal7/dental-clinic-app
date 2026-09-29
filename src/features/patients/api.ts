@@ -353,3 +353,46 @@ export async function getSignedFileUrl(path: string): Promise<string> {
   if (error) throw new Error(error.message)
   return data.signedUrl
 }
+
+// --- Orthodontic contract PDF -------------------------------------------
+
+/** The clinic's name as an admin set it at /admin/settings, for the
+ *  contract's heading. Empty when unset; the caller falls back to
+ *  CLINIC_NAME, as the nav bar does. */
+export async function getClinicName(): Promise<string> {
+  const { data, error } = await supabase
+    .from('clinic_settings')
+    .select('clinic_name')
+    .eq('id', 1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data?.clinic_name as string | null | undefined)?.trim() ?? ''
+}
+
+/** Files the signed orthodontic consent form on the patient's record, as an
+ *  attachment of type `contract`, so it is listed and viewable beside their
+ *  X-rays. The Storage key carries a timestamp so two signings on one day
+ *  never overwrite each other; the listed name is the one the clinic reads
+ *  ("Patient Name - 2026-09-29.pdf"). */
+export async function saveOrthoContractPdf(params: {
+  patientId: string
+  staffId: string
+  pdf: Blob
+  fileName: string
+}) {
+  const key = params.fileName.replace(/[^A-Za-z0-9._-]+/g, '_')
+  const path = `attachments/${params.patientId}/${Date.now()}-${key}`
+  const { error: uploadError } = await supabase.storage
+    .from(ATTACHMENTS_BUCKET)
+    .upload(path, params.pdf, { contentType: 'application/pdf' })
+  if (uploadError) throw new Error(`Contract PDF upload: ${uploadError.message}`)
+
+  const { error: insertError } = await supabase.from('patient_files').insert({
+    patient_id: params.patientId,
+    storage_path: path,
+    file_name: params.fileName,
+    file_type: 'contract',
+    uploaded_by: params.staffId,
+  })
+  if (insertError) throw new Error(`Contract PDF record: ${insertError.message}`)
+}

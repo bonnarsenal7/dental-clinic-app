@@ -213,6 +213,29 @@ describe('PatientProfilePage', () => {
     expect(screen.queryByText(/contract/i)).not.toBeInTheDocument()
   })
 
+  // A self-registered orthodontic patient signed the general consent first.
+  // Under "Contract history" that must not read as the contract.
+  it('says when an orthodontic patient has only the general consent on file', async () => {
+    vi.mocked(api.getPatient).mockResolvedValue({ ...PATIENT, patient_type: 'orthodontic' } as never)
+    vi.mocked(api.listConsents).mockResolvedValue([
+      { id: 'c-1', signed_at: '2026-09-01T02:00:00Z', consent_text_version: 'v3-draft' },
+    ] as never)
+    renderPage()
+    expect(await screen.findByText(/no orthodontic contract signed yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/^·\s*general consent$/)).toBeInTheDocument()
+  })
+
+  it('stops warning once the orthodontic contract is signed', async () => {
+    vi.mocked(api.getPatient).mockResolvedValue({ ...PATIENT, patient_type: 'orthodontic' } as never)
+    vi.mocked(api.listConsents).mockResolvedValue([
+      { id: 'c-1', signed_at: '2026-09-01T02:00:00Z', consent_text_version: 'v3-draft' },
+      { id: 'c-2', signed_at: '2026-09-02T02:00:00Z', consent_text_version: 'ortho-v1' },
+    ] as never)
+    renderPage()
+    expect(await screen.findByText(/orthodontic contract$/)).toBeInTheDocument()
+    expect(screen.queryByText(/no orthodontic contract signed yet/i)).not.toBeInTheDocument()
+  })
+
   it('shows a failure rather than an empty profile', async () => {
     vi.mocked(api.getPatient).mockRejectedValue(new Error('permission denied'))
     renderPage()

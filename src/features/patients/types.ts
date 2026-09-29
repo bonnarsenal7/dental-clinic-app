@@ -15,11 +15,11 @@ export const patientTypeLabel = (type: PatientType | null | undefined) =>
 /** What the signed agreement is called: a **Contract** for an orthodontic
  *  patient, a **Consent** for everyone else — the clinic's own words.
  *
- *  A word only. The stored record is a `consents` row either way, and the
- *  text signed is the same CONSENT_TEXT; a separate orthodontic contract
- *  wording would be its own change, and its own legal review. Unknown or
- *  unchosen types read as Consent, which is what every patient signed
- *  before the distinction existed. */
+ *  The stored record is a `consents` row either way. What is signed differs:
+ *  an orthodontic patient signs the clinic's orthodontic treatment consent
+ *  form (ortho/orthoContract.ts, filed as a PDF), everyone else CONSENT_TEXT.
+ *  Unknown or unchosen types read as Consent, which is what every patient
+ *  signed before the distinction existed. */
 export function agreementTerm(type: PatientType | null | undefined): { title: string; word: string } {
   return type === 'orthodontic'
     ? { title: 'Contract', word: 'contract' }

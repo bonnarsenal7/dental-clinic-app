@@ -208,6 +208,44 @@ describe('patients api', () => {
     expect(await api.isAssignedToDentist('p-1', 'd-1')).toBe(false)
   })
 
+  // --- Orthodontic contract PDF -------------------------------------------
+
+  // Filed as an attachment, so it is listed beside the X-rays — under the
+  // front-desk attachments/ prefix, never the dentist-only tooth/ one.
+  it('files the contract PDF under the patient, typed as a contract', async () => {
+    await api.saveOrthoContractPdf({
+      patientId: 'p-1',
+      staffId: 's-1',
+      pdf: new Blob(['%PDF']),
+      fileName: 'Maria Clara Santos - 2026-09-29.pdf',
+    })
+    const upload = db().storageOps.find((o) => o.method === 'upload')!
+    expect(upload.args[1]).toMatch(/^attachments\/p-1\/\d+-Maria_Clara_Santos_-_2026-09-29\.pdf$/)
+    expect(upload.args[3]).toEqual({ contentType: 'application/pdf' })
+    expect(db().query('patient_files')!.payload).toMatchObject({
+      patient_id: 'p-1',
+      storage_path: upload.args[1],
+      file_name: 'Maria Clara Santos - 2026-09-29.pdf',
+      file_type: 'contract',
+      uploaded_by: 's-1',
+    })
+  })
+
+  it('writes no attachment row when the PDF upload fails', async () => {
+    db().setStorageResult({ error: { message: 'Payload too large' } })
+    await expect(
+      api.saveOrthoContractPdf({ patientId: 'p-1', staffId: 's-1', pdf: new Blob(['x']), fileName: 'a.pdf' }),
+    ).rejects.toThrow('Contract PDF upload')
+    expect(db().query('patient_files')).toBeUndefined()
+  })
+
+  it('reads the clinic name from settings, trimmed, and blank when unset', async () => {
+    db().queue('clinic_settings', { data: { clinic_name: '  ToothCo Davao ' } })
+    expect(await api.getClinicName()).toBe('ToothCo Davao')
+    db().queue('clinic_settings', { data: null })
+    expect(await api.getClinicName()).toBe('')
+  })
+
   // --- Blank fields are null, not "" --------------------------------------
 
   // The intake form is mostly optional and every field arrives as a string.

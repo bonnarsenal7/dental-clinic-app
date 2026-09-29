@@ -14,6 +14,8 @@ import { toMessage } from '../../core/errors'
 import { ButtonLink } from '../../core/components/ui/Button'
 import MedicalAlerts from './MedicalAlerts'
 import PatientSummary from './PatientSummary'
+import { ageOf } from './age'
+import { isOrthoContractVersion } from './ortho/orthoContract'
 import { ErrorState, LoadingState } from '../../core/components/states'
 
 function trueKeys(map: Record<string, boolean> | undefined, options: { key: string; label: string }[]) {
@@ -57,6 +59,8 @@ export default function PatientProfilePage() {
   if (!patient || !id) return <LoadingState />
   // Contract for an orthodontic patient, Consent for everyone else.
   const term = agreementTerm(patient.patient_type)
+  const isOrtho = patient.patient_type === 'orthodontic'
+  const orthoContractSigned = consents.some((c) => isOrthoContractVersion(c.consent_text_version))
 
   return (
     <div className="flex flex-col gap-6">
@@ -205,9 +209,26 @@ export default function PatientProfilePage() {
         {consents.length === 0 && (
           <p className="text-slate-400 text-sm">No signed {term.word} on file yet.</p>
         )}
+        {/* An orthodontic patient who self-registered signed the general
+            consent first. Listed under "Contract history" with nothing else
+            said, that reads as the contract being signed. */}
+        {isOrtho && consents.length > 0 && !orthoContractSigned && (
+          <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            <strong className="font-semibold">No orthodontic contract signed yet.</strong> What is on file
+            below is the general consent. Use “Re-confirm contract” to have the patient sign the orthodontic
+            form.
+          </p>
+        )}
         {consents.map((c) => (
           <p key={c.id} className="text-sm text-slate-600">
             Signed {new Date(c.signed_at).toLocaleString()} — version {c.consent_text_version}
+            {(isOrtho || isOrthoContractVersion(c.consent_text_version)) && (
+              <span className="text-slate-500">
+                {' '}
+                ·{' '}
+                {isOrthoContractVersion(c.consent_text_version) ? 'orthodontic contract' : 'general consent'}
+              </span>
+            )}
             {/* A null signer means the consent predates 0010 recording it.
                 That has to read as "not recorded" rather than silently
                 looking like the patient signed. */}
@@ -231,6 +252,7 @@ export default function PatientProfilePage() {
             staffId={staff.id}
             submitLabel={`Save re-confirmed ${term.word}`}
             patientType={patient.patient_type}
+            patientAge={ageOf(patient)}
             onSaved={() => {
               setShowConsent(false)
               void refreshConsents(id)
