@@ -4,6 +4,7 @@ import RegistrationReview from '../RegistrationReview'
 import ConsentCapture, { type CapturedConsent } from '../ConsentCapture'
 import type { PatientRegistrationInput } from '../types'
 import { getIntakeStatus, submitIntake, type IntakeStatus } from './api'
+import type { IntakeDevice } from '../../../core/intakeHost'
 import { toMessage } from '../../../core/errors'
 import { ErrorState, LoadingState } from '../../../core/components/states'
 import Button from '../../../core/components/ui/Button'
@@ -13,6 +14,7 @@ type Stage = 'form' | 'review' | 'consent' | 'done'
 const CLOSED_MESSAGES: Record<Exclude<IntakeStatus, 'ready'>, { title: string; body: string }> = {
   used: {
     title: 'This form has already been submitted',
+    // The phone wording replaces this where the patient used their own.
     body: 'Please hand the tablet back to reception.',
   },
   expired: {
@@ -33,7 +35,8 @@ const CLOSED_MESSAGES: Record<Exclude<IntakeStatus, 'ready'>, { title: string; b
  *
  *  Same form, same review, same signature pad as reception's registration,
  *  so the patient sees exactly what they would have seen at the desk. */
-export default function IntakePage({ code }: { code: string }) {
+export default function IntakePage({ code, device = 'tablet' }: { code: string; device?: IntakeDevice }) {
+  const onPhone = device === 'phone'
   const [status, setStatus] = useState<IntakeStatus | null>(code ? null : 'unknown')
   const [statusError, setStatusError] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>('form')
@@ -77,12 +80,24 @@ export default function IntakePage({ code }: { code: string }) {
     return (
       <div className="bg-white border border-slate-200 rounded-xl p-8 flex flex-col gap-4 items-start max-w-lg">
         <h1 className="text-xl font-semibold text-slate-800">Thank you{firstName ? `, ${firstName}` : ''}</h1>
-        <p className="text-slate-600">
-          Your details have been sent to reception. Please hand the tablet back to the front desk.
-        </p>
-        {/* Works for a tab the app opened, which is how this one arrives.
-            If the browser refuses, the page already says what to do. */}
-        <Button onClick={() => window.close()}>Close this form</Button>
+        {onPhone ? (
+          // A browser will not let a page close a tab the patient opened
+          // themselves (by scanning the QR code), so no button that would
+          // silently do nothing — just what to do next.
+          <p className="text-slate-600">
+            Your details have been sent to reception. You can close this page and let the front desk know you
+            are done.
+          </p>
+        ) : (
+          <>
+            <p className="text-slate-600">
+              Your details have been sent to reception. Please hand the tablet back to the front desk.
+            </p>
+            {/* Works for a tab the app opened, which is how this one arrives.
+                If the browser refuses, the page already says what to do. */}
+            <Button onClick={() => window.close()}>Close this form</Button>
+          </>
+        )}
       </div>
     )
   }
@@ -92,7 +107,9 @@ export default function IntakePage({ code }: { code: string }) {
     return (
       <div className="bg-white border border-slate-200 rounded-xl p-8 flex flex-col gap-2 max-w-lg">
         <h1 className="text-lg font-semibold text-slate-800">{msg.title}</h1>
-        <p className="text-slate-600">{msg.body}</p>
+        <p className="text-slate-600">
+          {status === 'used' && onPhone ? 'Please let the front desk know you are done.' : msg.body}
+        </p>
       </div>
     )
   }

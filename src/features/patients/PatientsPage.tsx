@@ -8,6 +8,7 @@ import { toMessage } from '../../core/errors'
 import { ErrorState } from '../../core/components/states'
 import { PageHeader } from '../../core/components/ui/Page'
 import StartIntakeButton from './intake/StartIntakeButton'
+import IntakeQrButton from './intake/IntakeQrButton'
 import IntakeQueue from './intake/IntakeQueue'
 
 export default function PatientsPage() {
@@ -48,6 +49,9 @@ export default function PatientsPage() {
             {/* The patient types their own details, in a tab with no staff
                 login behind it, while this one locks (0026). */}
             <StartIntakeButton />
+            {/* The same form on the patient's own phone, for those who
+                would rather. The tablet stays the default. */}
+            <IntakeQrButton />
             <Link
               to="/patients/new"
               className="rounded-md bg-gold-700 text-white text-sm font-medium px-4 py-2 hover:bg-gold-800"

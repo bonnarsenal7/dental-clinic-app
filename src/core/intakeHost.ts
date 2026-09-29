@@ -25,10 +25,26 @@ export function isIntakeHost(origin: string = window.location.origin): boolean {
 /** The code travels in the fragment, not the path or the query: a fragment
  *  is never sent to the server, so it is not in Vercel's request logs — and
  *  the page needs no rewrite to be reachable at a deep URL. */
-export function intakeUrl(code: string): string {
-  return `${intakeOrigin()}/#${encodeURIComponent(code)}`
+export function intakeUrl(code: string, device: IntakeDevice = 'tablet'): string {
+  return `${intakeOrigin()}/#${device === 'phone' ? PHONE_MARK : ''}${encodeURIComponent(code)}`
+}
+
+/** Where the form is being filled in. The clinic tablet is handed back to
+ *  reception afterwards; a patient's own phone is not, so what the form says
+ *  when it is done — and whether it can close its own tab — differs. */
+export type IntakeDevice = 'tablet' | 'phone'
+
+/** Codes are base64url (letters, digits, `-`, `_`), so a colon cannot be
+ *  part of one and the marker is unambiguous. */
+const PHONE_MARK = 'phone:'
+
+export function readIntakeHash(hash: string = window.location.hash): { code: string; device: IntakeDevice } {
+  const raw = decodeURIComponent(hash.replace(/^#/, '')).trim()
+  return raw.startsWith(PHONE_MARK)
+    ? { code: raw.slice(PHONE_MARK.length).trim(), device: 'phone' }
+    : { code: raw, device: 'tablet' }
 }
 
 export function intakeCodeFromHash(hash: string = window.location.hash): string {
-  return decodeURIComponent(hash.replace(/^#/, '')).trim()
+  return readIntakeHash(hash).code
 }

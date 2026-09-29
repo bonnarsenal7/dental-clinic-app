@@ -61,6 +61,7 @@ describe('PatientsPage', () => {
     expect(await screen.findByText('1 patient form waiting for review')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Lorna Villanueva' })).toHaveAttribute('href', '/intakes/in-1')
     expect(screen.getByRole('button', { name: 'Patient fills in form' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /qr code for patient’s phone/i })).toBeInTheDocument()
   })
 
   // Registration is the front desk's, and so is the patient's own form.
@@ -69,6 +70,7 @@ describe('PatientsPage', () => {
     renderPage()
     await screen.findByRole('link', { name: /angelica/i })
     expect(screen.queryByRole('button', { name: 'Patient fills in form' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /qr code/i })).not.toBeInTheDocument()
     expect(intakeApi.listPendingIntakes).not.toHaveBeenCalled()
   })
 

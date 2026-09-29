@@ -376,6 +376,32 @@ The new tab is opened **before** the code is fetched — Safari blocks a tab
 opened after an await as a pop-up. If it is blocked anyway, the button
 offers a link, which is a fresh tap.
 
+### Or on the patient's own phone, by QR code
+**QR code for patient's phone**, beside "Patient fills in form", issues the
+same one-time code and shows it as a QR code (`IntakeQrButton`,
+`qrcode.react`, drawn as SVG). The patient scans it with their camera and
+fills in the same form on their own phone. Optional on purpose: some
+patients have no mobile data, which is why the tablet stays the default.
+
+- **The staff screen does not lock** — the lock exists because the patient
+  holds the clinic's tablet. Here they hold their own phone and reception
+  keeps working.
+- **The link carries a `phone:` marker** in the fragment (`#phone:<code>`;
+  codes are base64url, so a colon cannot be part of one). `readIntakeHash`
+  returns the device, and the form's closing words follow it: no "hand the
+  tablet back", and no Close button — a browser will not let a page close a
+  tab the patient opened themselves.
+- Closing the dialog forgets the code; an unscanned one simply expires.
+- Security is unchanged: the phone reaches the intake address with no staff
+  login and can only check its code and hand in one form.
+
+The library adds ~16 kB (8 kB gzipped) to the Patients page chunk, which is
+lazy-loaded. Not verified on real phones yet: scanning from a screen under
+clinic lighting, and the signature pad on a small screen.
+
+Mutation-checked: dropping the phone marker, locking the staff screen for a
+QR code, and giving a phone the tablet's wording each fail a test.
+
 ### Staging, then review
 `submit_intake` writes `intake_submissions`, not `patients`. Reception sees
 "N patient forms waiting for review" on the patients list, checks the

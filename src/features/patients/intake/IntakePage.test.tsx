@@ -119,4 +119,24 @@ describe('IntakePage', () => {
     await user.click(screen.getByRole('button', { name: 'Back to my answers' }))
     expect(screen.getByText('Maria Clara Santos')).toBeInTheDocument()
   })
+
+  // On their own phone there is no tablet to hand back, and a browser will
+  // not let the page close a tab the patient opened by scanning.
+  it('tells a patient on their own phone what to do, without a close button', async () => {
+    vi.mocked(api.submitIntake).mockResolvedValue(undefined)
+    render(<IntakePage code="abc" device="phone" />)
+    const user = await reachSignature()
+    await user.click(screen.getByRole('button', { name: 'Sign and send to reception' }))
+
+    expect(await screen.findByText(/you can close this page/i)).toBeInTheDocument()
+    expect(screen.queryByText(/hand the tablet back/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /close this form/i })).not.toBeInTheDocument()
+  })
+
+  it('does not ask for a tablet back when a phone reopens a spent code', async () => {
+    vi.mocked(api.getIntakeStatus).mockResolvedValue('used')
+    render(<IntakePage code="abc" device="phone" />)
+    expect(await screen.findByText(/let the front desk know/i)).toBeInTheDocument()
+    expect(screen.queryByText(/hand the tablet back/i)).not.toBeInTheDocument()
+  })
 })
