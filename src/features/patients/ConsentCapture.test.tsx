@@ -9,7 +9,7 @@ import {
   missingConsentDetails,
 } from './historyOptions'
 
-vi.mock('./api', () => ({ saveConsent: vi.fn() }))
+vi.mock('./api', () => ({ saveConsent: vi.fn(), getClinicName: vi.fn(async () => '') }))
 
 // happy-dom has no canvas, and the real pad needs one. The double keeps the
 // component's own contract: the ref exposes isEmpty(), which gates saving,
@@ -57,7 +57,8 @@ describe('ConsentCapture', () => {
         patientType="orthodontic"
       />,
     )
-    expect(screen.getByRole('heading', { name: 'Contract for treatment' })).toBeInTheDocument()
+    // …and shows the clinic's orthodontic form, not the general consent.
+    expect(screen.getByRole('heading', { name: 'Contract for orthodontic treatment' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save signed contract' })).toBeInTheDocument()
   })
 
