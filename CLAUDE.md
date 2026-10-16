@@ -48,8 +48,10 @@ changing a feature** — the decisions, gotchas and "why" live there:
 - `src/features/dailyClose/CLAUDE.md` — expenses, salary, Close Clinic, EOD
   report (0020–0022, 0024, 0027)
 - `src/features/calendar/CLAUDE.md` — dentist calendar (0025)
-- `src/CLAUDE.md` — brand palette, logo and design tokens: the colour rules
-  and contrast figures behind `src/index.css`
+- `src/CLAUDE.md` — brand palette, logo and design tokens (the colour rules
+  and contrast figures behind `src/index.css`), route splitting, print
+  styles, typography
+- `src/features/admin/CLAUDE.md` — setting and resetting staff passwords
 - `src/core/components/CLAUDE.md` — UI primitives and components
 - `docs/ROADMAP.md` — the original nine-phase build plan
 
@@ -124,44 +126,10 @@ leaving the two halves inconsistent.
 Restoring does not restore a password. The dialog says so, because otherwise
 whoever restores the account will tell the staff member to just log in.
 
-### An admin may set a password, or let one be generated
-Both `create` and `reset_password` take an **optional** `password`. Left
-blank, the server generates one and nothing changes. Supplied, that becomes
-the password — because reading `Tmp-9fA2xQ` down the phone is how a new
-starter is locked out on their first morning, and a clinic will otherwise
-invent its own workaround.
-
-**The eight-character minimum is enforced in the Edge Function, not only in
-the form.** The endpoint is reachable with any HTTP client, so "the UI
-checks it" is not a check. It matches the minimum `ResetPasswordPage`
-already applies, so a password an admin sets is one the staff member could
-have set themselves. A refused attempt leaves the old password working —
-verified live, not assumed.
-
-The response carries `chosen`, so the screen can say "Password set" rather
-than "New temporary password". A chosen password is echoed back too: that is
-how the admin sees what they actually typed.
-
-The field is cleared whenever the dialog opens. Carrying a typed password
-from one account's dialog to the next would set it on somebody it was never
-meant for.
-
-### Resetting a password issues one, rather than emailing a link
-`reset_password` sets a new temporary password and returns it once, the same
-shape as `create`. It is not an emailed reset link, because the case it
-exists for is a staff member locked out mid-clinic-day who often cannot
-reach the mailbox on file — or whose address is shared. Self-service by
-email still lives at `/forgot-password` for anyone who can receive mail.
-
-**Only offered for active accounts.** A new password does nothing against a
-deactivated one: the GoTrue ban refuses the login before the password is
-ever checked, so handing an admin a credential that cannot be used would be
-worse than refusing. The Edge Function enforces this too, not just the UI.
-
-**It does not cut off an open session.** Changing a password leaves existing
-refresh tokens valid. If the point of the reset is that the old password
-leaked, deactivate and restore instead — that bans and unbans in GoTrue,
-which does end the session. The confirmation dialog says this.
+### Setting and resetting passwords
+The rules — optional admin-chosen passwords, the eight-character minimum
+enforced in the Edge Function, and why a reset issues a password instead of
+emailing a link — are in `src/features/admin/CLAUDE.md`.
 
 ### Staff account management
 Creating and deactivating accounts needs the Supabase **service-role**
@@ -709,70 +677,6 @@ found exactly this way: its label pointed at the neighbouring search box.
 Re-check after adding a form; the scan is a short script over the JSX (see
 the commit that introduced this section).
 
-## Route splitting
-
-Everything behind the login is `lazy()`. First load went from **1,560 kB to
-556 kB** — measured by summing what `index.html` actually asks for, which
-includes the module preloads, not just the entry chunk.
-
-The largest win is the PDF stack: `receiptPdf` (392 kB), `html2canvas`
-(195 kB) and `index.es` (148 kB) now arrive only when someone opens an
-invoice. Most sessions never generate a receipt.
-
-**The auth screens and the shell stay eager.** They are what someone
-actually waits for; splitting them would add a round trip to the one thing
-on the critical path.
-
-The Suspense boundary lives **inside `AppShell`, around the outlet**, so the
-nav bar stays put while a route arrives rather than the screen blanking.
-
-### `src/core/routes.ts` is the single import map
-`App.tsx` builds its `lazy()` components from `routeChunks`, and the shell
-warms from the same object. **Don't inline a dynamic import at a call
-site** — a second specifier for the same page fetches a second copy of the
-chunk and warms nothing.
-
-### Warming is short, role-aware, and declines on metered connections
-Splitting means tapping "Schedule" waits on a fetch, so once signed in the
-shell warms the handful of routes that role opens first — five at most.
-Warming everything would put the bundle back on the wire and undo the
-split. Reception gets the invoice screen warmed because it drags in the PDF
-stack, the worst thing to wait for with a patient at the desk; a dentist
-does not, and gets the chart instead. A dentist does not warm the schedule
-either — their nav does not offer it and the route refuses them.
-
-It skips entirely when `navigator.connection.saveData` is set: these
-tablets sometimes fall back to a phone hotspot, and speculatively pulling
-half a megabyte of someone's mobile data is not a trade to make for them.
-
-`requestIdleCallback` has a `setTimeout` fallback that is **not
-theoretical** — Safari on iPad only gained it in 16.4, so on an older clinic
-tablet the fallback is the live path. Both are tested.
-
-## Print (Phase E)
-
-Receipts are PDFs, but the treatment ledger, the patient record and the
-tooth chart are printed straight from the browser — for the paper file, for
-a referral, and during the pilot to reconcile against the old ledger. The
-rules live at the end of `src/index.css`.
-
-**The trap: don't hide `[role="button"]`.** The odontogram gives every tooth
-and every surface that role, so a rule hiding everything with it prints a
-blank chart — the one document most worth printing, and a failure nobody
-notices until a sheet comes out of the printer empty. The hide rule is
-scoped to real `<button>` elements and button-styled links. `theme.test.ts`
-asserts this, and fails if `[role="button"]` is ever added to that list.
-
-Also deliberate: `print-color-adjust: exact` on SVG, because a chart in
-greyscale cannot distinguish red decay from a blue filling; scroll
-containers unclipped, since a clipped table on paper is a lost record;
-`thead` repeated on every sheet; and `.fixed` / `.sticky` hidden, or the
-offline banner and the unsaved-marks bar repeat on every page.
-
-**Not verified visually.** These rules are asserted in the stylesheet and
-nothing more — no one has put a page through a printer. That check belongs
-in the pilot.
-
 ## Formatting
 
 Prettier, config in `.prettierrc.json`. The settings were read off the
@@ -805,21 +709,3 @@ editor settings disable format-on-save for those two languages to match.
 which would have made the shared formatting rules a local preference rather
 than a shared one. Open the project and VS Code will suggest the three
 extensions it expects.
-
-## Typography — an open recommendation, not yet done
-
-The app currently uses Tailwind's default system font stack; no webfont is
-loaded. The design review recommended **Figtree** for the whole interface —
-open apertures at small sizes, tabular figures, and enough weight range to
-build hierarchy without a second face — with a mono face for identifiers
-that must not be misread.
-
-Tabular figures are the part that actually matters here rather than the
-family: the ledger, the day sheet and the chart all put digits in columns,
-and proportional numerals make those columns ragged. The app already asks
-for `tabular-nums` in those places, which the system stack honours
-unevenly across platforms.
-
-Not adopted, because a webfont is a first-load cost on clinic Wi-Fi and the
-system stack is legible. Revisit if the pilot reports the numbers being
-hard to scan.

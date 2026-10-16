@@ -1,8 +1,8 @@
-# Design system — working notes
+# Front-end — working notes
 
-Moved out of the root CLAUDE.md so it loads only when working under `src/`.
-`src/index.css` is the design system; these are the rules and the measured
-contrast figures behind it.
+Moved out of the root CLAUDE.md so it loads only when working under `src/`:
+the design system (`src/index.css` — the colour rules and the measured
+contrast figures behind them), route splitting, print styles and typography.
 
 ## Brand palette & logo (added post-Phase 7)
 
@@ -171,3 +171,85 @@ Amber is the chart's crown and the brand's hue. A third meaning would make
 all three ambiguous, so paid/unpaid/waiting are red, green or neutral —
 asserted by hue in the token test. Anything merely informational (a
 part-paid invoice, a short wait) takes a neutral, not a warning colour.
+
+## Route splitting
+
+Everything behind the login is `lazy()`. First load went from **1,560 kB to
+556 kB** — measured by summing what `index.html` actually asks for, which
+includes the module preloads, not just the entry chunk.
+
+The largest win is the PDF stack: `receiptPdf` (392 kB), `html2canvas`
+(195 kB) and `index.es` (148 kB) now arrive only when someone opens an
+invoice. Most sessions never generate a receipt.
+
+**The auth screens and the shell stay eager.** They are what someone
+actually waits for; splitting them would add a round trip to the one thing
+on the critical path.
+
+The Suspense boundary lives **inside `AppShell`, around the outlet**, so the
+nav bar stays put while a route arrives rather than the screen blanking.
+
+### `src/core/routes.ts` is the single import map
+`App.tsx` builds its `lazy()` components from `routeChunks`, and the shell
+warms from the same object. **Don't inline a dynamic import at a call
+site** — a second specifier for the same page fetches a second copy of the
+chunk and warms nothing.
+
+### Warming is short, role-aware, and declines on metered connections
+Splitting means tapping "Schedule" waits on a fetch, so once signed in the
+shell warms the handful of routes that role opens first — five at most.
+Warming everything would put the bundle back on the wire and undo the
+split. Reception gets the invoice screen warmed because it drags in the PDF
+stack, the worst thing to wait for with a patient at the desk; a dentist
+does not, and gets the chart instead. A dentist does not warm the schedule
+either — their nav does not offer it and the route refuses them.
+
+It skips entirely when `navigator.connection.saveData` is set: these
+tablets sometimes fall back to a phone hotspot, and speculatively pulling
+half a megabyte of someone's mobile data is not a trade to make for them.
+
+`requestIdleCallback` has a `setTimeout` fallback that is **not
+theoretical** — Safari on iPad only gained it in 16.4, so on an older clinic
+tablet the fallback is the live path. Both are tested.
+
+## Print (Phase E)
+
+Receipts are PDFs, but the treatment ledger, the patient record and the
+tooth chart are printed straight from the browser — for the paper file, for
+a referral, and during the pilot to reconcile against the old ledger. The
+rules live at the end of `src/index.css`.
+
+**The trap: don't hide `[role="button"]`.** The odontogram gives every tooth
+and every surface that role, so a rule hiding everything with it prints a
+blank chart — the one document most worth printing, and a failure nobody
+notices until a sheet comes out of the printer empty. The hide rule is
+scoped to real `<button>` elements and button-styled links. `theme.test.ts`
+asserts this, and fails if `[role="button"]` is ever added to that list.
+
+Also deliberate: `print-color-adjust: exact` on SVG, because a chart in
+greyscale cannot distinguish red decay from a blue filling; scroll
+containers unclipped, since a clipped table on paper is a lost record;
+`thead` repeated on every sheet; and `.fixed` / `.sticky` hidden, or the
+offline banner and the unsaved-marks bar repeat on every page.
+
+**Not verified visually.** These rules are asserted in the stylesheet and
+nothing more — no one has put a page through a printer. That check belongs
+in the pilot.
+
+## Typography — an open recommendation, not yet done
+
+The app currently uses Tailwind's default system font stack; no webfont is
+loaded. The design review recommended **Figtree** for the whole interface —
+open apertures at small sizes, tabular figures, and enough weight range to
+build hierarchy without a second face — with a mono face for identifiers
+that must not be misread.
+
+Tabular figures are the part that actually matters here rather than the
+family: the ledger, the day sheet and the chart all put digits in columns,
+and proportional numerals make those columns ragged. The app already asks
+for `tabular-nums` in those places, which the system stack honours
+unevenly across platforms.
+
+Not adopted, because a webfont is a first-load cost on clinic Wi-Fi and the
+system stack is legible. Revisit if the pilot reports the numbers being
+hard to scan.
