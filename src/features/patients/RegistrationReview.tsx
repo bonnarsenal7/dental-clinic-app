@@ -1,5 +1,7 @@
 import { DENTAL_SYMPTOMS, MEDICAL_CONDITIONS, ORAL_HABITS } from './historyOptions'
 import { patientTypeLabel } from './types'
+import { formatHeight } from './height'
+import { formatWeight } from './weight'
 import type { PatientRegistrationInput } from './types'
 
 function checkedLabels(map: Record<string, boolean>, options: { key: string; label: string }[]) {
@@ -59,11 +61,11 @@ export default function RegistrationReview({
         </div>
         <div className={row}>
           <span className={rowLabel}>Height</span>
-          <span className={rowValue}>{values.height || '—'}</span>
+          <span className={rowValue}>{formatHeight(values.height)}</span>
         </div>
         <div className={row}>
           <span className={rowLabel}>Weight</span>
-          <span className={rowValue}>{values.weight || '—'}</span>
+          <span className={rowValue}>{formatWeight(values.weight)}</span>
         </div>
         <div className={row}>
           <span className={rowLabel}>Occupation</span>

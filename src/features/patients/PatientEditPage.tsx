@@ -5,6 +5,7 @@ import PatientForm from './PatientForm'
 import { EMPTY_PATIENT_FORM } from './PatientForm'
 import { getDentalHistory, getMedicalHistory, getPatient, updatePatientHistory } from './api'
 import type { PatientRegistrationInput } from './types'
+import { toHeightOption } from './height'
 import { toMessage } from '../../core/errors'
 import { ErrorState, LoadingState } from '../../core/components/states'
 
@@ -31,7 +32,7 @@ export default function PatientEditPage() {
           birthday: toStr(patient.birthday),
           age: toStr(patient.age),
           sex: toStr(patient.sex),
-          height: toStr(patient.height),
+          height: toHeightOption(toStr(patient.height)),
           weight: toStr(patient.weight),
           occupation: toStr(patient.occupation),
           spouse: toStr(patient.spouse),

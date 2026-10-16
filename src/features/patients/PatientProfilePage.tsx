@@ -13,6 +13,8 @@ import type { Consent, DentalHistory, MedicalHistory, Patient } from './types'
 import { toMessage } from '../../core/errors'
 import { ButtonLink } from '../../core/components/ui/Button'
 import MedicalAlerts from './MedicalAlerts'
+import { formatHeight } from './height'
+import { formatWeight } from './weight'
 import PatientSummary from './PatientSummary'
 import { ErrorState, LoadingState } from '../../core/components/states'
 
@@ -123,10 +125,10 @@ export default function PatientProfilePage() {
               <span className="text-slate-400">Sex:</span> {patient.sex ?? '—'}
             </p>
             <p>
-              <span className="text-slate-400">Height:</span> {patient.height ?? '—'}
+              <span className="text-slate-400">Height:</span> {formatHeight(patient.height)}
             </p>
             <p>
-              <span className="text-slate-400">Weight:</span> {patient.weight ?? '—'}
+              <span className="text-slate-400">Weight:</span> {formatWeight(patient.weight)}
             </p>
             <p>
               <span className="text-slate-400">Occupation:</span> {patient.occupation ?? '—'}

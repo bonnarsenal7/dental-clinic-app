@@ -1,6 +1,8 @@
 import { useForm } from 'react-hook-form'
 import { DENTAL_SYMPTOMS, MEDICAL_CONDITIONS, ORAL_HABITS } from './historyOptions'
 import { PATIENT_TYPES } from './types'
+import { HEIGHT_OPTIONS, formatHeight } from './height'
+import { WEIGHT_OPTIONS, formatWeight } from './weight'
 import type { PatientRegistrationInput } from './types'
 import { Field, NativeSelect, TextArea, TextInput } from '../../core/components/ui/Field'
 import Button from '../../core/components/ui/Button'
@@ -45,6 +47,14 @@ export const EMPTY_PATIENT_FORM: PatientRegistrationInput = {
   oral_habits_other_details: '',
 }
 
+type Option = { value: string; label: string }
+
+function withStored(options: Option[], stored: string, label: (v: string) => string): Option[] {
+  return stored && !options.some((o) => o.value === stored)
+    ? [...options, { value: stored, label: label(stored) }]
+    : options
+}
+
 const sectionCls = 'bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4'
 const checkboxRowCls = 'flex items-center gap-2 text-sm text-slate-700'
 
@@ -75,6 +85,15 @@ export default function PatientForm({
   const hospitalized = watch('hospitalized')
   const allergic = watch('allergic_to_food_or_drug')
   const onMeds = watch('current_medications')
+
+  // A stored height or weight outside the list keeps an option of its own,
+  // or the select would open blank and saving would erase it.
+  const heightOptions = withStored(
+    HEIGHT_OPTIONS,
+    defaultValues.height,
+    (v) => `${formatHeight(v)} (${v} cm)`,
+  )
+  const weightOptions = withStored(WEIGHT_OPTIONS, defaultValues.weight, formatWeight)
 
   return (
     <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
@@ -114,10 +133,24 @@ export default function PatientForm({
             </NativeSelect>
           </Field>
           <Field label="Height">
-            <TextInput {...register('height')} />
+            <NativeSelect {...register('height')}>
+              <option value="">—</option>
+              {heightOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
           <Field label="Weight">
-            <TextInput {...register('weight')} />
+            <NativeSelect {...register('weight')}>
+              <option value="">—</option>
+              {weightOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
           <Field label="Occupation">
             <TextInput {...register('occupation')} />
