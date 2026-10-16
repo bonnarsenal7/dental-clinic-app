@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { WEIGHT_OPTIONS, formatWeight } from './weight'
 
 describe('weight', () => {
-  it('offers 20 to 100 kg in half-kilogram steps', () => {
+  it('offers 10 to 100 kg in half-kilogram steps', () => {
     expect(WEIGHT_OPTIONS.slice(0, 3)).toEqual([
-      { value: '20', label: '20 kg' },
-      { value: '20.5', label: '20.5 kg' },
-      { value: '21', label: '21 kg' },
+      { value: '10', label: '10 kg' },
+      { value: '10.5', label: '10.5 kg' },
+      { value: '11', label: '11 kg' },
     ])
     expect(WEIGHT_OPTIONS.at(-1)).toEqual({ value: '100', label: '100 kg' })
-    expect(WEIGHT_OPTIONS).toHaveLength(161)
+    expect(WEIGHT_OPTIONS).toHaveLength(181)
   })
 
   it('matches a stored value as the edit page passes it', () => {
