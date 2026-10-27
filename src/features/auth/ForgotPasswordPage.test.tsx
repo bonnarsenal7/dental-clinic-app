@@ -64,4 +64,41 @@ describe('ForgotPasswordPage', () => {
     renderPage()
     expect(screen.getByRole('link', { name: /back to sign in/i })).toBeInTheDocument()
   })
+
+  it('trims the address before sending', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.type(screen.getByLabelText(/email/i), '  staff@toothco.test ')
+    await user.click(screen.getByRole('button', { name: /send reset link/i }))
+    await waitFor(() =>
+      expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('staff@toothco.test', expect.anything()),
+    )
+  })
+
+  it('can send the link again to the same address', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.type(screen.getByLabelText(/email/i), 'staff@toothco.test')
+    await user.click(screen.getByRole('button', { name: /send reset link/i }))
+    await user.click(await screen.findByRole('button', { name: /send it again/i }))
+    await waitFor(() => expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(2))
+    expect(auth.resetPasswordForEmail).toHaveBeenLastCalledWith('staff@toothco.test', expect.anything())
+  })
+
+  // A dropped connection used to render "TypeError: Failed to fetch".
+  it('says the connection failed in plain words', async () => {
+    const user = userEvent.setup()
+    auth.resetPasswordForEmail.mockRejectedValue(new TypeError('Failed to fetch'))
+    renderPage()
+    await user.type(screen.getByLabelText(/email/i), 'staff@toothco.test')
+    await user.click(screen.getByRole('button', { name: /send reset link/i }))
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/failed to fetch/i)
+  })
+
+  // The mailbox on file is sometimes shared or out of reach; the admin reset
+  // is the way out, and the screen should say so.
+  it('points to an admin when the inbox cannot be reached', () => {
+    renderPage()
+    expect(screen.getByText(/ask an admin to reset your password/i)).toBeInTheDocument()
+  })
 })
