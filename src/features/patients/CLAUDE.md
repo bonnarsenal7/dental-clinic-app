@@ -436,3 +436,40 @@ pop-up behaviour on an iPad. The unit tests mock Supabase.
 
 The patient signs the same unreviewed draft consent wording as at the desk
 (`docs/COMPLIANCE.md`), now without staff beside them.
+
+## Height and weight are dropdowns
+
+At the clinic's request, both are chosen from a list rather than typed:
+height in feet and inches, **3'0" to 7'10"** (`height.ts`), weight in
+**10 to 100 kg in half-kilogram steps** (`weight.ts`). The intake form gets
+them too, since it is the same `PatientForm`.
+
+### Height is shown in feet and inches but stored in centimetres
+`patients.height` is a bare `numeric`, and every row written before the
+dropdown held centimetres. Storing inches would have put two units in one
+column with nothing to tell them apart, so the unit did not change: each
+option's value is the centimetre figure to one decimal (5'10" → `177.8`),
+which converts back to the same inch exactly. The profile and the
+registration review show feet and inches through `formatHeight`. **Don't
+"fix" the column to inches** without converting the rows already in it.
+
+Weight needed none of this — it was already kilograms.
+
+### A stored value must never open as a blank select
+A select whose value matches no option opens on "—" and saves back as
+nothing, so editing a phone number would silently erase someone's height.
+Two guards prevent it:
+
+- **`PatientEditPage` snaps an older centimetre height** onto its nearest
+  option (`toHeightOption`: 162 → 162.6, i.e. 5'4"). The cost: re-saving
+  such a record moves it by under a centimetre, and the audit log records a
+  height change nobody typed. Accepted — it only touches rows from before the
+  dropdown, and only when they are edited.
+- **`PatientForm` adds an option for any value on file outside the list** —
+  an infant's 60 cm, a weight of 8.2 kg — rather than dropping it.
+
+Weight option values are written as the database returns them (`"52"`,
+`"52.5"`, never `"52.0"`), or a stored weight would miss its option.
+
+Mutation-checked: removing the extra option for height, removing it for
+weight, and dropping the snap on the edit page each fail a test.

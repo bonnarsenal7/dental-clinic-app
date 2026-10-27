@@ -33,6 +33,8 @@ vi.mock('./PatientForm', () => ({
       <p>asthma {String(defaultValues.conditions?.asthma)}</p>
       <p>type {defaultValues.patient_type}</p>
       <p>type editable {String(canChooseType)}</p>
+      <p>height {defaultValues.height}</p>
+      <p>weight {defaultValues.weight}</p>
       <button type="button" onClick={() => void onSubmit(VALUES)}>
         {submitLabel}
       </button>
@@ -142,5 +144,19 @@ describe('PatientEditPage', () => {
     vi.mocked(api.getPatient).mockRejectedValue(new Error('permission denied'))
     render(<PatientEditPage />)
     expect(await screen.findByText(/permission denied/i)).toBeInTheDocument()
+  })
+
+  // Heights from before the dropdown are whole centimetres that match no
+  // option. Unsnapped, the select opens blank and saving erases the height.
+  it('opens an older centimetre height on its nearest option', async () => {
+    vi.mocked(api.getPatient).mockResolvedValue({
+      id: 'p-1',
+      name: 'Maria Clara Santos',
+      height: 162,
+      weight: 52,
+    } as never)
+    render(<PatientEditPage />)
+    expect(await screen.findByText('height 162.6')).toBeInTheDocument()
+    expect(screen.getByText('weight 52')).toBeInTheDocument()
   })
 })

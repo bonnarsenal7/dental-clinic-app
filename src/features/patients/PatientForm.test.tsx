@@ -177,4 +177,26 @@ describe('PatientForm', () => {
     renderForm()
     expect(screen.getByRole('button', { name: /register patient/i })).toBeInTheDocument()
   })
+
+  // Height and weight are dropdowns. A value on file that matches no option
+  // would open as "—" and be saved back as nothing — so it gets an option.
+  it('keeps a height and weight on file that the lists do not offer', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderForm({ name: 'Baby Reyes', height: '60', weight: '8.2' })
+    expect(screen.getByLabelText('Height')).toHaveValue('60')
+    expect(screen.getByLabelText('Weight')).toHaveValue('8.2')
+    await user.click(screen.getByRole('button', { name: /register patient/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ height: '60', weight: '8.2' })
+  })
+
+  it('saves a chosen height in centimetres and weight in kilograms', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderForm({ name: 'Test Patient' })
+    await user.selectOptions(screen.getByLabelText('Height'), `5'10"`)
+    await user.selectOptions(screen.getByLabelText('Weight'), '52.5 kg')
+    await user.click(screen.getByRole('button', { name: /register patient/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ height: '177.8', weight: '52.5' })
+  })
 })
